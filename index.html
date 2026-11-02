@@ -51,6 +51,7 @@
     <input id="lg_usuario" class="campo" placeholder="Usuário" autocomplete="username">
     <input id="lg_senha" type="password" class="campo" placeholder="Senha" autocomplete="current-password">
     <button class="acao" onclick="entrar()">Entrar</button>
+    <button onclick="esqueciSenha()" style="background:none;border:none;color:#0b5394;margin-top:10px;cursor:pointer;text-decoration:underline">Esqueci a senha</button>
     <div id="lg_msg" class="nota"></div>
   </div>
 </div>
@@ -628,6 +629,20 @@ async function verHistorico(aba) {
       `<table><tr><th>Data</th><th>Quem</th><th>Título</th><th>Dados</th></tr>${corpo || '<tr><td colspan="4">Nada salvo ainda</td></tr>'}</table>`;
   } catch (e) {
     app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><p>Não consegui carregar o histórico. Verifique a internet.</p>`;
+  }
+}
+
+// ===== ESQUECI A SENHA (pede à gerência uma senha nova) =====
+async function esqueciSenha() {
+  const usuario = document.getElementById("lg_usuario").value.trim();
+  const msg = document.getElementById("lg_msg");
+  if (!usuario) { msg.textContent = "Digite seu usuário no campo acima e clique de novo em Esqueci a senha."; return; }
+  msg.textContent = "Enviando pedido...";
+  try {
+    await chamarApi({ acao: "pedirNovaSenha", usuario: usuario });
+    msg.textContent = "Pedido enviado. A gerência vai te passar uma senha nova.";
+  } catch (e) {
+    msg.textContent = "Não consegui enviar o pedido. Verifique a internet.";
   }
 }
 
