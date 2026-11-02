@@ -1121,7 +1121,6 @@ function podeMovimentarAlmox(local) {
   const eu = norm(window.nomeUsuario);
   return (QUEM_MOVIMENTA_ALMOX[local] || []).some(n => norm(n) === eu);
 }
-const MATERIAIS_ALMOX = [...FERRAMENTAS_ITENS, "Outro (descrever)"];
 const ROTINA_ITENS = [
   "Relatório de água bruta enviado no grupo",
   "Tabela de consumo e estoque de produtos químicos enviada no grupo",
@@ -1152,6 +1151,7 @@ const FERRAMENTAS_ITENS = [
   "Chibanca", "Cavadeira", "Colher de pedreiro", "Caixa de ferramentas"
 ];
 const MOTIVOS_FERRAMENTA = ["Quebrou", "Desgaste", "Não possui", "Outro"];
+const MATERIAIS_ALMOX = [...FERRAMENTAS_ITENS, "Outro (descrever)"];
 
 // Contratos de energia da UNB (conta, sistema, cidade)
 const CONTRATOS_COELBA = [
