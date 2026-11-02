@@ -141,17 +141,17 @@ const TELAS = {
   nivelAngico: () => `
     <h2>Níveis – ETA Angico</h2>
     ${GRADE(["RAD Angico"], 5, 17)}
-    <button class="acao">Salvar nível</button>`,
+    <button class="acao" onclick="salvarTela(this, 'Niveis')">Salvar nível</button>`,
 
   nivelSD: () => `
     <h2>Níveis – ETA São Desidério</h2>
     ${GRADE(["Semi-enterrado 1", "RAD 2 (apoiado de distribuição 2)"])}
-    <button class="acao">Salvar níveis</button>`,
+    <button class="acao" onclick="salvarTela(this, 'Niveis')">Salvar níveis</button>`,
 
   nivelMozondo: () => `
     <h2>Níveis – ETA Mozondó</h2>
     ${GRADE(["Reservatórios ETA Mozondó (um nível, vale para os dois)"])}
-    <button class="acao">Salvar nível</button>`,
+    <button class="acao" onclick="salvarTela(this, 'Niveis')">Salvar nível</button>`,
 
   leituraMozondo: () => {
     const horas = ["08:00","10:00","12:00","14:00","16:00","18:00","20:00","22:00","00:00","02:00","04:00","06:00"];
@@ -174,7 +174,7 @@ const TELAS = {
     </table>
     <h2 style="margin-top:14px">Observações</h2>
     <textarea class="campo" rows="3" placeholder="Observações do dia"></textarea>
-    <button class="acao">Salvar no histórico do app</button>
+    <button class="acao" onclick="salvarTela(this, 'Leituras')">Salvar no histórico do app</button>
     <button class="acao" style="background:#555">Ver histórico de leituras</button>
     <div class="nota">Não gera texto para o grupo. Nível de 1 m ou menos aparece em Informações urgentes para todos.</div>`;
   },
@@ -594,9 +594,25 @@ function voltar() {
   }
 }
 
+// ===== SALVAR NA PLANILHA =====
+async function salvarTela(btn, aba) {
+  const area = btn.closest("main") || document.body;
+  const campos = [...area.querySelectorAll("input, textarea, select")].map(c => c.value);
+  const titulo = (document.querySelector("#app h2") || {}).textContent || "";
+  try {
+    const res = await chamarApi({
+      acao: "gravar", usuario: window.credenciais.usuario, senha: window.credenciais.senha,
+      aba: aba, linha: [titulo, JSON.stringify(campos)]
+    });
+    alert(res.erro ? res.erro : "Salvo no histórico.");
+  } catch (e) {
+    alert("Não consegui salvar. Verifique a internet.");
+  }
+}
+
 // ===== LOGIN (ligado à planilha pelo Apps Script) =====
 const URL_API = "https://script.google.com/macros/s/AKfycbwdtUFwHZbW0Ms7KSzFyZ63upUVD-jGafPzszRXZMJI50Xatcr-ew7PjVQTnQ-DC1Fh/exec";
-const MAPA_PERFIS = { "operador_mozondo": "Operador Mozondó (Genildo)" };
+const MAPA_PERFIS = { "operador_mozondo": "Operador Mozondó (Genildo)", "gerente": "Gerente (você)" };
 
 async function chamarApi(corpo) {
   const r = await fetch(URL_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corpo) });
