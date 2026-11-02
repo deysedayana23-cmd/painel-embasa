@@ -64,6 +64,18 @@
 const BANNER_VERIF = ``;
 const AVISO_DIGITINHO =`<div class="aviso"><b>Antes de solicitar SS:</b> confirme que você está logado no Digiteam.</div>`;
 
+// Tela de um macro com consumo automático (chave = nome guardado na planilha)
+function macroHTML(titulo, rotulo, chave) {
+  return `<h2>${titulo}</h2>
+    <input type="date" class="campo" value="2026-11-02">
+    <div id="mac_wrap" data-chave="${chave}" class="card" style="margin-bottom:10px">
+      <b>${rotulo}</b>
+      <input id="mac_leitura" class="campo" placeholder="Leitura 7h (m³)" oninput="calcularMacro()">
+      <input id="mac_consumo" class="campo" readonly placeholder="Consumo 24h (automático)">
+    </div>
+    <button class="acao" onclick="salvarTela(this, 'Leituras')">Salvar macro</button>`;
+}
+
 function GRADE(nomes, inicio = 0, fim = 22) {
   const horas = [];
   for (let h = inicio; h <= fim; h += 2) horas.push(String(h).padStart(2, "0") + ":00");
@@ -160,15 +172,15 @@ const TELAS = {
     return `
     <h2>Leitura diária – ETA Mozondó</h2>
     <input type="date" class="campo" value="2026-11-02">
-    <div class="urgente"><b>ALERTA: nível abaixo de 1 m</b><br><span style="font-size:14px">Mozondó · 14h às 18h em 0,0 MCA · enviado a todos em Informações urgentes</span></div>
+    <div class="urgente"><b>ALERTA: nível abaixo de 1 m</b><br><span style="font-size:14px">Mozondó · 14h às 18h em 0,0 MCA · enviado para Isaque, Ivo Carlos e Jânio Gualberto em Informações urgentes</span></div>
     <input class="campo" placeholder="Operador">
     <div class="card" style="margin-bottom:10px"><b>Macro saída da ETA</b>
-      <input class="campo" value="808184" placeholder="Leitura 7h (m³)">
-      <input class="campo" value="747" placeholder="Consumo últimas 24h (m³)">
+      <input id="ms_leitura" class="campo" value="808184" placeholder="Leitura 7h (m³)" oninput="calcularConsumosMozondo()">
+      <input id="ms_consumo" class="campo" readonly placeholder="Consumo 24h (automático)">
     </div>
     <div class="card" style="margin-bottom:10px"><b>Macro Buriti Cortado</b>
-      <input class="campo" value="3696" placeholder="Leitura 7h (m³)">
-      <input class="campo" value="12" placeholder="Consumo últimas 24h (m³)">
+      <input id="bc_leitura" class="campo" value="3696" placeholder="Leitura 7h (m³)" oninput="calcularConsumosMozondo()">
+      <input id="bc_consumo" class="campo" readonly placeholder="Consumo 24h (automático)">
     </div>
     <h2>Nível do reservatório (MCA, a cada 2h)</h2>
     <table><tr><th>Hora</th><th>Nível (MCA)</th></tr>
@@ -179,6 +191,75 @@ const TELAS = {
     <button class="acao" onclick="salvarTela(this, 'Leituras')">Salvar no histórico do app</button>
     <button class="acao" style="background:#555" onclick="verHistorico('Leituras')">Ver histórico de leituras</button>
     <div class="nota">Não gera texto para o grupo. Nível de 1 m ou menos aparece em Informações urgentes para todos.</div>`;
+  },
+
+  coelba: () => `
+    <h2>Reclamação Coelba</h2>
+    <div><label><input type="radio" name="cb_tipo" value="Qualidade"> Qualidade</label> &nbsp; <label><input type="radio" name="cb_tipo" value="Interrupção" checked> Interrupção</label></div>
+    <input id="cb_cidade" class="campo" placeholder="Cidade / sistema (ex.: São Desidério - Booster Porto Rico)">
+    <select id="cb_conta" class="campo" onchange="preencherContaCoelba()"><option value="">Conta contrato…</option>${CONTRATOS_COELBA.map(([c, s, ci]) => `<option value="${c}|${s}|${ci}">${c} – ${s}</option>`).join("")}</select>
+    <input id="cb_nota" class="campo" placeholder="Nota de reclamação">
+    <input id="cb_protocolo" class="campo" placeholder="Protocolo">
+    <div class="nota">Data e hora do problema</div>
+    <input type="datetime-local" id="cb_inicio" class="campo">
+    <div class="nota">Data e hora da abertura</div>
+    <input type="datetime-local" id="cb_abertura" class="campo">
+    <select id="cb_obs" class="campo" onchange="document.getElementById('cb_obs_outra').style.display = this.value === 'Outra (digitar)' ? '' : 'none'"><option>Observação…</option><option>Sem energia</option><option>Cabo caído</option><option>Acidente no poste</option><option>Outra (digitar)</option></select>
+    <input id="cb_obs_outra" class="campo" placeholder="Digite a observação" style="display:none">
+    <button class="acao" onclick="gerarTextoCoelba()">Gerar texto para o grupo</button>
+    <textarea id="cb_texto" class="campo" rows="6" placeholder="O texto aparece aqui para copiar"></textarea>
+    <button class="acao" onclick="copiarTextoCoelba()">Copiar texto</button>`,
+
+  quimicoAlimentar: () => `
+    <h2>Produto químico – alimentar o sistema</h2>
+    <select id="qm_local" class="campo"><option value="">ETA…</option>${ETAS_QUIMICO.map(l => `<option>${l}</option>`).join("")}</select>
+    <select id="qm_tipo" class="campo"><option>Retirada</option><option>Recebimento</option><option>Consumo</option></select>
+    <input id="qm_produto" class="campo" placeholder="Produto">
+    <input id="qm_qtd" class="campo" placeholder="Quantidade">
+    <input id="qm_un" class="campo" placeholder="Unidade (ex.: kg, litros)">
+    <input type="datetime-local" id="qm_data" class="campo">
+    <textarea id="qm_obs" class="campo" rows="2" placeholder="Observação"></textarea>
+    <button class="acao" onclick="salvarQuimico()">Salvar no sistema</button>`,
+
+  quimicoHistorico: () => `<div class="nota">Carregando histórico...</div>`,
+
+  quimicoEstoque: () => `
+    <h2>Estoque de produto químico</h2>
+    <select id="qe_local" class="campo" onchange="mostrarEstoqueQuimico()"><option value="">ETA…</option>${ETAS_QUIMICO.map(l => `<option>${l}</option>`).join("")}</select>
+    <select id="qe_produto" class="campo" onchange="mostrarEstoqueQuimico()"><option value="">Produto…</option>${PRODUTOS_QUIMICO.map(p => `<option>${p}</option>`).join("")}</select>
+    <div id="qe_saldo" class="nota"></div>
+    <button class="acao" onclick="mostrarEstoqueQuimico()">Consultar</button>`,
+
+  nivelHistorico: () => `<div class="nota">Carregando histórico...</div>`,
+
+  macrosMozondo: () => `
+    <h2>Alimentar planilha dos macros – ETA Mozondó</h2>
+    <input type="date" class="campo" value="2026-11-02">
+    <div class="card" style="margin-bottom:10px"><b>Macro saída da ETA</b>
+      <input id="ms_leitura" class="campo" placeholder="Leitura 7h (m³)" oninput="calcularConsumosMozondo()">
+      <input id="ms_consumo" class="campo" readonly placeholder="Consumo 24h (automático)">
+    </div>
+    <div class="card" style="margin-bottom:10px"><b>Macro Buriti Cortado</b>
+      <input id="bc_leitura" class="campo" placeholder="Leitura 7h (m³)" oninput="calcularConsumosMozondo()">
+      <input id="bc_consumo" class="campo" readonly placeholder="Consumo 24h (automático)">
+    </div>
+    <button class="acao" onclick="salvarTela(this, 'Leituras')">Salvar macros</button>`,
+
+  macrosSD: () => macroHTML("Alimentar planilha dos macros – São Desidério", "Macro saída da ETA", "SD – Macro saída da ETA"),
+
+  macrosAngico: () => macroHTML("Alimentar planilha dos macros – Angico", "Saída da ETA", "ANG – Saída da ETA"),
+
+  escalaMozondo: () => {
+    const meses = [];
+    for (let a = 2026; a <= 2027; a++) {
+      for (let m = 0; m < 12; m++) {
+        if (a === 2026 && m < 10) continue;
+        meses.push([a, m]);
+      }
+    }
+    return `<h2>Escala de turno – ETA Mozondó</h2>
+      <div class="grid">${meses.map(([a, m]) => `<button class="btn" onclick="mostrarEscalaMes(${a}, ${m})">${NOMES_MESES[m]} ${a}</button>`).join("")}</div>
+      <div id="escala_mes"></div>`;
   },
 
   busca: () => `
@@ -287,20 +368,136 @@ const TELAS = {
     <div class="nota">O Claude gera a reserva e envia ao responsável da localidade.</div>`,
 
   aquisicao: () => `
-    <h2>Solicitação de aquisição (RILC)</h2>
-    <input class="campo" placeholder="Item ou serviço">
-    <textarea class="campo" rows="3" placeholder="Motivo e onde será usado"></textarea>
-    <select class="campo"><option>Urgência…</option><option>Precisa agora</option><option>Pode esperar (dias)</option></select>
-    <input class="campo" placeholder="Quantos dias pode esperar?">
-    <button class="acao">Gerar texto para análise</button>`,
+    <h2>RILC – compra em loja</h2>
+    <div class="nota">Escolha o material e a quantidade. Sua gerência vai responder aqui mesmo se está liberado e em qual loja buscar.</div>
+    <select id="rl_material" class="campo"><option value="">Material…</option>${FERRAMENTAS_ITENS.map(i => `<option>${i}</option>`).join("")}<option>Outro material (descrever abaixo)</option></select>
+    <input id="rl_outro" class="campo" placeholder="Descreva o material, se for outro">
+    <input id="rl_qtd" class="campo" type="number" min="1" placeholder="Quantidade">
+    <select id="rl_urgencia" class="campo"><option value="">Urgência…</option><option>Precisa agora</option><option>Pode esperar</option></select>
+    <input id="rl_dias" class="campo" type="number" min="0" placeholder="Em quantos dias pode esperar?">
+    <textarea id="rl_motivo" class="campo" rows="2" placeholder="Motivo da compra"></textarea>
+    <input id="rl_onde" class="campo" placeholder="Onde será usado (localidade e local)">
+    <button class="acao" onclick="enviarRilc()">Enviar pedido RILC</button>`,
+
+  rilcHistorico: () => `<div class="nota">Carregando pedidos...</div>`,
+
+  conserto: () => `
+    <h2>Reforma ou conserto de equipamento</h2>
+    <select id="cs_local" class="campo" onchange="atualizarEquipamentos()"><option value="">Localidade / unidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+    <select id="cs_tipo" class="campo" onchange="mudouTipo()"><option>Conserto</option><option>Reforma</option></select>
+    <div id="cs_ret" style="display:none">
+      <select id="cs_ret_tipo" class="campo" onchange="mudouRetirada()"><option value="">Serviço da reforma…</option><option>Retirada de vazamento</option><option>Outro reparo</option></select>
+      <select id="cs_ret_dn" class="campo" style="display:none"><option value="">DN do tubo (mm)…</option>${[20, 25, 32, 40, 50, 60, 75, 100, 150, 200].map(d => `<option>${d}</option>`).join("")}</select>
+    </div>
+    <select id="cs_equip" class="campo" onchange="mudouEquipamento()"><option value="">Equipamento…</option></select>
+    <select id="cs_dos" class="campo" style="display:none"><option value="">Qual dosadora?</option><option>Sulfato</option><option>Flúor</option><option>Cloro</option></select>
+    <input id="cs_outro" class="campo" placeholder="Descreva o equipamento" style="display:none">
+    <input id="cs_nome" class="campo" placeholder="Nome do equipamento (se souber)">
+    <input id="cs_modelo" class="campo" placeholder="Modelo">
+    <input id="cs_patrimonio" class="campo" placeholder="Número de patrimônio (se souber)">
+    <textarea id="cs_desc" class="campo" rows="3" placeholder="O que está acontecendo"></textarea>
+    <button class="acao" onclick="enviarConserto()">Enviar pedido</button>`,
+
+  conertoHistorico: () => `<div class="nota">Carregando pedidos...</div>`,
+
+  gersa: () => `
+    <h2>Demandas Agersa</h2>
+    <div class="nota">Mostra só as demandas da sua localidade.</div>
+    <div id="ag_lista"><div class="nota">Carregando...</div></div>`,
+
+  cadEquip: () => `
+    <h2>Cadastro de equipamento</h2>
+    <div class="nota">Cadastre o modelo e o patrimônio. Eles aparecem preenchidos nos próximos pedidos desse equipamento.</div>
+    <select id="ce_local" class="campo"><option value="">Localidade / unidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+    <input id="ce_equip" class="campo" placeholder="Equipamento (ex.: Bomba captação)">
+    <input id="ce_nome" class="campo" placeholder="Nome do equipamento">
+    <input id="ce_modelo" class="campo" placeholder="Modelo">
+    <input id="ce_patrimonio" class="campo" placeholder="Número de patrimônio">
+    <select id="ce_tipo" class="campo"><option value="">Tipo…</option><option>Bomba</option><option>Motor</option><option>Painel elétrico</option><option>Dosadora</option><option>Ar condicionado</option><option>Aparelho de laboratório</option><option>Outro</option></select>
+    <textarea id="ce_especificacao" class="campo" rows="2" placeholder="Especificação (potência, vazão, voltagem, fabricante)"></textarea>
+    <div class="nota">Foto do equipamento (opcional)</div>
+    <input id="ce_foto" class="campo" type="file" accept="image/*">
+    <button class="acao" onclick="salvarCadastroEquip()">Salvar cadastro</button>
+    <button class="acao" style="background:#555" onclick="verHistorico('Equipamentos')">Ver equipamentos cadastrados</button>`,
+
+  almoxarifadoCatalogo: () => `
+    <h2>Almoxarifado</h2>
+    <h3>Solicitar material à gerência</h3>
+    <div class="nota">O pedido do mês é solicitado aqui, no dia 1.</div>
+    ${selectMaterial("al_sol_mat")}
+    <input id="al_sol_qtd" class="campo" type="number" min="1" placeholder="Quantidade">
+    <button class="acao" onclick="solicitarMaterial()">Solicitar material</button>
+    <h3>Acrescentar ou retirar do estoque</h3>
+    <select id="al_tipo" class="campo"><option>Entrada (acrescentar)</option><option>Retirada</option></select>
+    ${selectMaterial("al_mov_mat")}
+    <input id="al_mov_qtd" class="campo" type="number" min="1" placeholder="Quantidade">
+    <input id="al_mov_obs" class="campo" placeholder="Observação">
+    <button class="acao" onclick="movimentarAlmox()">Registrar</button>
+    <button class="acao" style="background:#555" onclick="verHistorico('Almoxarifado')">Ver histórico do almoxarifado</button>`,
+
+  almoxarifadoCatalogo: () => `
+    <h2>Almoxarifado – São Desidério</h2>
+    <select id="ac_local" class="campo" onchange="mostrarSaldo()"><option value="">Local do almoxarifado…</option>${LOCAIS_ALMOX.map(l => `<option>${l}</option>`).join("")}</select>
+    <select id="ac_mat" class="campo" onchange="mostrarSaldo()"><option value="">Escolha o material…</option>${CATALOGO_ALMOX.map(([c, d]) => `<option value="${c}">${c} – ${d}</option>`).join("")}</select>
+    <div id="ac_saldo" class="nota"></div>
+    <button class="acao" onclick="mostrarSaldo()">Consultar saldo</button>
+    <h3>Retirar ou adicionar</h3>
+    <div class="nota">Retirar ou adicionar só para a equipe do local escolhido. Qualquer um pode consultar o saldo e fazer pedido.</div>
+    <select id="ac_tipo" class="campo"><option>Retirada</option><option>Entrada (acrescentar)</option></select>
+    <input id="ac_qtd" class="campo" type="number" min="1" placeholder="Quantidade">
+    <input id="ac_obs" class="campo" placeholder="Observação">
+    <button class="acao" onclick="movimentarCatalogo()">Registrar</button>
+    <h3>Gerar pedido de material</h3>
+    <input id="ac_pqtd" class="campo" type="number" min="1" placeholder="Quantidade a pedir">
+    <button class="acao" onclick="pedirCatalogo()">Gerar pedido</button>
+    <button class="acao" style="background:#555" onclick="verHistorico('Almoxarifado')">Ver histórico</button>`,
+
+  rotina: () => `
+    <h2>Rotina do dia 1</h2>
+    <div class="nota">Marque se já foi feito. Fica registrado quem marcou e o horário.</div>
+    ${ROTINA_ITENS.map((it, i) => `
+      <div class="card" style="margin-bottom:8px">
+        <b>${it}</b>
+        <select id="rt_${i}" class="campo"><option value="">Marcar…</option><option>Sim, feito</option><option>Não feito ainda</option></select>
+      </div>`).join("")}
+    <button class="acao" onclick="salvarRotina()">Salvar rotina</button>`,
+
+  rotinaHist: () => `<div class="nota">Carregando registros...</div>`,
+  pedMatHist: () => `<div class="nota">Carregando pedidos...</div>`,
+
+  rilcResponder: () => `
+    <h2>Responder RILC</h2>
+    <input id="rr_pedido" class="campo" placeholder="Pedido (material e data)">
+    <select id="rr_decisao" class="campo"><option>Liberado</option><option>Não liberado</option></select>
+    <input id="rr_loja" class="campo" placeholder="Loja onde buscar">
+    <textarea id="rr_obs" class="campo" rows="2" placeholder="Observação"></textarea>
+    <button class="acao" onclick="responderRilc()">Enviar resposta</button>`,
 
   epi: () => `
     <h2>Pedido de EPI</h2>
-    <div class="nota">Formulário próprio (funcionário próprio) ou lote dos terceirizados (conforme o vínculo).</div>
-    <input class="campo" placeholder="Item">
-    <input class="campo" placeholder="Tamanho">
-    <input class="campo" placeholder="Quantidade">
-    <button class="acao">Adicionar ao lote</button>`,
+    <div class="nota">Escolha o tamanho e a quantidade de cada item que você precisa. Deixe em 0 o que não precisa.</div>
+    ${EPI_ITENS.map((it, i) => `
+      <div class="card" style="margin-bottom:8px">
+        <b>${it.nome}</b>
+        <select id="epi_t_${i}" class="campo">${it.tamanhos.map(t => `<option>${t}</option>`).join("")}</select>
+        <input id="epi_q_${i}" class="campo" type="number" min="0" value="0" placeholder="Quantidade">
+      </div>`).join("")}
+    <button class="acao" onclick="enviarEpi()">Enviar pedido de EPI</button>`,
+
+  episHistorico: () => `<div class="nota">Carregando pedidos...</div>`,
+
+  ferramentas: () => `
+    <h2>Pedido de ferramentas</h2>
+    <div class="nota">Para cada ferramenta que você precisa, escolha o motivo e a quantidade. Deixe em 0 o que não precisa.</div>
+    ${FERRAMENTAS_ITENS.map((nome, i) => `
+      <div class="card" style="margin-bottom:8px">
+        <b>${nome}</b>
+        <select id="fer_m_${i}" class="campo">${MOTIVOS_FERRAMENTA.map(m => `<option>${m}</option>`).join("")}</select>
+        <input id="fer_q_${i}" class="campo" type="number" min="0" value="0" placeholder="Quantidade">
+      </div>`).join("")}
+    <button class="acao" onclick="enviarFerramentas()">Enviar pedido de ferramentas</button>`,
+
+  ferrHistorico: () => `<div class="nota">Carregando pedidos...</div>`,
 
   gersa: () => `
     <h2>Demandas Agersa</h2>
@@ -309,10 +506,22 @@ const TELAS = {
 
   horaExtra: () => `
     <h2>Hora extra de hoje</h2>
-    <select class="campo"><option>Motivo…</option><option>Serviço de urgência</option><option>Outro</option></select>
-    <input class="campo" placeholder="Serviço executado">
-    <input class="campo" placeholder="Número da SS (obrigatório)">
-    <button class="acao">Salvar</button>`,
+    <div class="nota">Você está executando uma SS?</div>
+    <label><input type="radio" name="he_tem_ss" value="sim" checked onchange="alternarHoraExtra()"> Sim</label> &nbsp;
+    <label><input type="radio" name="he_tem_ss" value="nao" onchange="alternarHoraExtra()"> Não</label>
+    <div id="he_com_ss" class="card" style="margin-top:10px">
+      <input id="he_ss" class="campo" placeholder="Número da SS">
+    </div>
+    <div id="he_sem_ss" class="card" style="margin-top:10px;display:none">
+      <textarea id="he_motivo" class="campo" rows="2" placeholder="Motivo de não ter SS"></textarea>
+      <select id="he_servico" class="campo"><option value="">Serviço…</option>${SERVICOS_HORA_EXTRA.map(s => `<option>${s}</option>`).join("")}</select>
+      <select id="he_localidade" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+      <input id="he_bairro" class="campo" placeholder="Bairro">
+      <input id="he_logradouro" class="campo" placeholder="Logradouro">
+    </div>
+    <button class="acao" onclick="salvarHoraExtra()">Salvar hora extra</button>`,
+
+  horaExtraHist: () => `<div class="nota">Carregando registros...</div>`,
 
   escalaSobreaviso: () => `
     <h2>Escalas</h2>
@@ -321,11 +530,26 @@ const TELAS = {
     <div class="card"><b>Igor e Oseias</b> em domingo e feriado: religação e vazamento de hidrômetro</div>`,
 
   consumoQuimico: () => `
-    <h2>Consumo diário de produtos químicos</h2>
-    <input class="campo" placeholder="Produto">
-    <input class="campo" placeholder="Estoque inicial">
-    <input class="campo" placeholder="Consumido hoje">
-    <button class="acao">Gerar texto para o grupo</button>`,
+    <h2>Texto do grupo – produtos químicos ETA Mozondó</h2>
+    <div class="card"><b>Cloro (kg)</b>
+      <input id="cl_ant" class="campo" placeholder="Estoque do dia anterior">
+      <input id="cl_rec" class="campo" placeholder="Recebido (últimas 24h)">
+      <input id="cl_cons" class="campo" placeholder="Consumo (últimas 24h)">
+    </div>
+    <div class="card"><b>Sulfato (kg)</b>
+      <input id="su_ant" class="campo" placeholder="Estoque do dia anterior">
+      <input id="su_rec" class="campo" placeholder="Recebido (últimas 24h)">
+      <input id="su_cons" class="campo" placeholder="Consumo (últimas 24h)">
+    </div>
+    <div class="card"><b>Flúor (lts)</b>
+      <input id="fl_ant" class="campo" placeholder="Estoque do dia anterior">
+      <input id="fl_rec" class="campo" placeholder="Recebido (últimas 24h)">
+      <input id="fl_cons" class="campo" placeholder="Consumo (últimas 48h)">
+    </div>
+    <textarea id="qm_obs_grupo" class="campo" rows="2" placeholder="Observações (caso haja anormalidades)"></textarea>
+    <button class="acao" onclick="gerarTextoQuimico()">Gerar texto para o grupo</button>
+    <textarea id="qm_texto" class="campo" rows="16" placeholder="O texto aparece aqui para copiar"></textarea>
+    <button class="acao" onclick="copiarTexto('qm_texto')">Copiar texto</button>`,
 
   leituraDiaria: () => `
     <h2>Leitura diária (7h)</h2>
@@ -391,8 +615,8 @@ const TELAS = {
       <span style="font-size:14px">Falta de energia · Mozondó · aberta em 01/11 · prazo: hoje</span><br>
       <span style="font-size:14px">Responder: Isaac (agente de campo), Ivo Carlos e o operador da ETA Mozondó de plantão</span><br><br>
       <b>Esta ocorrência pode ser encerrada?</b>
-      <button class="acao">Sim, pode encerrar</button>
-      <button class="acao" style="background:#555">Não, precisa de mais prazo</button>
+      <button class="acao" onclick="registrarUrgencia('Ocorrência vencendo · Falta de energia · Mozondó', 'Pode encerrar')">Sim, pode encerrar</button>
+      <button class="acao" style="background:#555" onclick="registrarUrgencia('Ocorrência vencendo · Falta de energia · Mozondó', 'Precisa de mais prazo')">Não, precisa de mais prazo</button>
     </div>
     <div class="nota">Pendente aparece em vermelho. Quando alguém marca como feito, fica verde com o nome de quem fez, para a gerência validar.</div>`,
 
@@ -451,7 +675,7 @@ const PERFIS = {
     {nome:"Metas", tela:"metas"},
     {nome:"Cronograma de leitura e contas retidas", tela:"cronograma"},
     {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
-    {nome:"Almoxarifado", tela:"almoxarifado"},
+    {nome:"Almoxarifado", tela:"almoxarifadoCatalogo"},
     {nome:"Aquisição (RILC)", tela:"aquisicao"},
     {nome:"EPI", tela:"epi"},
     {nome:"Demandas Agersa", tela:"gersa"},
@@ -461,27 +685,50 @@ const PERFIS = {
   ],
   "Operador ETA São Desidério (exemplo: Igor)": [
     {nome:"Urgências", tela:"urgencias"},
-    {nome:"Consumo diário de produtos químicos", tela:"consumoQuimico"},
+    {nome:"Produto químico", sub:[
+      {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
+      {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
+      {nome:"Consultar estoque", tela:"quimicoEstoque"},
+      {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
+    ]},
     {nome:"Escala de turno", tela:"escalaTurno"},
     {nome:"EPI", tela:"epi"},
     {nome:"Hora extra de hoje", tela:"horaExtra"},
-    {nome:"Níveis dos reservatórios", tela:"nivelSD"},
+    {nome:"Níveis dos reservatórios", sub:[
+      {nome:"Alimentar planilha de níveis", tela:"nivelSD"},
+      {nome:"Alimentar planilha dos macros", tela:"macrosSD"},
+      {nome:"Consultar histórico", tela:"nivelHistorico"}
+    ]},
     {nome:"Escalas e sobreaviso", tela:"escalaSobreaviso"},
     {nome:"Solicitações de SS da equipe", tela:"solicitarSS"}
   ],
   "Operador ETA São Desidério próprio (exemplo: Acácio)": [
     {nome:"Urgências", tela:"urgencias"},
-    {nome:"Consumo diário de produtos químicos", tela:"consumoQuimico"},
+    {nome:"Produto químico", sub:[
+      {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
+      {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
+      {nome:"Consultar estoque", tela:"quimicoEstoque"},
+      {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
+    ]},
     {nome:"Escala de turno", tela:"escalaTurno"},
     {nome:"EPI (próprio)", tela:"epi"},
     {nome:"Marcação de férias", tela:"ferias"},
     {nome:"Hora extra de hoje", tela:"horaExtra"}
   ],
   "Operador Angico (Ramon ou Renato)": [
-    {nome:"Níveis dos reservatórios", tela:"nivelAngico"},
+    {nome:"Níveis dos reservatórios", sub:[
+      {nome:"Alimentar planilha de níveis", tela:"nivelAngico"},
+      {nome:"Alimentar planilha dos macros", tela:"macrosAngico"},
+      {nome:"Consultar histórico", tela:"nivelHistorico"}
+    ]},
     {nome:"Leitura diária (7h)", tela:"leituraDiaria"},
     {nome:"Urgências", tela:"urgencias"},
-    {nome:"Consumo diário de produtos químicos", tela:"consumoQuimico"},
+    {nome:"Produto químico", sub:[
+      {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
+      {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
+      {nome:"Consultar estoque", tela:"quimicoEstoque"},
+      {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
+    ]},
     {nome:"Descargas de rede da semana", tela:"descargas"},
     {nome:"SS do SCI (Angico)", tela:"solicitarSS"},
     {nome:"Metas", tela:"metas"},
@@ -489,11 +736,19 @@ const PERFIS = {
     {nome:"Hora extra de hoje", tela:"horaExtra"}
   ],
   "Operador Mozondó (Genildo)": [
-    {nome:"Níveis dos reservatórios", tela:"nivelMozondo"},
-    {nome:"Leitura diária (Mozondó)", tela:"leituraMozondo"},
+    {nome:"Níveis dos reservatórios", sub:[
+      {nome:"Alimentar planilha de níveis", tela:"nivelMozondo"},
+      {nome:"Alimentar planilha dos macros", tela:"macrosMozondo"},
+      {nome:"Consultar histórico", tela:"nivelHistorico"}
+    ]},
     {nome:"Urgências", tela:"urgencias"},
-    {nome:"Consumo diário de produtos químicos", tela:"consumoQuimico"},
-    {nome:"Escala de turno", tela:"escalaTurno"},
+    {nome:"Produto químico", sub:[
+      {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
+      {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
+      {nome:"Consultar estoque", tela:"quimicoEstoque"},
+      {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
+    ]},
+    {nome:"Escala de turno", tela:"escalaMozondo"},
     {nome:"EPI", tela:"epi"},
     {nome:"Hora extra de hoje", tela:"horaExtra"}
   ],
@@ -516,6 +771,15 @@ const PERFIS = {
     {nome:"Alertas (prefeitura, prazos)", tela:"alertaPrefeitura"},
     {nome:"Solicitações de aquisição", tela:"mapaAquisicoes"},
     {nome:"Pedidos de SS da equipe", tela:"mapaPedidos"},
+    {nome:"Pedidos de EPI", tela:"episHistorico"},
+    {nome:"Pedidos de ferramentas", tela:"ferrHistorico"},
+    {nome:"Pedidos RILC", tela:"rilcHistorico"},
+    {nome:"Pedidos de conserto", tela:"conertoHistorico"},
+    {nome:"Pedidos de material", tela:"pedMatHist"},
+    {nome:"Equipamentos cadastrados", tela:"equipHist"},
+    {nome:"Registros da rotina", tela:"rotinaHist"},
+    {nome:"Responder RILC", tela:"rilcResponder"},
+    {nome:"Registros de hora extra", tela:"horaExtraHist"},
     {nome:"Descargas (aprovar)", tela:"descargas"},
     {nome:"Férias (lançar no SAP)", tela:"ferias"},
     {nome:"Metas de todos", tela:"metas"},
@@ -528,6 +792,393 @@ const PERFIS = {
 /* ============================================================
    RENDERIZAÇÃO
    ============================================================ */
+// EPIs de terceirizados (itens e tamanhos)
+const EPI_ITENS = [
+  { nome: "Camisa", tamanhos: ["P", "M", "G", "GG", "XG"] },
+  { nome: "Calça", tamanhos: ["P", "M", "G", "GG", "XG"] },
+  { nome: "Botina", tamanhos: ["38", "39", "40", "41", "42", "43", "44", "45"] },
+  { nome: "Bota PVC", tamanhos: ["38", "39", "40", "41", "42", "43", "44", "45"] },
+  { nome: "Luva vaqueta", tamanhos: ["P", "M", "G"] },
+  { nome: "Luva plástica", tamanhos: ["P", "M", "G"] },
+  { nome: "Máscara panorâmica com filtro", tamanhos: ["Única"] },
+  { nome: "Filtro para máscara", tamanhos: ["Único"] }
+];
+
+// Hora extra: serviços e localidades
+const SERVICOS_HORA_EXTRA = [
+  "Vazamento de rede", "Vazamento de ramal", "Vazamento de hidrômetro", "Religação",
+  "Falta de água", "Corte", "Substituição de hidrômetro", "Ligação nova", "Outro"
+];
+const LOCALIDADES_HORA_EXTRA = [
+  "São Desidério", "Angico", "Catolândia", "Mozondó", "Buriti Cortado", "Baianópolis"
+];
+
+// Catálogo do almoxarifado de São Desidério: [código SAP, descrição, saldo da contagem]
+const CATALOGO_ALMOX = [
+  ["5", "ADESIVO PLASTICO CONEXOES PVC 75G", 0],
+  ["44", "LIMPA-VIDRO", ""],
+  ["65", "PAPEL FAX-SIMILE", ""],
+  ["69", "CANETA ESFEROGRAFICA AZUL", ""],
+  ["71", "CANETA ESFEROGRAFICA VERMELHA", ""],
+  ["80", "CLASSIFICADOR AZ 35X28X5 CM", ""],
+  ["81", "CLASSIFICADOR AZ 35X28X8 CM", ""],
+  ["82", "PASTA RAPIDA GRAMPO TRILHO", ""],
+  ["83", "CLASSIFICADOR RAPIDO C/PRENDEDOR", ""],
+  ["86", "CLIPS METALICO N.3", ""],
+  ["88", "CLIPS METALICO N.6/0", ""],
+  ["93", "BORRACHA ELASTICA N.18", ""],
+  ["94", "ENVELOPE CARTAO SEG-009", ""],
+  ["95", "ENVELOPE OFICIO TIMBRADO SEG-013", ""],
+  ["97", "ENVELOPE MEDIO BRANCO SEG-020", ""],
+  ["98", "ENVELOPE GRANDE SEG-009", ""],
+  ["105", "FITA ADESIVA PAPEL CREPE 48 MMX50 M", ""],
+  ["113", "GRAMPO 26/6", ""],
+  ["119", "LAPIS N.2", ""],
+  ["125", "LIVRO ATA 200 FOLHAS", ""],
+  ["145", "PAPEL COPIADORA/IMPRESSORA A4", ""],
+  ["146", "PASTA SUSPENSA", ""],
+  ["161", "TINTA CARIMBO PRETA", ""],
+  ["164", "ACUCAR", ""],
+  ["165", "AGUA SANITARIA - 1L", ""],
+  ["167", "APANHADOR LIXO CHAPA", ""],
+  ["170", "ESPONJA SINTETICA LIMPEZA", ""],
+  ["171", "CAFE PO TRADICIONAL", ""],
+  ["172", "CERA LIQUIDA POLIMENTO PISOS INCOLOR", ""],
+  ["178", "DESINFETANTE AMBIENTE SPRAY", ""],
+  ["180", "DETERGENTE LIQ USO DOMESTICO", ""],
+  ["186", "FLANELA CORES DIVERSAS 40X60 CM", ""],
+  ["193", "INSETICIDA SPRAY", ""],
+  ["195", "ESPONJA LA ACO", ""],
+  ["196", "PAPEL HIGIENICO FOLHA DUPLA LUXO", ""],
+  ["198", "PASTA SAPONACEA", ""],
+  ["200", "SABAO PO", ""],
+  ["201", "SABAO MASSA", ""],
+  ["204", "SACO PLASTICO LIXO CAPAC 30 L", ""],
+  ["205", "SACO PLASTICO LIXO CAPAC 240 L PRETA", ""],
+  ["206", "SACO PLASTICO LIXO CAPAC 100 L PRETA", ""],
+  ["212", "VASSOURA PIACAVA RETANGULAR MEDIA", ""],
+  ["216", "DESINFETANTE SANITARIO CREOLINA", ""],
+  ["401", "CANETA MARCA-TEXTO LUMI-COLOR AMARELA", ""],
+  ["404", "GUIA DE REMESSA CORRESP E/OU PROC DOC027", ""],
+  ["407", "MOVIMENTACAO DE MATERIAL (MM) SUP-016", ""],
+  ["414", "ORDEM DE SERVICO MNT-001", ""],
+  ["417", "ORDEM DE SERVICO DE MANUTENCAO MNT-002", ""],
+  ["418", "DESODORANTE PEDRA SANITARIA", ""],
+  ["420", "BOLETIM DE ATENDIMENTO CML-79", ""],
+  ["430", "BOLETIM DE AFERICAO CFC-010", ""],
+  ["434", "BOLETIM DIARIO ADUZ/PROD MED DIF OPE-134", ""],
+  ["435", "BOLETIM OPERACAO EST ELEVATORIA OPE-006", ""],
+  ["436", "BOLETIM DIARIO CONSUMO PROD QUIM OPE-006", ""],
+  ["447", "CONTROLE DE VEICULOS TRA-043", ""],
+  ["450", "CONTROLE TRATAMENTO QUALIDADE OPE-050", ""],
+  ["451", "DESINFETANTE LIQUIDO BASE EUCALIPTO", ""],
+  ["459", "INFORMACAO PARA O PROCESSO DOC-025", ""],
+  ["461", "DIARIO DE OBRA EXP-034", ""],
+  ["491", "SOLICITACAO SERVICO - ON-LINE FREN/VER", ""],
+  ["493", "S O S - SOLICITACAO DE SERVICO - SCI-013", ""],
+  ["495", "COMPROVANTE DE ATENDIMENTO SCI-012", ""],
+  ["497", "BOLETIM DE CADASTRO SCI-022", ""],
+  ["577", "FITA ISOL ALTA TENSAO 69KV 19MMX10M", ""],
+  ["578", "FITA ISOL BX TENSAO 750V 19MMX20M", ""],
+  ["594", "FITA VEDACAO ROSCA (PTFE) 18 MMX25 M", 0],
+  ["612", "BOLETIM DIARIO DO VEICULO TRA-007", ""],
+  ["613", "LAMINA SERRA ACO RAP 18 DENT/POL 12X1/", 0],
+  ["690", "GRAXA LUBRIF NLGI-2 EXTREMA PRESSAO-BD", ""],
+  ["699", "OLEO LUB ISO 68 SIS HIDRAL", ""],
+  ["800", "LACRE ABRACADEIRA FECHAMENTO MALOTE", ""],
+  ["890", "ANEXO DA SS - SCI-01A", ""],
+  ["931", "SOLICITACAO SERVICO MANUTENCAO OPE-186", ""],
+  ["949", "PAPEL SULFITE PLOTTER 0,914X50M 75G/M2", ""],
+  ["954", "VASSOURA PELO 26 CM", ""],
+  ["974", "OLEO LUB SAE 40 MOTOR DIESEL (API-CF) 1L", ""],
+  ["1052", "SOLICITACAO SERVICO (SS) - ON-LINE VERSO", ""],
+  ["1053", "SEGUNDA VIA CONTA - EM BRANCO", ""],
+  ["1256", "CONSUMO ELEVADO - SCI-070", ""],
+  ["1258", "AGUARDE SUA CONTA AGUA/ESG MCP - SCI-072", ""],
+  ["1305", "PASTA DOC 2 ARGOLAS DORSO ESTREITO", ""],
+  ["1502", "LIMPADOR INSTANTANEO MULTIUSO", ""],
+  ["1798", "ORDEM DE SERVICO OPE-193", ""],
+  ["2189", "CAIXA ARQ POLIOND AZUL ESC 350X240X130MM", ""],
+  ["2237", "PAPEL HIGIENICO ROLON 100% CELULOSE", ""],
+  ["2239", "SABONETE CREMOSO PEROLADO", ""],
+  ["2790", "TOALHA PAPEL BRANCO-EXTRA", ""],
+  ["2866", "PANO CHÃO ALGODÃO 83 X 58 CM", ""],
+  ["3221", "ODORIZANTE LAVANDA/TALCO", ""],
+  ["4020", "RODO N.2 PLASTICO", ""],
+  ["4764", "BOBINA RELOGIO PONTO DIGITAL TOP DATA", ""],
+  ["9089", "TOALHA PAPEL BRANCO BOBINA FOLHA SIMPLES", ""],
+  ["11052", "COPO DESCART POLIPROPILENO 200 ML AGUA", ""],
+  ["11053", "COPO DESCART POLIPROPILENO 50 ML (CAFE", ""],
+  ["11123", "OLEO LUB SAE 15W-40 DIESEL API-CI-4/SL", ""],
+  ["12197", "BOBINA RELOGIO PONTO DIGITAL HEXA A", ""],
+  ["100000000000", "TUBO PVC JS 20MM", ""],
+  ["100000000001", "TUBO PVC JS 25MM", ""],
+  ["100000000002", "TUBO PVC JS 32MM", ""],
+  ["100000000013", "TUBO PVC PBA JEI CL 12 DN 50MM", ""],
+  ["100000000015", "TUBO PVC PBA JEI CL 12 DN 75MM", 3],
+  ["100000000016", "TUBO PVC PBA JEI CL 12 DN 100MM", 6],
+  ["100000000032", "TUBO PVC IRRIGACAO PN80 JE 50MM", 0],
+  ["100000000033", "TUBO PVC IRRIGACAO PN80 JE 75MM", 5],
+  ["100000000034", "TUBO PVC IRRIGACAO PN80 JE 100MM", 5],
+  ["100000000053", "TUBO FERRO DUCTIL K7 PB JGS 150 MM", ""],
+  ["100000000054", "TUBO FERRO DUCTIL K7 PB JGS 200 MM", ""],
+  ["100000000055", "TUBO FERRO DUCTIL K7 PB JGS 250 MM", ""],
+  ["100000000056", "TUBO FERRO DUCTIL K7 PB JGS 300 MM", ""],
+  ["100000000057", "TUBO FERRO DUCTIL K7 PB JGS 350 MM", ""],
+  ["100000000058", "TUBO FERRO DUCTIL K7 PB JGS 400 MM", ""],
+  ["100000000060", "TUBO FERRO DUCTIL K7 PB JGS 500 MM", ""],
+  ["100000000109", "TUBO PVC COL ESG PAREDE MACICA JEI 200MM", ""],
+  ["100000000133", "TUBO PVC DEFOFO 1 MPA PB JEI 150MM", ""],
+  ["100000000134", "TUBO PVC DEFOFO 1 MPA PB JEI 200MM", ""],
+  ["100000000135", "TUBO PVC DEFOFO 1 MPA PB JEI 250MM", ""],
+  ["100000000205", "TUBO PVC DEFOFO 1 MPA PB JEI 300MM", ""],
+  ["100000000230", "TUBO PVC DEFOFO 1 MPA PB JEI 100MM", ""],
+  ["100000000276", "TUBO PVC COL ESG PAREDE MACICA JEI 150MM", ""],
+  ["100000000280", "TUBO PVC COL ESG PAREDE MACICA JEI 300MM", ""],
+  ["100000000292", "TUBO PVC COL ESG PAREDE MACICA JEI 100MM", ""],
+  ["100000000297", "TUBO PVC ESG PRED JE PB 150 MM", ""],
+  ["100000000351", "TUBO FERRO DUCTIL K7 PB JGS 100 MM", ""],
+  ["100000000356", "TUBO PEAD 110MM PE 80 PN10 SDR 13,6 PRET", 0],
+  ["100000000425", "TUBO PEAD 63MM PE 80 PN10 SDR 13,6 PRET", 0],
+  ["100000008201", "TUBO PEAD 20MM PN10 AZUL NBR 15561 PE80", ""],
+  ["200000000000", "CAP PVC JS 20MM", 20],
+  ["200000000001", "CAP PVC JS 25MM", 10],
+  ["200000000002", "CAP PVC JS 32MM", 5],
+  ["200000000008", "JOELHO 90 PVC JS 20MM", 23],
+  ["200000000009", "JOELHO 90 PVC JS 25MM", 14],
+  ["200000000010", "JOELHO 90 PVC JS 32MM", 18],
+  ["200000000016", "JOELHO 90 PVC JSR 20MMX1/2\"", 13],
+  ["200000000017", "JOELHO 90 PVC JSR 25MMX3/4\"", ""],
+  ["200000000021", "CURVA 90 PVC JS 20MM", ""],
+  ["200000000034", "TE PVC 3B JS 20X20MM", 4],
+  ["200000000035", "TE PVC 3B JS 32X32MM", 1],
+  ["200000000041", "TE PVC 3B JS 32X25MM", ""],
+  ["200000000071", "CAP PVC JE C/ANEL 60MM", 0],
+  ["200000000072", "CAP PVC JE C/ANEL 85MM", 2],
+  ["200000000073", "CAP PVC JE C/ANEL 110MM", 2],
+  ["200000000091", "CURVA 90 PVC PB JE C/ANEL 60MM", ""],
+  ["200000000093", "CURVA 90 PVC PB JE C/ANEL 110MM", ""],
+  ["200000000134", "REDUCAO PVC PB JE C/ANEL DE 85X60MM", 1],
+  ["200000000135", "REDUCAO PVC PB JE C/ANEL DE 110X85MM", 0],
+  ["200000000160", "TE PVC 3B JE C/ANEIS 60X60MM", 3],
+  ["200000000162", "TE PVC 3B JE C/ANEIS 110X110MM", 0],
+  ["200000000167", "TE PVC 3B JE C/ANEIS 85X60MM", ""],
+  ["200000000168", "TE PVC 3B JE C/ANEIS 110X85MM", ""],
+  ["200000000169", "TE PVC 3B JE C/ANEIS 110X60MM", ""],
+  ["200000000177", "CURVA 90 PVC RL PB JE 100MM ESG PRED", ""],
+  ["200000000719", "TE PVC 2BP JE C/ANEIS 100X100MM ESG PRED", ""],
+  ["200000000720", "TE PVC 2BP JE C/ANEIS 150X150MM ESG PRED", ""],
+  ["200000001069", "CURVA 90 PVC RL PB JE 150MM COL ESG", ""],
+  ["200000001077", "CURVA 90 PVC RC PB JE 150MM COL ESG", ""],
+  ["200000001085", "CURVA 90 PVC RL PB JE 100MM COL ESG", ""],
+  ["200000001144", "CURVA 90 PVC JS 50 MM IRRIGACAO", ""],
+  ["200000001166", "JOELHO 90 COMPRESSAO PP 20 MM PN10", ""],
+  ["200000001190", "JOELHO 90 PVC C/ANEL 100MM ESG PRED", ""],
+  ["200000001191", "JOELHO 90 PVC C/ANEL 150MM ESG PRED", ""],
+  ["200000001193", "CURVA 45 PVC RC PB JE 100MM COL ESG", ""],
+  ["200000001195", "CURVA 90 PVC RC PB JEI 100MM COL ESG", ""],
+  ["200000001245", "CAP PVC JS 50MM IRRIGACAO", ""],
+  ["200000001249", "CAP PVC JS 75MM IRRIGACAO", ""],
+  ["200000001251", "TE PVC 3B JS C/ANEIS 50X50MM IRRIGACAO", ""],
+  ["200000001273", "JOELHO 90 COMPRESSAO PP 110MM PN10", ""],
+  ["200000001277", "TE COMPRESSAO PP 110MM PN 10", ""],
+  ["200000001281", "CAP COMPRESSAOPP 110MM PN 10", ""],
+  ["200000001586", "TE SERVICO INTEGRADO PP 63X20MM", 2],
+  ["200000001589", "TE SERVICO INTEGRADO PP 90X20MM", ""],
+  ["200000001742", "TE REDUCAO COMPRESSAO PP 110X63MM PN 10", ""],
+  ["200000030940", "TE SERVICO INTEGRADO ARTIC PP 60X20MM", 56],
+  ["200000030942", "TE SERVICO INTEGRADO ARTIC PP 110X20MM", 1],
+  ["200000031191", "TE SERVICO INTEGRADO ARTIC PP 85X20MM", 1],
+  ["200000032060", "TE SERVICO INTEGRADO PP 110X20MM", ""],
+  ["200000032636", "ADAPTADOR COMP PP MACHO 20MMX1/2\" PN 16", ""],
+  ["200000032650", "JOELHO 90 COMPRESSAO PP 63MM PN16", ""],
+  ["200000032710", "TE COMPRESSAO PP 63MM PN 16", 2],
+  ["200000032713", "CAP COMPRESSAOPP 63MM PN 16", ""],
+  ["300000000001", "ADAPTADOR CURTO PVC JSR 25MMX3/4\"", 9],
+  ["300000000002", "ADAPTADOR CURTO PVC JSR 32MMX1\"", 11],
+  ["300000000004", "ADAPTADOR CURTO PVC JSR 60MMX2\"", ""],
+  ["300000000007", "BUCHA REDUCAO CURTA PVC JS 25X20MM", 29],
+  ["300000000008", "BUCHA REDUCAO CURTA PVC JS 32X25MM", 53],
+  ["300000000012", "BUCHA REDUCAO LONGA PVC JS 32X20MM", 25],
+  ["300000000015", "BUCHA REDUCAO LONGA PVC JS 60X32MM", 2],
+  ["300000000017", "LUVA PVC JS 20MM", 20],
+  ["300000000018", "LUVA PVC JS 25MM", ""],
+  ["300000000019", "LUVA PVC JS 32MM", 9],
+  ["300000000024", "LUVA PVC JSR 20MMX1/2\"", 0],
+  ["300000000025", "LUVA PVC JSR 25MMX3/4\"", ""],
+  ["300000000026", "LUVA PVC JSR 32MMX1\"", ""],
+  ["300000000029", "LUVA PVC JSR 25MMX1/2\"", ""],
+  ["300000000030", "LUVA CORRER PVC TUBO COL ESG JE 200MM", ""],
+  ["300000000085", "ADAPTADOR PVC IRRIG LF PB C/ANEL 50MM", ""],
+  ["300000000093", "LUVA CORRER PVC TUBO PBA JE DE 60MM", 0],
+  ["300000000095", "LUVA CORRER PVC TUBO PBA JE DE 85MM", 0],
+  ["300000000096", "LUVA CORRER PVC TUBO PBA JE DE 110MM", 0],
+  ["300000000098", "LUVA CORRER PVC TUBO PBA JE DE 160MM", ""],
+  ["300000000103", "LUVA CORRER PVC TUBO IRRIG JE 50MM", 6],
+  ["300000000104", "LUVA CORRER PVC TUBO IRRIG JE 75MM", 2],
+  ["300000000105", "LUVA CORRER PVC TUBO IRRIG JE 100MM", 2],
+  ["300000000111", "SELIM 90 PVC TRAVA C/ANEL 150X100MM", ""],
+  ["300000000248", "CAIXA PROT HIDROM TAMPA POLICARB (COMPL", ""],
+  ["300000000348", "COLAR TOMADA FF TB PVC PBA 110 MMX1\"", 7],
+  ["300000000350", "COLAR TOMADA TUBO FE FUND 150 MMX 1/2\"", ""],
+  ["300000000353", "COLAR TOMADA FF TB PVC PBA 160 MMX1/2\"", ""],
+  ["300000000355", "COLAR TOMADA TUBO FE FUND 200 MMX1/2\"", ""],
+  ["300000000357", "COLAR TOMADA TUBO FE FUND 200 MMX1\"", ""],
+  ["300000000371", "LUVA CORRER FE DUCTIL JM 250 MM", ""],
+  ["300000000372", "LUVA CORRER FE DUCTIL JM 300 MM", ""],
+  ["300000000373", "LUVA CORRER FE DUCTIL JM 350 MM", ""],
+  ["300000000374", "LUVA CORRER FE DUCTIL JM 400 MM", ""],
+  ["300000000376", "LUVA CORRER FE DUCTIL JM 500 MM", ""],
+  ["300000000377", "LUVA CORRER FE DUCTIL JM 600 MM", ""],
+  ["300000000467", "LUVA CORRER PVC TUBO DEFOFO JEI 100MM", 2],
+  ["300000000468", "LUVA CORRER PVC TUBO DEFOFO JEI 150MM", 1],
+  ["300000000469", "LUVA CORRER PVC TUBO DEFOFO JEI 200MM", 1],
+  ["300000000470", "LUVA CORRER PVC TUBO DEFOFO JEI 250MM", ""],
+  ["300000000472", "FERRULE BRONZE 1/2\"", ""],
+  ["300000000473", "FERRULE BRONZE 3/4\"", ""],
+  ["300000000474", "FERRULE BRONZE 1\"", ""],
+  ["300000000476", "FERRULE BRONZE 2\"", ""],
+  ["300000000502", "LUVA CORRER FE DUCTIL JM 100 MM", 7],
+  ["300000000504", "LUVA CORRER FE DUCTIL JM 150 MM", 4],
+  ["300000000505", "LUVA CORRER FE DUCTIL JM 200 MM", 1],
+  ["300000000612", "LUVA CORRER PVC TUBO DEFOFO JEI 300MM", ""],
+  ["300000000674", "LUVA CORRER PVC TUBO COL ESG JE 100MM", ""],
+  ["300000000675", "LUVA CORRER PVC TUBO COL ESG JE 150MM", ""],
+  ["300000000718", "LACRE ANTI-FRAUDE PROT HIDR 1/2\" (AZUL)", 6],
+  ["300000000743", "COLAR TOMADA PP 110MMX3/4\" TB PEAD/PVC", ""],
+  ["300000000771", "TAMPAO CIRC TDA-600 CL 400 ARTICULADO", ""],
+  ["300000000890", "CAPSULA CHIBAGUA TUBO PVC /PEAD 20 MM", ""],
+  ["300000000927", "COLAR TOMADA PVC 50MMX1/2\"", 22],
+  ["300000001212", "LACRE ANTI-FRAUDE PROT HIDR 1/2\" (VERM)", 10],
+  ["300000001254", "COLAR TOMADA PP 50MMX1/2\" TUBO PVC", ""],
+  ["300000001255", "COLAR TOMADA PP 75MMX1/2\" TUBO PVC", ""],
+  ["300000001256", "COLAR TOMADA PP 110MMX1/2\" TB PEAD/PVC", 6],
+  ["300000001689", "CONJUNTO CONEXOES HIDROM 1/2 PP 1,5 M3/H", 50],
+  ["300000001682", "CONJUNTO CONEXOES HIDROM 1/2 PP 3 E 1,5 M3/H", 100],
+  ["400000000102", "LAMPADA FLUORESCENTE TUBULAR 20W", ""],
+  ["400000000103", "LAMPADA FLUORESCENTE TUBULAR 40W", ""],
+  ["600000000091", "REGISTRO GAV BRONZE 3/4\" SANEAMENTO", ""],
+  ["600000000092", "REGISTRO GAV BRONZE 1\" SANEAMENTO", ""],
+  ["600000000094", "REGISTRO GAV BRONZE 2\" SANEAMENTO", ""],
+  ["600000000301", "REGISTRO GAV CURTO EMB BOL-CAB 150MM", 0],
+  ["600000000303", "REGISTRO GAV CURTO EMB TUBO PBA 60MM", ""],
+  ["600000000304", "REGISTRO GAV CURTO EMB TUBO PBA 110MM", ""],
+  ["600000000305", "REGISTRO GAV CURTO EMB TUBO PBA 85MM", ""],
+  ["600000000306", "REGISTRO GAV CURTO EMB BOL-CAB 250MM", ""],
+  ["600000000320", "REGISTRO GAV CURTO EMB FLG-CAB 100MM", ""],
+  ["600000000333", "REGISTRO GAV CURTO EMB BOL-CAB 200MM", 0],
+  ["600000000480", "REGISTRO PP 1/2\" ACIONAM RESTRITO PN10", 105],
+  ["600000000298", "REGISTRO GAV CURTO EMB FLG-CAB 200MM", 0],
+  ["300000000974", "LUVA UNIAO COMPRESSAO PP 110MM PN10", 2],
+  ["600000000340", "REGISTRO GAV CURTO EMB BOL-CAB 100MM", 1],
+  ["300000008364", "LUVA UNIAO COMPRESSAO PP 63MM PN16", 3],
+  ["300000000000", "ADAPTADOR CURTO PVC JSR 20MMX1/2\"", 87],
+  ["600000004740", "REGISTRO ANGULAR / TIPO TE PP 1/2\"", 64],
+  ["300000008434", "LACRE ANTIFRAUDE AZUL PORCA HIDR 1/2\"", 120],
+  ["A DEFINIR", "FITA ZEBRADA (FITA DE SEGURANÇA/SINALIZAÇÃO)", 2],
+  ["A CADASTRAR", "REGISTRO GAV CURTO EMB FLG-CAB 60MM", 3],
+  ["A CADASTRAR", "REGISTRO GAV CURTO EMB BOL-CAB 60MM", 1],
+  ["A CADASTRAR", "HIDROMETRO TIPO A", 117],
+  ["A CADASTRAR", "HIDROMETRO TIPO Y", 44],
+  ["A CADASTRAR", "FURADEIRA ELETRICA", 1],
+  ["A CADASTRAR", "FURADEIRA A BATERIA", 1],
+  ["A CADASTRAR", "LUVA PVC JS 75MM (soldável)", 2],
+  ["A CADASTRAR", "LUVA PVC JS 60MM (soldável)", 1],
+  ["A CADASTRAR", "LUVA CORRER PVC 40MM", 3],
+  ["A CADASTRAR", "CURVA 90 PVC JS 50MM (soldável)", 12],
+  ["A CADASTRAR", "REDUCAO PVC 60X50MM", 6],
+  ["A CADASTRAR", "REGISTRO GAVETA ROSCA FERRO DN25", 1],
+  ["A CADASTRAR", "REGISTRO PVC ORELHA DN60", 1],
+  ["A CADASTRAR", "ANILHA VAZADA 1/2\"", 5],
+  ["A CADASTRAR", "DISCO CORTE ABRASIVO - METAL DEBASTE", 3],
+  ["A CADASTRAR", "REGISTRO GAVETA ROSCA FERRO DN50", 0],
+  ["A CADASTRAR", "ANILHA CEGA 1/2\"", 3],
+  ["A CADASTRAR", "LUVA CORRER PVC 100MM MARROM", 9],
+  ["A CADASTRAR", "LUVA UNIAO COMPRESSAO PP 100MM PEAD", 2],
+  ["A CADASTRAR", "LUVA CORRER PVC 75MM MARROM", 14],
+  ["A CADASTRAR", "COLAR TOMADA FERRO 200MM", 1],
+  ["A CADASTRAR", "COLAR TOMADA FERRO 150MM", 9],
+  ["A CADASTRAR", "TE SERVICO INTEGRADO PP 75X20MM", 20],
+  ["A CADASTRAR", "CHAVE DE BOCA Nº27", 2],
+  ["A CADASTRAR", "CHAVE DE BOCA Nº26", 1],
+  ["A CADASTRAR", "CHAVE Nº10", 1]
+];
+
+// Almoxarifado e rotina do dia 1
+const LOCAIS_ALMOX = ["ETA Angico", "ETA São Desidério", "Escritório São Desidério", "Escritório Catolândia", "Escritório Baianópolis", "ETA Mozondó"];
+// Quem pode retirar ou adicionar em cada almoxarifado (qualquer um pode consultar o saldo)
+const QUEM_MOVIMENTA_ALMOX = {
+  "ETA Angico": ["Ramon", "Renato"],
+  "ETA São Desidério": ["Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo", "Thiago", "Tiago"],
+  "Escritório São Desidério": ["Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo", "Thiago", "Tiago"],
+  "Escritório Catolândia": ["Isaque", "Isaac"],
+  "Escritório Baianópolis": ["Ivo Carlos", "Jânio Gualberto"],
+  "ETA Mozondó": ["Genildo", "Alan", "Juvenson", "Sandro"]
+};
+function podeMovimentarAlmox(local) {
+  if (window.MODO_GERENTE) return true;
+  const norm = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const eu = norm(window.nomeUsuario);
+  return (QUEM_MOVIMENTA_ALMOX[local] || []).some(n => norm(n) === eu);
+}
+const MATERIAIS_ALMOX = [...FERRAMENTAS_ITENS, "Outro (descrever)"];
+const ROTINA_ITENS = [
+  "Relatório de água bruta enviado no grupo",
+  "Tabela de consumo e estoque de produtos químicos enviada no grupo",
+  "Sisagua digitado: bacteriológico ETA São Desidério",
+  "Sisagua digitado: bacteriológico Catolândia",
+  "Sisagua digitado: bacteriológico Baianópolis"
+];
+
+function selectMaterial(id) {
+  return `<select id="${id}" class="campo"><option value="">Material…</option>${MATERIAIS_ALMOX.map(m => `<option>${m}</option>`).join("")}</select>`;
+}
+
+// Equipamentos para reforma ou conserto, por localidade
+const EQUIPAMENTOS_MOZONDO = [
+  "Painel captação", "Bomba captação", "Mangote", "Bomba de lavagem de filtro",
+  "Bomba de tanque de reaproveitamento", "Aparelho do laboratório", "Dosadora", "Ar condicionado", "Outro (descrever)"
+];
+const EQUIPAMENTOS_PADRAO = ["Bomba", "Painel elétrico", "Ar condicionado", "Outro (descrever)"];
+
+function equipamentosDaLocalidade(local) {
+  return local === "Mozondó" ? EQUIPAMENTOS_MOZONDO : EQUIPAMENTOS_PADRAO;
+}
+
+// Ferramentas (motivo e quantidade)
+const FERRAMENTAS_ITENS = [
+  "Alicate", "Alavanca", "Pá de bico", "Picareta", "Marreta", "Enxada", "Talhadeira",
+  "Tarracha tubo 20mm", "Balde plástico", "Lima", "Grosa", "Serrote", "Cone",
+  "Chibanca", "Cavadeira", "Colher de pedreiro", "Caixa de ferramentas"
+];
+const MOTIVOS_FERRAMENTA = ["Quebrou", "Desgaste", "Não possui", "Outro"];
+
+// Contratos de energia da UNB (conta, sistema, cidade)
+const CONTRATOS_COELBA = [
+  ["0027559514", "ETA Angico", "Angico"],
+  ["0033649525", "ETA / Booster Alto do Cristo", "São Desidério"],
+  ["0203153180", "Booster Tangará", "São Desidério"],
+  ["7040415186", "EEAT Loteam. Porto Rico", "São Desidério"],
+  ["7040598400", "R.E.L Loteam. Porto Rico", "São Desidério"],
+  ["7047732039", "Booster Ponte de Terra", "São Desidério"],
+  ["0228975150", "ETA Tatú", "Tatú (Barreiras)"],
+  ["0016415936", "EL", "São Desidério"],
+  ["0202553834", "Captação", "São Desidério"],
+  ["0202553915", "EEAB", "São Desidério"]
+];
+
+// Reclamação Coelba aparece para todos os perfis
+Object.entries(PERFIS).forEach(([chave, lista]) => {
+  lista.push({ nome: "Reclamação Coelba", tela: "coelba" });
+  if (!chave.startsWith("Gerente")) lista.push({ nome: "Pedido de ferramentas", tela: "ferramentas" });
+  if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "aquisicao")) lista.push({ nome: "RILC (compra em loja)", tela: "aquisicao" });
+  if (!chave.startsWith("Gerente")) lista.push({ nome: "Reforma ou conserto de equipamento", tela: "conserto" });
+  lista.push({ nome: "Cadastro de equipamento", tela: "cadEquip" });
+  if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "gersa")) lista.push({ nome: "Demandas Agersa", tela: "gersa" });
+  if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "almoxarifadoCatalogo")) lista.push({ nome: "Almoxarifado", tela: "almoxarifadoCatalogo" });
+  lista.push({ nome: "Rotina do dia 1", tela: "rotina" });
+});
+
 let perfilAtual = "Operador Mozondó (Genildo)";
 let pilha = [];
 
@@ -573,6 +1224,19 @@ function abrir(i) {
     const app = document.getElementById("app");
     app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button>` +
       (TELAS[it.tela] ? TELAS[it.tela]() : "<p>Tela em construção.</p>");
+    if (["leituraMozondo", "macrosMozondo", "macrosSD", "macrosAngico"].includes(it.tela)) carregarUltimasLeituras();
+    if (it.tela === "quimicoHistorico") verHistorico("Quimicos");
+    if (it.tela === "nivelHistorico") verHistorico("Niveis");
+    if (it.tela === "episHistorico") verHistorico("EPI");
+    if (it.tela === "ferrHistorico") verHistorico("Ferramentas");
+    if (it.tela === "horaExtraHist") verHistorico("HoraExtra");
+    if (it.tela === "rilcHistorico") verHistorico("RILC");
+    if (it.tela === "conertoHistorico") verHistorico("Conserto");
+    if (it.tela === "pedMatHist") verHistorico("PedidoMaterial");
+    if (it.tela === "gersa") setTimeout(carregarAgersa, 0);
+    if (it.tela === "conserto") carregarRegistroEquip();
+    if (it.tela === "rotinaHist") verHistorico("Rotina");
+    if (it.tela === "equipHist") verHistorico("Equipamentos");
     window.scrollTo(0,0);
   }
 }
@@ -600,9 +1264,668 @@ function voltar() {
   }
 }
 
+// ===== CONSUMO DAS ÚLTIMAS 24H = LEITURA DE HOJE − LEITURA DE ONTEM =====
+window.ultimasLeituras = {};
+
+async function carregarUltimasLeituras() {
+  window.ultimasLeituras = {};
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Leituras" });
+    if (res.erro) return;
+    const hoje = (document.querySelector('#app input[type="date"]') || {}).value || "";
+    res.dados.slice(1).forEach(l => {
+      const dia = String(l[0]).slice(0, 10);
+      const macro = l[2];
+      const leitura = parseFloat(l[3]);
+      if (dia < hoje && !isNaN(leitura)) {
+        const atual = window.ultimasLeituras[macro];
+        if (!atual || dia > atual.dia) window.ultimasLeituras[macro] = { dia: dia, leitura: leitura };
+      }
+    });
+    calcularConsumosMozondo();
+    calcularMacro();
+  } catch (e) { /* sem histórico ainda */ }
+}
+
+function calcularMacro() {
+  const wrap = document.getElementById("mac_wrap");
+  if (!wrap) return;
+  const atual = parseFloat(document.getElementById("mac_leitura").value);
+  const anterior = window.ultimasLeituras[wrap.dataset.chave];
+  document.getElementById("mac_consumo").value = (!isNaN(atual) && anterior) ? (atual - anterior.leitura).toFixed(1) : "";
+}
+
+function calcularConsumosMozondo() {
+  [["ms_leitura", "ms_consumo", "Macro saída da ETA"], ["bc_leitura", "bc_consumo", "Macro Buriti Cortado"]].forEach(([leit, cons, nome]) => {
+    const atual = parseFloat(document.getElementById(leit).value);
+    const anterior = window.ultimasLeituras[nome];
+    document.getElementById(cons).value = (!isNaN(atual) && anterior) ? (atual - anterior.leitura).toFixed(1) : "";
+  });
+}
+
+// ===== TEXTO DO GRUPO: PRODUTOS QUÍMICOS (formato de Mozondó) =====
+function gerarTextoQuimico() {
+  const n = id => parseFloat(document.getElementById(id).value) || 0;
+  const agora = new Date();
+  const dataStr = agora.toLocaleDateString("pt-BR");
+  const horaStr = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+  // pref: prefixo dos campos; diasConsumo: 1 (24h) ou 2 (48h, flúor)
+  const bloco = (nome, unidade, pref, diasConsumo) => {
+    const ant = n(pref + "_ant"), rec = n(pref + "_rec"), cons = n(pref + "_cons");
+    const atual = ant + rec - cons;
+    const diario = cons / diasConsumo;
+    const previsao = diario > 0 ? Math.floor(atual / diario) : "--";
+    const rotuloCons = diasConsumo === 2 ? "Última 48h" : "Últimas 24h";
+    return nome + "\n" +
+      "1. Estoque do Dia Anterior: " + ant + " " + unidade + "\n" +
+      "2. Quantidade Recebida (Últimas 24h): " + rec + " " + unidade + "\n" +
+      "3. Consumo (" + rotuloCons + "): " + cons + " " + unidade + "\n" +
+      "4. Estoque Atual: " + atual + " " + unidade + "\n" +
+      "5. Previsão de Duração (com base no consumo atual): " + previsao + " dias";
+  };
+
+  const obs = document.getElementById("qm_obs_grupo").value || "Nenhuma";
+  const texto = "Formulário Diário de Controle de Estoque de Produtos Químicos - ETA MOZONDÓ\n\n" +
+    "Data: " + dataStr + "\n" +
+    "Horário do Registro: " + horaStr + "\n\n" +
+    bloco("Cloro", "kg", "cl", 1) + "\n\n" +
+    bloco("Sulfato", "kg", "su", 1) + "\n\n" +
+    bloco("Flúor", "lts", "fl", 2) + "\n\n" +
+    "Observações (caso haja anormalidades)\n" + obs + "\n\n" +
+    "Colaborador Responsável pela informação.\n" + (window.nomeUsuario || "");
+  document.getElementById("qm_texto").value = texto;
+}
+
+function copiarTexto(idCampo) {
+  const campo = document.getElementById(idCampo);
+  navigator.clipboard.writeText(campo.value).then(
+    () => alert("Texto copiado. Agora é só colar no grupo."),
+    () => { campo.select(); alert("Selecione o texto e copie manualmente."); }
+  );
+}
+
+// ===== PRODUTO QUÍMICO: retirada, recebimento e consumo (aba Quimicos) =====
+const ETAS_QUIMICO = ["ETA Angico", "ETA São Desidério", "ETA Mozondó"];
+const PRODUTOS_QUIMICO = ["Cloro", "Sulfato", "Flúor"];
+
+// Estoque da ETA = recebimento + retirada do almoxarifado − consumo
+async function mostrarEstoqueQuimico() {
+  const local = document.getElementById("qe_local").value;
+  const produto = document.getElementById("qe_produto").value;
+  const box = document.getElementById("qe_saldo");
+  if (!local || !produto) { box.textContent = "Escolha a ETA e o produto."; return; }
+  box.textContent = "Consultando estoque...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Quimicos" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    let saldo = 0, unidade = "", movs = 0;
+    res.dados.slice(1).forEach(l => {
+      // colunas: data_hora, usuario, local, tipo, produto, quantidade, unidade, data_movimento, observacao
+      if (l[2] !== local || l[4] !== produto) return;
+      const q = parseFloat(l[5]) || 0;
+      movs++;
+      if (l[6]) unidade = l[6];
+      saldo += l[3] === "Consumo" ? -q : q;
+    });
+    box.textContent = "Estoque de " + produto + " na " + local + ": " + saldo + " " + unidade + " (" + movs + " movimentações registradas)";
+  } catch (e) { box.textContent = "Não consegui consultar agora. Verifique a internet."; }
+}
+
+async function salvarQuimico() {
+  const local = document.getElementById("qm_local").value;
+  if (!local) { alert("Escolha a ETA."); return; }
+  const linha = [
+    local,
+    document.getElementById("qm_tipo").value,
+    document.getElementById("qm_produto").value,
+    document.getElementById("qm_qtd").value,
+    document.getElementById("qm_un").value,
+    document.getElementById("qm_data").value,
+    document.getElementById("qm_obs").value
+  ];
+  try {
+    const res = await chamarApi({ acao: "gravar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Quimicos", linha: linha });
+    alert(res.erro ? res.erro : "Movimentação salva no sistema.");
+  } catch (e) {
+    alert("Não consegui salvar. Verifique a internet.");
+  }
+}
+
+// ===== RECLAMAÇÃO COELBA (gera o texto para copiar no grupo) =====
+function formatarDataHora(v) {
+  if (!v) return "--";
+  const [dia, hora] = v.split("T");
+  return dia.split("-").reverse().join("/") + " " + (hora || "");
+}
+
+function preencherContaCoelba() {
+  const v = document.getElementById("cb_conta").value;
+  if (!v) return;
+  const [conta, sistema, cidade] = v.split("|");
+  document.getElementById("cb_cidade").value = cidade + " - " + sistema;
+}
+
+function gerarTextoCoelba() {
+  const tipo = (document.querySelector('input[name="cb_tipo"]:checked') || {}).value || "";
+  const q = tipo === "Qualidade" ? "x" : " ";
+  const i = tipo === "Interrupção" ? "x" : " ";
+  const problema = v => { if (!v) return "--"; const [d, h] = v.split("T"); return d.split("-").reverse().join("/") + " / " + h + "h"; };
+  const abertura = v => { if (!v) return "--"; const [d, h] = v.split("T"); return d.split("-").reverse().join("/") + " ás " + h + "h"; };
+  const campo = id => document.getElementById(id).value || "--";
+  const linhas = [
+    "RECLAMAÇÃO COELBA",
+    "Qualidade(" + q + ") Interrupção(" + i + ")",
+    "- CIDADE / SISTEMA",
+    campo("cb_cidade"),
+    "- CONTA CONTRATO",
+    (document.getElementById("cb_conta").value.split("|")[0] || "--"),
+    "- NOTA DE RECLAMAÇÃO",
+    campo("cb_nota"),
+    "- PROTOCOLO",
+    campo("cb_protocolo"),
+    "- DATA/HORA DO PROBLEMA",
+    problema(document.getElementById("cb_inicio").value),
+    "- DATA/HORA DA ABERTURA",
+    abertura(document.getElementById("cb_abertura").value),
+    "- OBSERVAÇÃO",
+    document.getElementById("cb_obs").value === "Outra (digitar)"
+      ? (document.getElementById("cb_obs_outra").value || "--")
+      : document.getElementById("cb_obs").value
+  ];
+  document.getElementById("cb_texto").value = linhas.join("\n");
+
+  // Pergunta se quer solicitar a ocorrência operacional agora
+  let aviso = document.getElementById("cb_aviso");
+  if (!aviso) {
+    aviso = document.createElement("div");
+    aviso.id = "cb_aviso";
+    document.getElementById("cb_texto").insertAdjacentElement("afterend", aviso);
+  }
+  aviso.className = "urgente";
+  aviso.innerHTML = '<b>Quer solicitar a abertura da ocorrência operacional agora?</b><br>' +
+    '<button class="acao" onclick="abrirOcorrenciaDaReclamacao()">Sim, solicitar abertura</button>';
+}
+
+function abrirOcorrenciaDaReclamacao() {
+  document.getElementById("app").innerHTML = '<button class="voltar" onclick="renderAtual()">← Voltar</button>' + TELAS.ocorAbrir();
+}
+
+function copiarTextoCoelba() {
+  const campo = document.getElementById("cb_texto");
+  navigator.clipboard.writeText(campo.value).then(
+    () => alert("Texto copiado. Agora é só colar no grupo."),
+    () => { campo.select(); alert("Selecione o texto e copie manualmente."); }
+  );
+}
+
+// ===== RESPOSTA A URGÊNCIA (grava na aba Urgencias) =====
+async function registrarUrgencia(descricao, resposta) {
+  const u = window.credenciais.usuario;
+  try {
+    const res = await chamarApi({
+      acao: "gravar", usuario: u, senha: window.credenciais.senha, aba: "Urgencias",
+      linha: [descricao, "", "", "respondida", u, new Date().toISOString(), resposta]
+    });
+    alert(res.erro ? res.erro : "Resposta registrada: " + resposta);
+  } catch (e) {
+    alert("Não consegui registrar. Verifique a internet.");
+  }
+}
+
+// ===== ESCALA DE TURNO – ETA MOZONDÓ (alterna dia sim, dia não) =====
+// Base: 02/11/2026 → diurno Genildo, noturno Juvenson. Dia seguinte: Alan e Sandro.
+const BASE_ESCALA_MOZONDO = Date.UTC(2026, 10, 2);
+const NOMES_MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+function turnoMozondo(ano, mes, dia) {
+  const diff = Math.round((Date.UTC(ano, mes, dia) - BASE_ESCALA_MOZONDO) / 86400000);
+  const par = ((diff % 2) + 2) % 2 === 0;
+  return { diurno: par ? "Genildo" : "Alan", noturno: par ? "Juvenson" : "Sandro" };
+}
+
+function mostrarEscalaMes(ano, mes) {
+  const total = new Date(Date.UTC(ano, mes + 1, 0)).getUTCDate();
+  let linhas = "";
+  for (let dia = 1; dia <= total; dia++) {
+    const t = turnoMozondo(ano, mes, dia);
+    const semana = new Date(Date.UTC(ano, mes, dia)).toLocaleDateString("pt-BR", { weekday: "short", timeZone: "UTC" });
+    linhas += `<tr><td>${String(dia).padStart(2, "0")}/${String(mes + 1).padStart(2, "0")}</td><td>${semana}</td><td>${t.diurno}</td><td>${t.noturno}</td></tr>`;
+  }
+  document.getElementById("escala_mes").innerHTML = `<h2>${NOMES_MESES[mes]} de ${ano}</h2>` +
+    `<table><tr><th>Dia</th><th>Semana</th><th>Diurno</th><th>Noturno</th></tr>${linhas}</table>`;
+}
+
+// ===== DEMANDAS AGERSA (cada um vê só a sua localidade) =====
+function localidadeVisivel(local) {
+  if (window.MODO_GERENTE) return true;
+  return (window.usuarioLocalidades || []).some(l => l === local);
+}
+
+async function carregarAgersa() {
+  const box = document.getElementById("ag_lista");
+  if (!box) return;
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Agersa" });
+    if (res.erro) { box.innerHTML = `<p>${res.erro}</p>`; return; }
+    // colunas: data_hora, usuario, localidade, demanda, responsavel, situacao
+    const minhas = res.dados.slice(1).filter(l => localidadeVisivel(l[2]));
+    box.innerHTML = minhas.length === 0 ? '<div class="nota">Nenhuma demanda da sua localidade.</div>' :
+      minhas.map(l => `
+        <div class="card" style="margin-bottom:10px">
+          <b>${l[3]}</b><br>
+          <span style="font-size:14px">${l[2]} · Responsável: ${l[4] || "--"} · Situação: ${l[5] || "--"}</span>
+          <div class="nota">Fotos de evidência (inclua as fotos do local: cerca toda, vários ângulos, limpeza)</div>
+          <input type="file" accept="image/*" multiple id="ag_foto_${minhas.indexOf(l)}" class="campo">
+          <button class="acao" onclick="enviarEvidenciaAgersa(${minhas.indexOf(l)}, '${l[2]}', '${String(l[3]).replace(/'/g, "")}')">Enviar evidências</button>
+        </div>`).join("");
+    window.agersaMinhas = minhas;
+  } catch (e) { box.innerHTML = '<div class="nota">Não consegui carregar. Verifique a internet.</div>'; }
+}
+
+async function enviarEvidenciaAgersa(indice, local, demanda) {
+  const arquivos = document.getElementById("ag_foto_" + indice).files;
+  if (!arquivos.length) { alert("Escolha as fotos."); return; }
+  try {
+    for (const arquivo of arquivos) {
+      const base64 = await lerArquivoBase64(arquivo);
+      const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha,
+        base64: base64, tipo: arquivo.type, nome: arquivo.name });
+      if (r.erro) { alert(r.erro); return; }
+      await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AgersaEvidencia",
+        linhas: [[new Date().toISOString(), window.credenciais.usuario, local, demanda, r.url]] });
+    }
+    alert("Evidências enviadas.");
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); }
+}
+
+// ===== CADASTRO E PREENCHIMENTO DE EQUIPAMENTOS (aba Equipamentos) =====
+window.registroEquip = [];
+
+async function carregarRegistroEquip() {
+  window.registroEquip = [];
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Equipamentos" });
+    if (!res.erro) {
+      // colunas: data_hora, usuario, localidade, equipamento, tipo, nome, modelo, patrimonio, especificacao, foto
+      window.registroEquip = res.dados.slice(1).map(l => ({ local: l[2], equip: l[3], tipo: l[4], nome: l[5], modelo: l[6], patrimonio: l[7] }));
+    }
+  } catch (e) { /* sem registro ainda */ }
+}
+
+function preencherEquipamento() {
+  const local = document.getElementById("cs_local").value;
+  const equip = document.getElementById("cs_equip").value;
+  const achados = window.registroEquip.filter(r => r.local === local && r.equip === equip);
+  if (achados.length === 0) return;
+  const ultimo = achados[achados.length - 1];
+  document.getElementById("cs_nome").value = ultimo.nome || "";
+  document.getElementById("cs_modelo").value = ultimo.modelo || "";
+  document.getElementById("cs_patrimonio").value = ultimo.patrimonio || "";
+}
+
+function lerArquivoBase64(arquivo) {
+  return new Promise((resolver, rejeitar) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolver(String(leitor.result).split(",")[1]);
+    leitor.onerror = rejeitar;
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+async function salvarCadastroEquip() {
+  const local = document.getElementById("ce_local").value;
+  const equip = document.getElementById("ce_equip").value;
+  if (!local || !equip) { alert("Informe a localidade e o equipamento."); return; }
+  let fotoUrl = "";
+  const arquivo = document.getElementById("ce_foto").files[0];
+  try {
+    if (arquivo) {
+      const base64 = await lerArquivoBase64(arquivo);
+      const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha,
+        base64: base64, tipo: arquivo.type, nome: arquivo.name });
+      if (r.erro) { alert(r.erro); return; }
+      fotoUrl = r.url;
+    }
+    const linha = [new Date().toISOString(), window.credenciais.usuario, local, equip,
+      document.getElementById("ce_tipo").value, document.getElementById("ce_nome").value,
+      document.getElementById("ce_modelo").value, document.getElementById("ce_patrimonio").value,
+      document.getElementById("ce_especificacao").value, fotoUrl];
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Equipamentos", linhas: [linha] });
+    alert(res.erro ? res.erro : "Equipamento cadastrado.");
+    carregarRegistroEquip();
+  } catch (e) { alert("Não consegui salvar. Verifique a internet."); }
+}
+
+// ===== ALMOXARIFADO DE SÃO DESIDÉRIO: saldo = contagem + movimentações =====
+function itemCatalogo(codigo) {
+  return CATALOGO_ALMOX.find(i => i[0] === codigo);
+}
+
+async function mostrarSaldo() {
+  const cod = document.getElementById("ac_mat").value;
+  const local = document.getElementById("ac_local").value;
+  const box = document.getElementById("ac_saldo");
+  if (!cod || !local) { box.textContent = local ? "" : "Escolha o local primeiro."; return; }
+  const item = itemCatalogo(cod);
+  // A contagem atual é só da ETA São Desidério; os outros locais começam em zero
+  const base = local === "ETA São Desidério" ? (parseFloat(item[2]) || 0) : 0;
+  box.textContent = "Consultando saldo...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Almoxarifado" });
+    let mov = 0;
+    if (!res.erro) {
+      res.dados.slice(1).forEach(l => {
+        // colunas: data_hora, usuario, local, tipo, material, quantidade, observacao
+        if (l[2] === local && String(l[4]).startsWith(cod + " –")) {
+          const q = parseFloat(l[5]) || 0;
+          mov += String(l[3]).startsWith("Entrada") ? q : -q;
+        }
+      });
+    }
+    box.textContent = "Saldo atual: " + (base + mov) + " (contagem: " + base + ", movimentações desde a contagem: " + mov + ")";
+  } catch (e) { box.textContent = "Não consegui consultar agora. Verifique a internet."; }
+}
+
+async function movimentarCatalogo() {
+  const cod = document.getElementById("ac_mat").value;
+  const qtd = document.getElementById("ac_qtd").value;
+  const local = document.getElementById("ac_local").value;
+  if (!local || !cod || !qtd) { alert("Escolha o local, o material e a quantidade."); return; }
+  if (!podeMovimentarAlmox(local)) { alert("Só a equipe de " + local + " pode retirar ou adicionar neste almoxarifado. Você pode consultar o saldo e fazer pedido de material."); return; }
+  const item = itemCatalogo(cod);
+  const linha = [new Date().toISOString(), window.credenciais.usuario, local, document.getElementById("ac_tipo").value,
+    cod + " – " + item[1], qtd, document.getElementById("ac_obs").value];
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Almoxarifado", linhas: [linha] });
+    alert(res.erro ? res.erro : "Movimentação registrada.");
+    mostrarSaldo();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
+
+async function pedirCatalogo() {
+  const cod = document.getElementById("ac_mat").value;
+  const qtd = document.getElementById("ac_pqtd").value;
+  const local = document.getElementById("ac_local").value;
+  if (!local || !cod || !qtd) { alert("Escolha o local, o material e a quantidade a pedir."); return; }
+  const item = itemCatalogo(cod);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoMaterial",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, local, cod + " – " + item[1], qtd, "pendente"]] });
+    alert(res.erro ? res.erro : "Pedido de material enviado para a gerência.");
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); }
+}
+
+// ===== ALMOXARIFADO E ROTINA =====
+async function solicitarMaterial() {
+  const mat = document.getElementById("al_sol_mat").value;
+  const qtd = document.getElementById("al_sol_qtd").value;
+  if (!mat || !qtd) { alert("Escolha o material e a quantidade."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoMaterial",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, mat, qtd, "pendente"]] });
+    alert(res.erro ? res.erro : "Pedido de material enviado para a gerência.");
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); }
+}
+
+async function movimentarAlmox() {
+  const mat = document.getElementById("al_mov_mat").value;
+  const qtd = document.getElementById("al_mov_qtd").value;
+  if (!mat || !qtd) { alert("Escolha o material e a quantidade."); return; }
+  const linha = [new Date().toISOString(), window.credenciais.usuario, document.getElementById("al_tipo").value,
+    mat, qtd, document.getElementById("al_mov_obs").value];
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Almoxarifado", linhas: [linha] });
+    alert(res.erro ? res.erro : "Movimentação registrada.");
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
+
+async function salvarRotina() {
+  const agora = new Date().toISOString();
+  const u = window.credenciais.usuario;
+  const mes = agora.slice(0, 7);
+  const linhas = [];
+  ROTINA_ITENS.forEach((it, i) => {
+    const v = document.getElementById("rt_" + i).value;
+    if (v) linhas.push([agora, u, mes, it, v]);
+  });
+  if (linhas.length === 0) { alert("Marque pelo menos um item."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "Rotina", linhas: linhas });
+    alert(res.erro ? res.erro : "Rotina registrada.");
+  } catch (e) { alert("Não consegui salvar. Verifique a internet."); }
+}
+
+// ===== REFORMA OU CONSERTO (aba Conserto) =====
+function mudouEquipamento() {
+  preencherEquipamento();
+  const v = document.getElementById("cs_equip").value;
+  document.getElementById("cs_outro").style.display = v.startsWith("Outro") ? "" : "none";
+  document.getElementById("cs_dos").style.display = v === "Dosadora" ? "" : "none";
+}
+
+function atualizarEquipamentos() {
+  const local = document.getElementById("cs_local").value;
+  const sel = document.getElementById("cs_equip");
+  sel.innerHTML = `<option value="">Equipamento…</option>` + equipamentosDaLocalidade(local).map(e => `<option>${e}</option>`).join("");
+}
+
+function mudouTipo() {
+  const reforma = document.getElementById("cs_tipo").value === "Reforma";
+  document.getElementById("cs_ret").style.display = reforma ? "" : "none";
+  if (!reforma) {
+    document.getElementById("cs_ret_tipo").value = "";
+    mudouRetirada();
+  }
+}
+
+function mudouRetirada() {
+  const ret = document.getElementById("cs_ret_tipo").value === "Retirada de vazamento";
+  document.getElementById("cs_ret_dn").style.display = ret ? "" : "none";
+  document.getElementById("cs_equip").style.display = ret ? "none" : "";
+  document.getElementById("cs_outro").style.display = "none";
+  document.getElementById("cs_dos").style.display = "none";
+}
+
+async function enviarConserto() {
+  const local = document.getElementById("cs_local").value;
+  const equip = document.getElementById("cs_equip").value;
+  const retirada = document.getElementById("cs_tipo").value === "Reforma" &&
+    document.getElementById("cs_ret_tipo").value === "Retirada de vazamento";
+  if (!local) { alert("Escolha a localidade."); return; }
+  if (!retirada && !equip) { alert("Escolha o equipamento."); return; }
+  let equipamento = equip;
+  if (retirada) {
+    const dn = document.getElementById("cs_ret_dn").value;
+    if (!dn) { alert("Informe o DN do tubo."); return; }
+    equipamento = "Retirada de vazamento – DN " + dn + " mm";
+  }
+  if (equip.startsWith("Outro")) equipamento = document.getElementById("cs_outro").value.trim();
+  if (equip === "Dosadora") {
+    const dos = document.getElementById("cs_dos").value;
+    if (!dos) { alert("Escolha qual dosadora: sulfato, flúor ou cloro."); return; }
+    equipamento = "Dosadora – " + dos;
+  }
+  const u = window.credenciais.usuario;
+  const linha = [new Date().toISOString(), u, local, equipamento, document.getElementById("cs_nome").value,
+    document.getElementById("cs_modelo").value, document.getElementById("cs_tipo").value,
+    document.getElementById("cs_desc").value];
+  const patrimonio = document.getElementById("cs_patrimonio").value;
+  const modelo = document.getElementById("cs_modelo").value;
+  const nome = document.getElementById("cs_nome").value;
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "Conserto", linhas: [linha] });
+    // guarda o modelo e o patrimônio para os próximos pedidos
+    if (modelo || patrimonio || nome) {
+      chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "Equipamentos",
+        linhas: [[new Date().toISOString(), u, local, equipamento, "", nome, modelo, patrimonio, "", ""]] });
+    }
+    alert(res.erro ? res.erro : "Pedido enviado para a gerência.");
+  } catch (e) {
+    alert("Não consegui enviar. Verifique a internet.");
+  }
+}
+
+// ===== RILC (aba RILC: pedido do funcionário; aba RILCResposta: decisão da gerência) =====
+async function enviarRilc() {
+  const material = document.getElementById("rl_material").value === "Outro material (descrever abaixo)"
+    ? document.getElementById("rl_outro").value.trim()
+    : document.getElementById("rl_material").value;
+  const qtd = document.getElementById("rl_qtd").value;
+  if (!material || !qtd) { alert("Escolha o material e a quantidade."); return; }
+  const u = window.credenciais.usuario;
+  const urgencia = document.getElementById("rl_urgencia").value;
+  const dias = document.getElementById("rl_dias").value;
+  const linha = [new Date().toISOString(), u, material, qtd, urgencia,
+    urgencia === "Pode esperar" ? (dias + " dias") : "", document.getElementById("rl_motivo").value + " · Onde: " + document.getElementById("rl_onde").value];
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "RILC", linhas: [linha] });
+    alert(res.erro ? res.erro : "Pedido RILC enviado para a gerência.");
+  } catch (e) {
+    alert("Não consegui enviar. Verifique a internet.");
+  }
+}
+
+async function responderRilc() {
+  const linha = [document.getElementById("rr_pedido").value, document.getElementById("rr_decisao").value,
+    document.getElementById("rr_loja").value, document.getElementById("rr_obs").value];
+  try {
+    const res = await chamarApi({ acao: "gravar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "RILCResposta", linha: linha });
+    alert(res.erro ? res.erro : "Resposta registrada.");
+  } catch (e) {
+    alert("Não consegui registrar. Verifique a internet.");
+  }
+}
+
+// ===== HORA EXTRA (aba HoraExtra) =====
+function alternarHoraExtra() {
+  const temSS = document.querySelector('input[name="he_tem_ss"]:checked').value === "sim";
+  document.getElementById("he_com_ss").style.display = temSS ? "" : "none";
+  document.getElementById("he_sem_ss").style.display = temSS ? "none" : "";
+}
+
+async function salvarHoraExtra() {
+  const u = window.credenciais.usuario;
+  const agora = new Date().toISOString();
+  const temSS = document.querySelector('input[name="he_tem_ss"]:checked').value === "sim";
+  let linha;
+  if (temSS) {
+    const ss = document.getElementById("he_ss").value.trim();
+    if (!ss) { alert("Informe o número da SS."); return; }
+    linha = [agora, u, "Sim", ss, "", "", "", "", ""];
+  } else {
+    const motivo = document.getElementById("he_motivo").value.trim();
+    const servico = document.getElementById("he_servico").value;
+    const localidade = document.getElementById("he_localidade").value;
+    if (!motivo || !servico || !localidade) { alert("Preencha o motivo, o serviço e a localidade."); return; }
+    linha = [agora, u, "Não", "", motivo, servico, localidade,
+      document.getElementById("he_bairro").value, document.getElementById("he_logradouro").value];
+  }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "HoraExtra", linhas: [linha] });
+    alert(res.erro ? res.erro : "Hora extra registrada.");
+  } catch (e) {
+    alert("Não consegui salvar. Verifique a internet.");
+  }
+}
+
+// ===== PEDIDO DE FERRAMENTAS (aba Ferramentas) =====
+async function enviarFerramentas() {
+  const linhas = [];
+  const agora = new Date().toISOString();
+  const u = window.credenciais.usuario;
+  FERRAMENTAS_ITENS.forEach((nome, i) => {
+    const qtd = parseInt(document.getElementById("fer_q_" + i).value, 10) || 0;
+    if (qtd > 0) {
+      const motivo = document.getElementById("fer_m_" + i).value;
+      linhas.push([agora, u, nome, motivo, qtd, "pendente"]);
+    }
+  });
+  if (linhas.length === 0) { alert("Escolha pelo menos uma ferramenta com quantidade maior que 0."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "Ferramentas", linhas: linhas });
+    alert(res.erro ? res.erro : "Pedido de ferramentas enviado.");
+  } catch (e) {
+    alert("Não consegui enviar. Verifique a internet.");
+  }
+}
+
+// ===== PEDIDO DE EPI (aba EPI, aparece para a gerência em Pedidos de EPI) =====
+async function enviarEpi() {
+  const linhas = [];
+  const agora = new Date().toISOString();
+  const u = window.credenciais.usuario;
+  EPI_ITENS.forEach((it, i) => {
+    const qtd = parseInt(document.getElementById("epi_q_" + i).value, 10) || 0;
+    if (qtd > 0) {
+      const tam = document.getElementById("epi_t_" + i).value;
+      linhas.push([agora, u, it.nome, tam, qtd, "pendente"]);
+    }
+  });
+  if (linhas.length === 0) { alert("Escolha pelo menos um item com quantidade maior que 0."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "EPI", linhas: linhas });
+    alert(res.erro ? res.erro : "Pedido de EPI enviado.");
+  } catch (e) {
+    alert("Não consegui enviar. Verifique a internet.");
+  }
+}
+
 // ===== SALVAR NA PLANILHA =====
 async function salvarTela(btn, aba) {
   const area = btn.closest("main") || document.body;
+  if (aba === "Leituras" && document.getElementById("mac_wrap")) {
+    const wrap = document.getElementById("mac_wrap");
+    const data = (area.querySelector('input[type="date"]') || {}).value || "";
+    const linha = [data + "T07:00:00", window.credenciais.usuario, wrap.dataset.chave, document.getElementById("mac_leitura").value, document.getElementById("mac_consumo").value];
+    try {
+      const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Leituras", linhas: [linha] });
+      alert(res.erro ? res.erro : "Macro salvo no histórico.");
+    } catch (e) {
+      alert("Não consegui salvar. Verifique a internet.");
+    }
+    return;
+  }
+  if (aba === "Leituras" && document.getElementById("ms_leitura")) {
+    const data = (area.querySelector('input[type="date"]') || {}).value || "";
+    const dh = data + "T07:00:00";
+    const u = window.credenciais.usuario;
+    const linhas = [
+      [dh, u, "Macro saída da ETA", document.getElementById("ms_leitura").value, document.getElementById("ms_consumo").value],
+      [dh, u, "Macro Buriti Cortado", document.getElementById("bc_leitura").value, document.getElementById("bc_consumo").value]
+    ];
+    try {
+      const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "Leituras", linhas: linhas });
+      alert(res.erro ? res.erro : "Leitura salva no histórico.");
+    } catch (e) {
+      alert("Não consegui salvar. Verifique a internet.");
+    }
+    return;
+  }
+  if (aba === "Niveis") {
+    // Uma linha por reservatório e horário: data-hora da leitura, quem, reservatório, hora e nível
+    const data = (area.querySelector('input[type="date"]') || {}).value || "";
+    const heads = [...area.querySelectorAll("table th")].map(th => th.textContent).slice(1);
+    const linhas = [];
+    area.querySelectorAll("table tr").forEach((tr, idx) => {
+      if (idx === 0) return;
+      const tds = tr.querySelectorAll("td");
+      const hora = tds[0].textContent.trim();
+      tds.forEach((td, j) => {
+        if (j === 0) return;
+        const valor = td.querySelector("input").value;
+        if (valor === "") return;
+        linhas.push([data + "T" + hora + ":00", window.credenciais.usuario, heads[j - 1], hora, valor]);
+      });
+    });
+    try {
+      const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Niveis", linhas: linhas });
+      alert(res.erro ? res.erro : "Níveis salvos no histórico.");
+    } catch (e) {
+      alert("Não consegui salvar. Verifique a internet.");
+    }
+    return;
+  }
   const campos = [...area.querySelectorAll("input, textarea, select")].map(c => c.value);
   const titulo = (document.querySelector("#app h2") || {}).textContent || "";
   try {
@@ -624,9 +1947,43 @@ async function verHistorico(aba) {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: aba });
     if (res.erro) { app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><p>${res.erro}</p>`; return; }
     const linhas = res.dados.slice(1).reverse().slice(0, 50);
-    const corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${String(l[3]).slice(0, 150)}</td></tr>`).join("");
+    let cabecalho, corpo;
+    if (aba === "Equipamentos") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Localidade</th><th>Equipamento</th><th>Tipo</th><th>Nome</th><th>Modelo</th><th>Patrimônio</th><th>Especificação</th><th>Foto</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4] || ""}</td><td>${l[5] || ""}</td><td>${l[6] || ""}</td><td>${l[7] || ""}</td><td>${l[8] || ""}</td><td>${l[9] ? `<a href="${l[9]}" target="_blank">ver</a>` : ""}</td></tr>`).join("");
+    } else if (aba === "Rotina") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Mês</th><th>Item</th><th>Situação</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td></tr>`).join("");
+    } else if (aba === "Almoxarifado") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Local</th><th>Movimento</th><th>Material</th><th>Qtd</th><th>Observação</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[5]}</td><td>${l[6] || ""}</td></tr>`).join("");
+    } else if (aba === "PedidoMaterial") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Local</th><th>Material</th><th>Qtd</th><th>Situação</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[5] || ""}</td></tr>`).join("");
+    } else if (aba === "Conserto") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Local</th><th>Equipamento</th><th>Nome / modelo</th><th>Tipo</th><th>Situação</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${[l[4], l[5]].filter(Boolean).join(" / ")}</td><td>${l[6]}</td><td>${l[7] || ""}</td></tr>`).join("");
+    } else if (aba === "RILC") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Material</th><th>Qtd</th><th>Urgência</th><th>Onde / motivo</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${[l[5], l[6]].filter(Boolean).join(" · ")}</td></tr>`).join("");
+    } else if (aba === "HoraExtra") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Tem SS?</th><th>SS / Motivo</th><th>Serviço</th><th>Localidade</th><th>Bairro / Logradouro</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3] || l[4]}</td><td>${l[5]}</td><td>${l[6]}</td><td>${[l[7], l[8]].filter(Boolean).join(" / ")}</td></tr>`).join("");
+    } else if (aba === "Ferramentas") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Ferramenta</th><th>Motivo</th><th>Qtd</th><th>Situação</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[5]}</td></tr>`).join("");
+    } else if (aba === "EPI") {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Item</th><th>Tamanho</th><th>Qtd</th><th>Situação</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[5]}</td></tr>`).join("");
+    } else if (aba === "Niveis") {
+      cabecalho = "<tr><th>Horário da leitura</th><th>Quem</th><th>Reservatório</th><th>Nível (MCA)</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[4]}</td></tr>`).join("");
+    } else {
+      cabecalho = "<tr><th>Data</th><th>Quem</th><th>Título</th><th>Dados</th></tr>";
+      corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${String(l[3]).slice(0, 150)}</td></tr>`).join("");
+    }
     app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><h2>Histórico – ${aba}</h2>` +
-      `<table><tr><th>Data</th><th>Quem</th><th>Título</th><th>Dados</th></tr>${corpo || '<tr><td colspan="4">Nada salvo ainda</td></tr>'}</table>`;
+      `<table>${cabecalho}${corpo || '<tr><td colspan="4">Nada salvo ainda</td></tr>'}</table>`;
   } catch (e) {
     app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><p>Não consegui carregar o histórico. Verifique a internet.</p>`;
   }
@@ -726,6 +2083,8 @@ async function entrar() {
     window.credenciais = { usuario, senha };
     perfilAtual = perfil;
     window.MODO_GERENTE = res.usuario.perfil === "gerente";
+    window.nomeUsuario = res.usuario.nome;
+    window.usuarioLocalidades = String(res.usuario.localidades || "").split(",").map(s => s.trim()).filter(Boolean);
     document.getElementById("perfil").style.display = res.usuario.perfil === "gerente" ? "" : "none";
     document.getElementById("login").style.display = "none";
     init();
