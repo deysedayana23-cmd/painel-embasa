@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Protótipo – Painel EMBASA</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f2f4f7; color: #1d2330; font-size: 17px; }
+  header { background: #0b5394; color: #fff; padding: 14px 16px; }
+  header h1 { margin: 0 0 8px; font-size: 18px; }
+  select { width: 100%; padding: 10px; font-size: 16px; border-radius: 8px; border: none; }
+  .aviso-proto { background: #fff3cd; color: #6b4e00; padding: 8px 16px; font-size: 14px; border-bottom: 1px solid #e6d28a; }
+  .aviso { background: #fff3cd; border-left: 6px solid #e0a800; padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 15px; }
+  .urgente { background: #fde2e2; border-left: 6px solid #c62828; padding: 12px; border-radius: 8px; margin: 12px 0; }
+  .vermelho { background: #c62828; color: #fff; padding: 12px; border-radius: 8px; margin: 12px 0; font-weight: 600; }
+  main { padding: 12px 16px 40px; }
+  .atualizado { font-size: 14px; color: #555; margin-bottom: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn { background: #fff; border: 1px solid #cfd6e0; border-radius: 12px; padding: 16px 10px; text-align: center; font-size: 16px; font-weight: 600; cursor: pointer; min-height: 72px; }
+  .btn small { display: block; font-weight: 400; color: #555; font-size: 13px; margin-top: 4px; }
+  .btn:active { background: #e8f0fb; }
+  .voltar { background: none; border: none; color: #0b5394; font-size: 16px; padding: 8px 0; cursor: pointer; font-weight: 600; }
+  h2 { font-size: 19px; margin: 8px 0 10px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; font-size: 14px; }
+  th, td { padding: 8px; border-bottom: 1px solid #eef1f5; text-align: left; vertical-align: top; }
+  th { background: #e9eef6; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+  .t-ok { background: #d8f3dc; color: #1b5e20; }
+  .t-alerta { background: #fff3cd; color: #7a5a00; }
+  .t-venc { background: #fde2e2; color: #b71c1c; }
+  .campo { display: block; width: 100%; padding: 12px; font-size: 16px; border: 1px solid #cfd6e0; border-radius: 8px; margin: 6px 0 12px; background: #fff; }
+  .acao { background: #0b5394; color: #fff; border: none; padding: 14px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: 600; margin-top: 8px; }
+  .nota { font-size: 13px; color: #555; margin-top: 10px; }
+  .cards { display: grid; gap: 8px; }
+  .card { background: #fff; border-radius: 10px; padding: 12px; border: 1px solid #e3e8ef; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Painel EMBASA – Protótipo</h1>
+  <select id="perfil" onchange="trocarPerfil()"></select>
+</header>
+<div class="aviso-proto">PROTÓTIPO: dados de exemplo. Endereços, matrículas e valores são fictícios.</div>
+
+<div id="login" style="position:fixed;inset:0;background:#0b5394;display:flex;align-items:center;justify-content:center;z-index:9">
+  <div style="background:#fff;padding:24px;border-radius:12px;width:90%;max-width:340px">
+    <h2>Entrar no Painel EMBASA</h2>
+    <input id="lg_usuario" class="campo" placeholder="Usuário" autocomplete="username">
+    <input id="lg_senha" type="password" class="campo" placeholder="Senha" autocomplete="current-password">
+    <button class="acao" onclick="entrar()">Entrar</button>
+    <div id="lg_msg" class="nota"></div>
+  </div>
+</div>
+<main id="app"></main>
+
+<script>
+/* ============================================================
+   BLOCOS REUTILIZÁVEIS
+   ============================================================ */
+const BANNER_VERIF = ``;
+const AVISO_DIGITINHO =`<div class="aviso"><b>Antes de solicitar SS:</b> confirme que você está logado no Digiteam.</div>`;
+
+function GRADE(nomes, inicio = 0, fim = 22) {
+  const horas = [];
+  for (let h = inicio; h <= fim; h += 2) horas.push(String(h).padStart(2, "0") + ":00");
+  return `<input type="date" class="campo" value="2026-11-02"><div class="nota">Leitura a cada 2 horas, de ${String(inicio).padStart(2, "0")}:00 às ${String(fim).padStart(2, "0")}:00.</div>
+    <table><tr><th>Hora</th>${nomes.map(n => `<th>${n}</th>`).join("")}</tr>` +
+    horas.map(h => `<tr><td>${h}</td>${nomes.map(() => `<td><input class="campo" style="margin:0;padding:6px" placeholder="MCA"></td>`).join("")}</tr>`).join("") +
+    `</table><button class="acao" style="background:#555">Ver histórico de níveis</button>`;
+}
+
+function tabela(cab, linhas) {
+  return `<table><tr>${cab.map(c => `<th>${c}</th>`).join("")}</tr>` +
+    linhas.map(l => `<tr>${l.map(c => `<td>${c}</td>`).join("")}</tr>`).join("") + `</table>`;
+}
+
+const ATUALIZADO = `<div class="atualizado">Última atualização do SCI: 09:00 (próxima: 10:00)</div>`;
+
+/* Telas de exemplo */
+const TELAS = {
+  vencimentos: () => ATUALIZADO + `
+    <h2>Vencimentos</h2>
+    ${tabela(["Prazo","Tipo","Localidade / Bairro","Matrícula","Endereço"],[
+      ['<span class="tag t-venc">Até 24h</span>','Corte','Sede / Bairro A','000001','Rua exemplo, 10'],
+      ['<span class="tag t-venc">Até 24h</span>','Vazamento de rede','Sede / Bairro B','–','Rua exemplo, 25'],
+      ['<span class="tag t-alerta">24h a 48h</span>','Religação','Sede / Bairro A','000002','Rua exemplo, 40'],
+      ['<span class="tag t-venc">Atrasada</span>','Falta de água','Sede / Bairro C','000003','Rua exemplo, 5']
+    ])}
+    <div class="nota">Itens com "Estado" preenchido não aparecem aqui. Se a SS já foi executada no Digiteam, aguarda o escritório.</div>`,
+
+  todasSS: () => ATUALIZADO + `
+    <h2>Todas as SS abertas (últimos 90 dias)</h2>
+    <p><b>Resumo:</b> Corte: 50 · Vazamento: 8 · Religação: 3</p>
+    <select class="campo"><option>Todas as localidades</option></select>
+    <select class="campo"><option>Todos os bairros</option></select>
+    <select class="campo"><option>Ordenar por prazo</option></select>
+    ${tabela(["Prazo","Tipo","Bairro","Endereço"],[
+      ['Hoje 16h','Corte','Bairro A','Rua exemplo, 1'],
+      ['Amanhã','Corte','Bairro A','Rua exemplo, 3'],
+      ['Em 3 dias','Corte','Bairro B','Rua exemplo, 9']
+    ])}`,
+
+  verificacoes: () => perfilAtual.startsWith("Gerente") ? `
+    <h2>Criar verificação rápida</h2>
+    <input class="campo" placeholder="Local (ex.: Booster de Porto Rico)">
+    <textarea class="campo" rows="2" placeholder="O que verificar (ex.: a bomba está ligada?)"></textarea>
+    <select class="campo"><option>Responsável…</option><option>Exemplo: Ramon</option><option>Exemplo: Ivo Carlos</option></select>
+    <select class="campo"><option>Prazo…</option><option>Até hoje</option><option>Até amanhã</option></select>
+    <button class="acao">Enviar para o funcionário</button>
+    <h2 style="margin-top:20px">Acompanhamento</h2>
+    <div class="card">Booster de Porto Rico · Pendente · Resultado: –</div>` : `
+    <h2>Verificações rápidas</h2>
+    <div class="card" style="margin-bottom:10px">
+      <b>Booster de Porto Rico: verificar se a bomba está ligada</b><br>
+      <span style="font-size:14px">Pedido da gerência · 02/11 06:30 · Prazo: hoje</span><br><br>
+      <textarea class="campo" rows="2" placeholder="Resultado (ex.: ligada, funcionando)"></textarea>
+      <button class="acao">Marcar como feito</button>
+    </div>
+    <div class="nota">Verificação não gera SS. Se ficar sem marcar até o fim do dia, aparece para a gerência.</div>`,
+
+  ocorAbrir: () => `
+    <h2>Solicitar abertura de ocorrência operacional</h2>
+    <input class="campo" placeholder="Localidade e bairro">
+    <input class="campo" placeholder="Endereço do problema">
+    <select class="campo"><option>Tipo…</option><option>Falta de água</option><option>Falta de energia na unidade</option><option>Outro</option></select>
+    <textarea class="campo" rows="3" placeholder="Descrição (quem ligou, desde quando)"></textarea>
+    <button class="acao">Enviar para o escritório abrir</button>
+    <div class="nota">Pedido enviado. Você acompanha em "Meus pedidos".</div>`,
+
+  ocorEncerrar: () => `
+    <h2>Solicitar encerramento de ocorrência operacional</h2>
+    <div class="card" style="margin-bottom:10px">Ocorrências abertas na sua localidade (exemplo):<br>
+      <b>Falta de energia · Mozondó · aberta 01/11</b></div>
+    <select class="campo"><option>Escolha a ocorrência…</option><option>Falta de energia · Mozondó</option></select>
+    <textarea class="campo" rows="3" placeholder="Situação atual (ex.: sistema normalizado, bomba ligada)"></textarea>
+    <button class="acao">Enviar pedido de encerramento</button>
+    <div class="nota">O escritório confirma antes de encerrar no sistema.</div>`,
+
+  nivelAngico: () => `
+    <h2>Níveis – ETA Angico</h2>
+    ${GRADE(["RAD Angico"], 5, 17)}
+    <button class="acao">Salvar nível</button>`,
+
+  nivelSD: () => `
+    <h2>Níveis – ETA São Desidério</h2>
+    ${GRADE(["Semi-enterrado 1", "RAD 2 (apoiado de distribuição 2)"])}
+    <button class="acao">Salvar níveis</button>`,
+
+  nivelMozondo: () => `
+    <h2>Níveis – ETA Mozondó</h2>
+    ${GRADE(["Reservatórios ETA Mozondó (um nível, vale para os dois)"])}
+    <button class="acao">Salvar nível</button>`,
+
+  leituraMozondo: () => {
+    const horas = ["08:00","10:00","12:00","14:00","16:00","18:00","20:00","22:00","00:00","02:00","04:00","06:00"];
+    return `
+    <h2>Leitura diária – ETA Mozondó</h2>
+    <input type="date" class="campo" value="2026-11-02">
+    <div class="urgente"><b>ALERTA: nível abaixo de 1 m</b><br><span style="font-size:14px">Mozondó · 14h às 18h em 0,0 MCA · enviado a todos em Informações urgentes</span></div>
+    <input class="campo" placeholder="Operador">
+    <div class="card" style="margin-bottom:10px"><b>Macro saída da ETA</b>
+      <input class="campo" value="808184" placeholder="Leitura 7h (m³)">
+      <input class="campo" value="747" placeholder="Consumo últimas 24h (m³)">
+    </div>
+    <div class="card" style="margin-bottom:10px"><b>Macro Buriti Cortado</b>
+      <input class="campo" value="3696" placeholder="Leitura 7h (m³)">
+      <input class="campo" value="12" placeholder="Consumo últimas 24h (m³)">
+    </div>
+    <h2>Nível do reservatório (MCA, a cada 2h)</h2>
+    <table><tr><th>Hora</th><th>Nível (MCA)</th></tr>
+    ${horas.map((h, i) => `<tr><td>${h}</td><td><input class="campo" style="margin:0;padding:6px" value="${["5.0","5.0","5.0","0.0","0.0","0.0","0.8","1.0","1.6","2.0","3.0","3.0"][i]}"></td></tr>`).join("")}
+    </table>
+    <h2 style="margin-top:14px">Observações</h2>
+    <textarea class="campo" rows="3" placeholder="Observações do dia"></textarea>
+    <button class="acao">Salvar no histórico do app</button>
+    <button class="acao" style="background:#555">Ver histórico de leituras</button>
+    <div class="nota">Não gera texto para o grupo. Nível de 1 m ou menos aparece em Informações urgentes para todos.</div>`;
+  },
+
+  busca: () => `
+    <h2>Buscar cliente</h2>
+    <input class="campo" placeholder="Matrícula">
+    <input class="campo" placeholder="Número do hidrômetro">
+    <input class="campo" placeholder="Nome do cliente">
+    <input class="campo" placeholder="Localidade, bairro ou logradouro (ajuda a filtrar)">
+    <button class="acao">Pesquisar</button>
+    <div class="nota">Depois de achar a matrícula, você escolhe: 2ª via, débitos ou análise de consumo.</div>`,
+
+  meusPedidos: () => `
+    <h2>Meus pedidos</h2>
+    ${tabela(["Data","Tipo","Situação","Protocolo"],[
+      ['02/11','SS para Digiteam','<span class="tag t-ok">Concluído</span>','000000'],
+      ['02/11','Pedido de EPI (lote do mês)','<span class="tag t-alerta">Em andamento</span>','–'],
+      ['01/11','Aquisição (RILC)','<span class="tag t-ok">Recebido</span>','–']
+    ])}
+    <div class="nota">Situação atualizada pelo escritório. Itens recebidos ficam aqui até o fim do mês.</div>`,
+
+  planejamento: () => `
+    <h2>Pedido de planejamento</h2>
+    <input class="campo" placeholder="Data do planejamento">
+    <input class="campo" placeholder="Período (de / até)">
+    <select class="campo"><option>Região…</option><option>Sede</option><option>Angico</option></select>
+    <select class="campo"><option>Serviços…</option><option>Corte</option><option>Religação</option><option>Vazamento</option></select>
+    <button class="acao">Gerar texto do pedido</button>
+    <div class="nota">O texto vai para o escritório. Quando estiver pronto, aparece em "Meus pedidos".</div>`,
+
+  solicitarSS: () => AVISO_DIGITINHO + `
+    <h2>Gerar SS</h2>
+    <button class="acao" onclick="alert('Protótipo: aqui o formulário gera a SS para o Digiteam.')">Gerar SS e mandar para o Digiteam</button>
+    <button class="acao" style="background:#2e7d32" onclick="alert('Protótipo: aqui o formulário gera a SS para o escritório encerrar (já executada em campo).')">Gerar SS para o escritório encerrar</button>
+    <div class="nota">Quando a SS já existir no Digiteam, não precisa gerar outra. Veja em "Vencimentos".</div>`,
+
+  segundaVia: () => `
+    <h2>Segunda via</h2>
+    <input class="campo" placeholder="Matrícula, ou nome + localidade + bairro">
+    <button class="acao">Buscar e gerar 2ª via</button>
+    <div class="nota">Não abre SS. O escritório puxa a 2ª via direto no SCI.</div>`,
+
+  debitos: () => `
+    <h2>Débitos em atraso</h2>
+    <input class="campo" placeholder="Matrícula ou nome">
+    <button class="acao">Consultar e gerar PDF das faturas em atraso</button>
+    <div class="nota">Exemplo: a tela mostra as faturas e você marca quais imprimir.</div>`,
+
+  analiseConsumo: () => `
+    <h2>Análise de consumo</h2>
+    <input class="campo" placeholder="Matrícula">
+    <input class="campo" placeholder="Número do hidrômetro">
+    <button class="acao">Consultar últimas leituras</button>
+    <button class="acao" style="background:#555">Consultar titularidade</button>`,
+
+  extensaoRede: () => `
+    <h2>Solicitação de extensão de rede</h2>
+    <input class="campo" placeholder="Logradouro">
+    <input class="campo" placeholder="Bairro">
+    <input class="campo" placeholder="Localidade">
+    <input class="campo" placeholder="Quantidade de ligações beneficiadas">
+    <input class="campo" placeholder="Metragem da extensão (opcional)">
+    <input class="campo" placeholder="Quantidade de tubos">
+    <select class="campo"><option>Tipo de abastecimento…</option><option>Rede de distribuição</option><option>Booster</option><option>Reservatório elevado</option><option>Reservatório apoiado</option></select>
+    <select class="campo"><option>O cliente pode abrir a cava?</option><option>Sim</option><option>Não</option></select>
+    <button class="acao">Gerar ESS para o Edivaldo</button>`,
+
+  metas: () => `
+    <h2>Minhas metas</h2>
+    <div class="cards">
+      <div class="card"><b>Arrecadação</b><br>Hoje: R$ 0.000,00 · Mês: R$ 00.000,00 de R$ 000.000,00</div>
+      <div class="card"><b>Ligações novas</b><br>Feitas: 12 de 40 · Faltam 28 até 30/11</div>
+      <div class="card"><b>Substituição de hidrômetro</b><br>Faltam 15 · Grupo 1: até dia 10 (antes da leitura)</div>
+    </div>
+    <button class="acao" style="background:#b71c1c">Divergência nesta meta</button>`,
+
+  cronograma: () => `
+    <h2>Cronograma de leitura</h2>
+    <div class="card">Grupo A · Início: 05/11 · Data máxima: 12/11</div><br>
+    <div class="card">Grupo B · Início: 10/11 · Data máxima: 17/11</div><br>
+    <h2>Contas retidas</h2>
+    <div class="card">Impressas: 120 · Entregues: <input class="campo" style="width:90px;display:inline"></div>
+    <button class="acao">Salvar entregas</button>`,
+
+  entregaPrefeitura: () => `
+    <div class="vermelho">Entrega de contas da prefeitura · até 05/11 · faltam 3 dias</div>
+    ${tabela(["Item","Situação","Foto do recebido"],[
+      ["Lote de contas (exemplo)","Pendente","<button class='acao' style='padding:8px'>Anexar foto</button>"]
+    ])}
+    <div class="nota">Quando marcada como entregue, o item continua visível e você é avisada.</div>`,
+
+  almoxarifado: () => `
+    <h2>Almoxarifado</h2>
+    <input class="campo" placeholder="Buscar material">
+    ${tabela(["Código","Descrição","Qtd","Prateleira"],[
+      ["EXEMPLO-1","Tubo PVC exemplo","0","A1"],
+      ["EXEMPLO-2","Colar exemplo","0","B2"]
+    ])}
+    <button class="acao">Pedido de material</button>
+    <button class="acao" style="background:#555">Devolução de carcaça (hidrômetro)</button>`,
+
+  pedidoMaterial: () => `
+    <h2>Pedido de material</h2>
+    <input class="campo" placeholder="Material">
+    <input class="campo" placeholder="Quantidade">
+    <button class="acao">Gerar texto e enviar</button>
+    <div class="nota">O Claude gera a reserva e envia ao responsável da localidade.</div>`,
+
+  aquisicao: () => `
+    <h2>Solicitação de aquisição (RILC)</h2>
+    <input class="campo" placeholder="Item ou serviço">
+    <textarea class="campo" rows="3" placeholder="Motivo e onde será usado"></textarea>
+    <select class="campo"><option>Urgência…</option><option>Precisa agora</option><option>Pode esperar (dias)</option></select>
+    <input class="campo" placeholder="Quantos dias pode esperar?">
+    <button class="acao">Gerar texto para análise</button>`,
+
+  epi: () => `
+    <h2>Pedido de EPI</h2>
+    <div class="nota">Formulário próprio (funcionário próprio) ou lote dos terceirizados (conforme o vínculo).</div>
+    <input class="campo" placeholder="Item">
+    <input class="campo" placeholder="Tamanho">
+    <input class="campo" placeholder="Quantidade">
+    <button class="acao">Adicionar ao lote</button>`,
+
+  gersa: () => `
+    <h2>Demandas Agersa</h2>
+    <div class="card"><b>Exemplo de demanda</b> · Local: exemplo<br>Fotos necessárias: 4 (cerca inteira, vários ângulos, limpeza)</div>
+    <div class="urgente" style="margin-top:12px"><b>URGENTE</b> · Resolver até 05/11<br>Enviar evidências <button class="acao" style="padding:6px">Anexar fotos</button></div>`,
+
+  horaExtra: () => `
+    <h2>Hora extra de hoje</h2>
+    <select class="campo"><option>Motivo…</option><option>Serviço de urgência</option><option>Outro</option></select>
+    <input class="campo" placeholder="Serviço executado">
+    <input class="campo" placeholder="Número da SS (obrigatório)">
+    <button class="acao">Salvar</button>`,
+
+  escalaSobreaviso: () => `
+    <h2>Escalas</h2>
+    <div class="card"><b>Sábado:</b> Luzenildo</div><br>
+    <div class="card"><b>Domingo e feriado:</b> Joaquim (exemplo)</div><br>
+    <div class="card"><b>Igor e Oseias</b> em domingo e feriado: religação e vazamento de hidrômetro</div>`,
+
+  consumoQuimico: () => `
+    <h2>Consumo diário de produtos químicos</h2>
+    <input class="campo" placeholder="Produto">
+    <input class="campo" placeholder="Estoque inicial">
+    <input class="campo" placeholder="Consumido hoje">
+    <button class="acao">Gerar texto para o grupo</button>`,
+
+  leituraDiaria: () => `
+    <h2>Leitura diária (7h)</h2>
+    <input class="campo" placeholder="Volume 24h">
+    <input class="campo" placeholder="Nível do reservatório">
+    <button class="acao">Gerar texto para o grupo</button>`,
+
+  escalaTurno: () => `
+    <h2>Escala de turno</h2>
+    <div class="card">Hoje: Turno diurno · Turno noturno (letra A/B/C)</div>`,
+
+  ferias: () => `
+    <h2>Marcação de férias</h2>
+    <input class="campo" placeholder="Mês desejado">
+    <button class="acao">Enviar para o painel da gerência</button>`,
+
+  descargas: () => `
+    <h2>Descargas programadas</h2>
+    <div class="card">Semana de 09/11 · seg a sex · pontos fixos (exemplo)</div><br>
+    <button class="acao">Escolher pontos desta semana</button>`,
+
+  renovaRecuperacao: () => `
+    <h2>Digiteam</h2>
+    <button class="acao" style="background:#555">Recuperação de senha (em breve)</button>`,
+
+  pendenciasEstado: () => `
+    <h2>SS com Estado preenchido (para verificar)</h2>
+    ${tabela(["Tipo","Localidade","Estado","Ação"],[
+      ["Religação","Sede","Executada, aguarda comando","Encerrar (Claude)"],
+      ["Corte","Angico","Leitura menor, conferir anterior","Verificar"]
+    ])}
+    <div class="nota">O Claude encerra automaticamente conforme a regra de cada tipo.</div>`,
+
+  tramitacao: () => `
+    <h2>Tramitação</h2>
+    <div class="card">São Marcos e Passagem de Pedra: tramitar de Catolândia para Baianópolis</div><br>
+    <div class="card">Buriti Cortado: tramitar de Baianópolis para Catolândia</div>`,
+
+  abastecimento: () => `
+    <h2>Abastecimento (cartões)</h2>
+    <input class="campo" placeholder="Placa">
+    <input class="campo" placeholder="Funcionário">
+    <input class="campo" placeholder="Itens (litros)">
+    <input class="campo" placeholder="Valor">
+    <input class="campo" placeholder="Saldo no cartão">
+    <button class="acao">Registrar</button>`,
+
+  pendenciasTodas: () => `
+    <h2>Pendências das localidades</h2>
+    <div class="card">Catolândia (1019 ou 88881388), Baianópolis, Angico, Mozondó e Buriti Cortado (códigos a confirmar)</div>`,
+
+  urgencias: () => perfilAtual.startsWith("Gerente") ? `
+    <h2>Criar urgência</h2>
+    <textarea class="campo" rows="2" placeholder="O que fazer (ex.: verificar se a bomba do booster está ligada)"></textarea>
+    <input class="campo" placeholder="Local">
+    <input class="campo" placeholder="Quem deve ver (marque um ou mais)">
+    <button class="acao">Enviar urgência</button>
+    <h2 style="margin-top:20px">Acompanhamento</h2>
+    <div class="card" style="border-left:6px solid #2e7d32;margin-top:8px"><b>Trocar registro (exemplo)</b> · Feito por Ramon, 02/11 09:10 · <button class="acao" style="padding:6px">Validar</button></div>` : `
+    <h2>Urgências</h2>
+    <div class="card" style="border-left:6px solid #2e7d32"><b>Exemplo de urgência feita</b><br>Feito por Ramon · 02/11 09:10</div>
+    <div class="urgente"><b>Ocorrência operacional vencendo</b><br>
+      <span style="font-size:14px">Falta de energia · Mozondó · aberta em 01/11 · prazo: hoje</span><br>
+      <span style="font-size:14px">Responder: Isaac (agente de campo), Ivo Carlos e o operador da ETA Mozondó de plantão</span><br><br>
+      <b>Esta ocorrência pode ser encerrada?</b>
+      <button class="acao">Sim, pode encerrar</button>
+      <button class="acao" style="background:#555">Não, precisa de mais prazo</button>
+    </div>
+    <div class="nota">Pendente aparece em vermelho. Quando alguém marca como feito, fica verde com o nome de quem fez, para a gerência validar.</div>`,
+
+  medicao: () => `
+    <h2>Medição (consórcio)</h2>
+    <input class="campo" placeholder="Serviço realizado">
+    <input class="campo" placeholder="Número da SS">
+    <input type="file" class="campo" multiple>
+    <button class="acao">Abrir ESS, encerrar e anexar fotos</button>
+    <div class="nota">Insumos sugeridos conforme o serviço. Sem o item 03.01.01. Sem itens de esgoto.</div>`,
+
+  horaExtraGerente: () => `
+    <h2>Relatório de horas extras</h2>
+    <button class="acao">Gerar relatório da semana (sextas)</button>
+    <div class="nota">Enviado por e-mail ao Wagner.</div>`,
+
+  validacoes: () => `
+    <h2>Validações de urgência</h2>
+    <div class="card">Urgência de exemplo · resolvida pelo funcionário · <button class="acao" style="padding:6px">Validar</button></div>`,
+
+  alertaPrefeitura: () => `
+    <h2>Alertas</h2>
+    <div class="card">Entrega da prefeitura: nenhuma marcada até dia 4 (exemplo)</div>`,
+
+  mapaAquisicoes: () => `
+    <h2>Solicitações de aquisição</h2>
+    <div class="card">Textos gerados aparecem aqui para análise (WhatsApp)</div>`,
+
+  mapaPedidos: () => `
+    <h2>Pedidos de SS da equipe</h2>
+    <div class="card">Pedidos novos aparecem aqui antes de o Claude gerar</div>`
+};
+
+/* ============================================================
+   PERFIS (cada um vê só o que é dele)
+   ============================================================ */
+const PERFIS = {
+  "Agente de campo (exemplo: Luzenildo)": [
+    {nome:"Vencimentos (24h e 48h)", tela:"vencimentos"},
+    {nome:"Todas as SS abertas (90 dias)", tela:"todasSS"},
+    {nome:"SCI", sub:[
+      {nome:"Gerar SS e mandar para o Digiteam", tela:"solicitarSS"},
+      {nome:"Segunda via", tela:"segundaVia"},
+      {nome:"Débitos em atraso", tela:"debitos"},
+      {nome:"Análise de consumo", tela:"analiseConsumo"},
+      {nome:"Solicitação de extensão de rede", tela:"extensaoRede"},
+      {nome:"Buscar por matrícula, HD ou nome", tela:"busca"}
+    ]},
+    {nome:"Meus pedidos", tela:"meusPedidos"},
+    {nome:"Pedido de planejamento", tela:"planejamento"},
+    {nome:"Urgências", tela:"urgencias"},
+    {nome:"Ocorrência operacional", sub:[
+      {nome:"Solicitar abertura", tela:"ocorAbrir"},
+      {nome:"Solicitar encerramento", tela:"ocorEncerrar"}
+    ]},
+    {nome:"Metas", tela:"metas"},
+    {nome:"Cronograma de leitura e contas retidas", tela:"cronograma"},
+    {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
+    {nome:"Almoxarifado", tela:"almoxarifado"},
+    {nome:"Aquisição (RILC)", tela:"aquisicao"},
+    {nome:"EPI", tela:"epi"},
+    {nome:"Demandas Agersa", tela:"gersa"},
+    {nome:"Hora extra de hoje", tela:"horaExtra"},
+    {nome:"Escalas e sobreaviso", tela:"escalaSobreaviso"},
+    {nome:"Digiteam (recuperação de senha)", tela:"renovaRecuperacao"}
+  ],
+  "Operador ETA São Desidério (exemplo: Igor)": [
+    {nome:"Urgências", tela:"urgencias"},
+    {nome:"Consumo diário de produtos químicos", tela:"consumoQuimico"},
+    {nome:"Escala de turno", tela:"escalaTurno"},
+    {nome:"EPI", tela:"epi"},
+    {nome:"Hora extra de hoje", tela:"horaExtra"},
+    {nome:"Níveis dos reservatórios", tela:"nivelSD"},
+    {nome:"Escalas e sobreaviso", tela:"escalaSobreaviso"},
+    {nome:"Solicitações de SS da equipe", tela:"solicitarSS"}
+  ],
+  "Operador ETA São Desidério próprio (exemplo: Acácio)": [
+    {nome:"Urgências", tela:"urgencias"},
+    {nome:"Consumo diário de produtos químicos", tela:"consumoQuimico"},
+    {nome:"Escala de turno", tela:"escalaTurno"},
+    {nome:"EPI (próprio)", tela:"epi"},
+    {nome:"Marcação de férias", tela:"ferias"},
+    {nome:"Hora extra de hoje", tela:"horaExtra"}
+  ],
+  "Operador Angico (Ramon ou Renato)": [
+    {nome:"Níveis dos reservatórios", tela:"nivelAngico"},
+    {nome:"Leitura diária (7h)", tela:"leituraDiaria"},
+    {nome:"Urgências", tela:"urgencias"},
+    {nome:"Consumo diário de produtos químicos", tela:"consumoQuimico"},
+    {nome:"Descargas de rede da semana", tela:"descargas"},
+    {nome:"SS do SCI (Angico)", tela:"solicitarSS"},
+    {nome:"Metas", tela:"metas"},
+    {nome:"EPI", tela:"epi"},
+    {nome:"Hora extra de hoje", tela:"horaExtra"}
+  ],
+  "Operador Mozondó (Genildo)": [
+    {nome:"Níveis dos reservatórios", tela:"nivelMozondo"},
+    {nome:"Leitura diária (Mozondó)", tela:"leituraMozondo"},
+    {nome:"Urgências", tela:"urgencias"},
+    {nome:"Consumo diário de produtos químicos", tela:"consumoQuimico"},
+    {nome:"Escala de turno", tela:"escalaTurno"},
+    {nome:"EPI", tela:"epi"},
+    {nome:"Hora extra de hoje", tela:"horaExtra"}
+  ],
+  "Atendente (Thiago)": [
+    {nome:"SS com Estado para verificar", tela:"pendenciasEstado"},
+    {nome:"Tramitação (Catolândia ↔ Baianópolis)", tela:"tramitacao"},
+    {nome:"Pendências das 6 localidades", tela:"pendenciasTodas"},
+    {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Cronograma de leitura e contas retidas", tela:"cronograma"},
+    {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
+    {nome:"Vencimentos (24h e 48h)", tela:"vencimentos"},
+    {nome:"Todas as SS abertas (90 dias)", tela:"todasSS"}
+  ],
+  "Gerente (você)": [
+    {nome:"Urgências (criar e acompanhar)", tela:"urgencias"},
+    {nome:"Pendências com Estado", tela:"pendenciasEstado"},
+    {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Medição do consórcio", tela:"medicao"},
+    {nome:"Relatório de horas extras (sexta)", tela:"horaExtraGerente"},
+    {nome:"Alertas (prefeitura, prazos)", tela:"alertaPrefeitura"},
+    {nome:"Solicitações de aquisição", tela:"mapaAquisicoes"},
+    {nome:"Pedidos de SS da equipe", tela:"mapaPedidos"},
+    {nome:"Descargas (aprovar)", tela:"descargas"},
+    {nome:"Férias (lançar no SAP)", tela:"ferias"},
+    {nome:"Metas de todos", tela:"metas"},
+    {nome:"Cronograma e contas retidas", tela:"cronograma"},
+    {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
+    {nome:"Almoxarifado", tela:"almoxarifado"}
+  ]
+};
+
+/* ============================================================
+   RENDERIZAÇÃO
+   ============================================================ */
+let perfilAtual = "Operador Mozondó (Genildo)";
+let pilha = [];
+
+function init() {
+  const sel = document.getElementById("perfil");
+  sel.innerHTML = Object.keys(PERFIS).map(p => `<option>${p}</option>`).join("");
+  sel.value = perfilAtual;
+  trocarPerfil();
+}
+
+function trocarPerfil() {
+  perfilAtual = document.getElementById("perfil").value;
+  pilha = [];
+  mostrarMenu(PERFIS[perfilAtual], "Início");
+}
+
+function mostrarMenu(itens, titulo) {
+  const app = document.getElementById("app");
+  let html = "";
+  if (pilha.length) html += `<button class="voltar" onclick="voltar()">← Voltar</button>`;
+  if (!pilha.length && perfilAtual.startsWith("Agente")) html += AVISO_DIGITINHO;
+  if (!pilha.length && !perfilAtual.startsWith("Gerente")) html += BANNER_VERIF;
+  html += `<h2>${titulo}</h2><div class="grid">`;
+  itens.forEach((it, i) => {
+    html += `<button class="btn" onclick="abrir(${i})">${it.nome}</button>`;
+  });
+  html += `</div>`;
+  app.innerHTML = html;
+  window.scrollTo(0,0);
+}
+
+function abrir(i) {
+  const menu = pilha.length ? pilha[pilha.length-1].itens : PERFIS[perfilAtual];
+  const it = menu[i];
+  if (it.sub) {
+    pilha.push({itens: it.sub, titulo: it.nome});
+    mostrarMenu(it.sub, it.nome);
+  } else {
+    const app = document.getElementById("app");
+    app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button>` +
+      (TELAS[it.tela] ? TELAS[it.tela]() : "<p>Tela em construção.</p>");
+    window.scrollTo(0,0);
+  }
+}
+
+function renderAtual() {
+  if (pilha.length) {
+    const top = pilha[pilha.length-1];
+    mostrarMenu(top.itens, top.titulo);
+  } else {
+    mostrarMenu(PERFIS[perfilAtual], "Início");
+  }
+}
+
+function voltar() {
+  if (pilha.length) {
+    pilha.pop();
+    if (pilha.length) {
+      const top = pilha[pilha.length-1];
+      mostrarMenu(top.itens, top.titulo);
+    } else {
+      mostrarMenu(PERFIS[perfilAtual], "Início");
+    }
+  } else {
+    mostrarMenu(PERFIS[perfilAtual], "Início");
+  }
+}
+
+// ===== LOGIN (ligado à planilha pelo Apps Script) =====
+const URL_API = "https://script.google.com/macros/s/AKfycbwdtUFwHZbW0Ms7KSzFyZ63upUVD-jGafPzszRXZMJI50Xatcr-ew7PjVQTnQ-DC1Fh/exec";
+const MAPA_PERFIS = { "operador_mozondo": "Operador Mozondó (Genildo)" };
+
+async function chamarApi(corpo) {
+  const r = await fetch(URL_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corpo) });
+  return r.json();
+}
+
+async function entrar() {
+  const usuario = document.getElementById("lg_usuario").value.trim();
+  const senha = document.getElementById("lg_senha").value;
+  const msg = document.getElementById("lg_msg");
+  msg.textContent = "Entrando...";
+  try {
+    const res = await chamarApi({ acao: "login", usuario, senha });
+    if (res.erro) { msg.textContent = res.erro; return; }
+    const perfil = MAPA_PERFIS[res.usuario.perfil];
+    if (!perfil) { msg.textContent = "Este perfil ainda não está liberado no painel."; return; }
+    window.credenciais = { usuario, senha };
+    perfilAtual = perfil;
+    document.getElementById("login").style.display = "none";
+    init();
+  } catch (e) {
+    msg.textContent = "Não consegui conectar. Verifique a internet.";
+  }
+}
+</script>
+</body>
+</html>
