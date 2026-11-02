@@ -2089,7 +2089,7 @@ async function entrar() {
     document.getElementById("login").style.display = "none";
     init();
   } catch (e) {
-    msg.textContent = "Não consegui conectar. Verifique a internet.";
+    msg.textContent = "Não consegui conectar. Verifique a internet. (detalhe: " + (e && e.message ? e.message : e) + ")";
   }
 }
 </script>
