@@ -531,7 +531,11 @@ let pilha = [];
 
 function init() {
   const sel = document.getElementById("perfil");
-  sel.innerHTML = Object.keys(PERFIS).map(p => `<option>${p}</option>`).join("");
+  if (window.MODO_GERENTE) {
+    sel.innerHTML = PESSOAS.map(([nome, perfil]) => `<option value="${perfil}">${nome}</option>`).join("");
+  } else {
+    sel.innerHTML = Object.keys(PERFIS).map(p => `<option>${p}</option>`).join("");
+  }
   sel.value = perfilAtual;
   trocarPerfil();
 }
@@ -628,6 +632,30 @@ async function verHistorico(aba) {
 
 // ===== LOGIN (ligado à planilha pelo Apps Script) =====
 const URL_API = "https://script.google.com/macros/s/AKfycbwdtUFwHZbW0Ms7KSzFyZ63upUVD-jGafPzszRXZMJI50Xatcr-ew7PjVQTnQ-DC1Fh/exec";
+// Lista de pessoas que a gerência pode abrir (nome, perfil de painel)
+const PESSOAS = [
+  ["Luzenildo", "Agente de campo (exemplo: Luzenildo)"],
+  ["Joaquim", "Agente de campo (exemplo: Luzenildo)"],
+  ["Carlito", "Agente de campo (exemplo: Luzenildo)"],
+  ["Francisco", "Agente de campo (exemplo: Luzenildo)"],
+  ["Isaque", "Agente de campo (exemplo: Luzenildo)"],
+  ["Ivo Carlos", "Agente de campo (exemplo: Luzenildo)"],
+  ["Jânio Gualberto", "Agente de campo (exemplo: Luzenildo)"],
+  ["Igor", "Operador ETA São Desidério (exemplo: Igor)"],
+  ["Oseias", "Operador ETA São Desidério (exemplo: Igor)"],
+  ["Acácio", "Operador ETA São Desidério próprio (exemplo: Acácio)"],
+  ["Jânio Lima", "Operador ETA São Desidério próprio (exemplo: Acácio)"],
+  ["Eduardo", "Operador ETA São Desidério próprio (exemplo: Acácio)"],
+  ["Ramon", "Operador Angico (Ramon ou Renato)"],
+  ["Renato", "Operador Angico (Ramon ou Renato)"],
+  ["Genildo", "Operador Mozondó (Genildo)"],
+  ["Alan", "Operador Mozondó (Genildo)"],
+  ["Juvenson", "Operador Mozondó (Genildo)"],
+  ["Sandro", "Operador Mozondó (Genildo)"],
+  ["Thiago", "Atendente (Thiago)"],
+  ["Deyse", "Gerente (você)"]
+];
+
 const MAPA_PERFIS = {
   "agente_campo": "Agente de campo (exemplo: Luzenildo)",
   "operador_sd_terceirizado": "Operador ETA São Desidério (exemplo: Igor)",
@@ -655,6 +683,8 @@ async function entrar() {
     if (!perfil) { msg.textContent = "Este perfil ainda não está liberado no painel."; return; }
     window.credenciais = { usuario, senha };
     perfilAtual = perfil;
+    window.MODO_GERENTE = res.usuario.perfil === "gerente";
+    document.getElementById("perfil").style.display = res.usuario.perfil === "gerente" ? "" : "none";
     document.getElementById("login").style.display = "none";
     init();
   } catch (e) {
