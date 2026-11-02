@@ -41,6 +41,7 @@
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
   <select id="perfil" onchange="trocarPerfil()"></select>
+  <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
 <div class="aviso-proto">PROTÓTIPO: dados de exemplo. Endereços, matrículas e valores são fictícios.</div>
 
@@ -627,6 +628,32 @@ async function verHistorico(aba) {
       `<table><tr><th>Data</th><th>Quem</th><th>Título</th><th>Dados</th></tr>${corpo || '<tr><td colspan="4">Nada salvo ainda</td></tr>'}</table>`;
   } catch (e) {
     app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><p>Não consegui carregar o histórico. Verifique a internet.</p>`;
+  }
+}
+
+// ===== TROCAR A PRÓPRIA SENHA =====
+function telaTrocarSenha() {
+  document.getElementById("app").innerHTML = `
+    <button class="voltar" onclick="renderAtual()">← Voltar</button>
+    <h2>Trocar minha senha</h2>
+    <input id="ts_nova" type="password" class="campo" placeholder="Nova senha (mínimo 6 caracteres)" autocomplete="new-password">
+    <input id="ts_conf" type="password" class="campo" placeholder="Repita a nova senha" autocomplete="new-password">
+    <button class="acao" onclick="confirmarTrocaSenha()">Salvar nova senha</button>
+    <div id="ts_msg" class="nota"></div>`;
+}
+
+async function confirmarTrocaSenha() {
+  const nova = document.getElementById("ts_nova").value;
+  const conf = document.getElementById("ts_conf").value;
+  const msg = document.getElementById("ts_msg");
+  if (nova !== conf) { msg.textContent = "As senhas não coincidem."; return; }
+  try {
+    const res = await chamarApi({ acao: "trocarSenha", usuario: window.credenciais.usuario, senha: window.credenciais.senha, novaSenha: nova });
+    if (res.erro) { msg.textContent = res.erro; return; }
+    window.credenciais.senha = nova;
+    msg.textContent = "Senha trocada. Use a nova senha no próximo acesso.";
+  } catch (e) {
+    msg.textContent = "Não consegui trocar a senha. Verifique a internet.";
   }
 }
 
