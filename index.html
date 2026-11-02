@@ -68,7 +68,7 @@ function GRADE(nomes, inicio = 0, fim = 22) {
   return `<input type="date" class="campo" value="2026-11-02"><div class="nota">Leitura a cada 2 horas, de ${String(inicio).padStart(2, "0")}:00 às ${String(fim).padStart(2, "0")}:00.</div>
     <table><tr><th>Hora</th>${nomes.map(n => `<th>${n}</th>`).join("")}</tr>` +
     horas.map(h => `<tr><td>${h}</td>${nomes.map(() => `<td><input class="campo" style="margin:0;padding:6px" placeholder="MCA"></td>`).join("")}</tr>`).join("") +
-    `</table><button class="acao" style="background:#555">Ver histórico de níveis</button>`;
+    `</table><button class="acao" style="background:#555" onclick="verHistorico('Niveis')">Ver histórico de níveis</button>`;
 }
 
 function tabela(cab, linhas) {
@@ -175,7 +175,7 @@ const TELAS = {
     <h2 style="margin-top:14px">Observações</h2>
     <textarea class="campo" rows="3" placeholder="Observações do dia"></textarea>
     <button class="acao" onclick="salvarTela(this, 'Leituras')">Salvar no histórico do app</button>
-    <button class="acao" style="background:#555">Ver histórico de leituras</button>
+    <button class="acao" style="background:#555" onclick="verHistorico('Leituras')">Ver histórico de leituras</button>
     <div class="nota">Não gera texto para o grupo. Nível de 1 m ou menos aparece em Informações urgentes para todos.</div>`;
   },
 
@@ -610,9 +610,33 @@ async function salvarTela(btn, aba) {
   }
 }
 
+// ===== VER HISTÓRICO (lê as últimas linhas salvas na planilha) =====
+async function verHistorico(aba) {
+  const app = document.getElementById("app");
+  app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><h2>Histórico</h2><div class="nota">Carregando...</div>`;
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: aba });
+    if (res.erro) { app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><p>${res.erro}</p>`; return; }
+    const linhas = res.dados.slice(1).reverse().slice(0, 50);
+    const corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${String(l[3]).slice(0, 150)}</td></tr>`).join("");
+    app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><h2>Histórico – ${aba}</h2>` +
+      `<table><tr><th>Data</th><th>Quem</th><th>Título</th><th>Dados</th></tr>${corpo || '<tr><td colspan="4">Nada salvo ainda</td></tr>'}</table>`;
+  } catch (e) {
+    app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button><p>Não consegui carregar o histórico. Verifique a internet.</p>`;
+  }
+}
+
 // ===== LOGIN (ligado à planilha pelo Apps Script) =====
 const URL_API = "https://script.google.com/macros/s/AKfycbwdtUFwHZbW0Ms7KSzFyZ63upUVD-jGafPzszRXZMJI50Xatcr-ew7PjVQTnQ-DC1Fh/exec";
-const MAPA_PERFIS = { "operador_mozondo": "Operador Mozondó (Genildo)", "gerente": "Gerente (você)" };
+const MAPA_PERFIS = {
+  "agente_campo": "Agente de campo (exemplo: Luzenildo)",
+  "operador_sd_terceirizado": "Operador ETA São Desidério (exemplo: Igor)",
+  "operador_sd_proprio": "Operador ETA São Desidério próprio (exemplo: Acácio)",
+  "operador_angico": "Operador Angico (Ramon ou Renato)",
+  "operador_mozondo": "Operador Mozondó (Genildo)",
+  "atendente": "Atendente (Thiago)",
+  "gerente": "Gerente (você)"
+};
 
 async function chamarApi(corpo) {
   const r = await fetch(URL_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corpo) });
