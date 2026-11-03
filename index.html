@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 19h25</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 19h35</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2381,18 +2381,42 @@ function ocAtualizarLocal() {
   }
   const naEta = unid === "ETA" || unid === "Captação";
   if (naEta) document.getElementById("oc_todosb").checked = true;
-  const afetadas = (naEta && loc === "Mozondó") ? OC_AFETADAS_MOZONDO : (loc ? [loc] : []);
+  const afetadas = (naEta && OC_AFETADAS_MOZONDO.includes(loc)) ? OC_AFETADAS_MOZONDO : (loc ? [loc] : []);
   document.querySelectorAll(".oc_af").forEach(c => { if (afetadas.includes(c.value)) c.checked = true; });
   ocBairrosAfetados();
 }
 function ocBairrosAfetados() {
   const box = document.getElementById("oc_bairrosaf");
   if (!box) return;
-  if (document.getElementById("oc_todosb").checked) { box.innerHTML = ""; return; }
+  const todosGeral = document.getElementById("oc_todosb").checked;
   const marcados = new Set([...document.querySelectorAll(".oc_baf:checked")].map(c => c.value));
   const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
-  box.innerHTML = afet.map(l => `<div class="nota" style="margin-top:6px">Bairros afetados – ${l}:</div>` +
-    Object.keys(OC_LOGRADOUROS[l] || {}).map(b => { const v = l + ": " + b; return `<label style="display:block"><input type="checkbox" class="oc_baf" value="${v}" ${marcados.has(v) ? "checked" : ""}> ${b}</label>`; }).join("")).join("");
+  box.innerHTML = afet.map(l => {
+    const bs = Object.keys(OC_LOGRADOUROS[l] || {});
+    const todosL = todosGeral || (bs.length && bs.every(b => marcados.has(l + ": " + b)));
+    return `<div class="card" style="margin-top:6px"><b>Bairros sem água – ${l}</b>
+      <label style="display:block;margin-top:4px"><input type="checkbox" class="oc_baf_todos" data-loc="${l}" ${todosL ? "checked" : ""} onchange="ocMarcarTodosLoc(this)"> <b>Todos os bairros de ${l}</b></label>
+      ${bs.map(b => { const v = l + ": " + b; return `<label style="display:block"><input type="checkbox" class="oc_baf" data-loc="${l}" value="${v}" ${todosL || marcados.has(v) ? "checked" : ""} onchange="ocConferirTodosLoc('${l}')"> ${b}</label>`; }).join("")}</div>`;
+  }).join("");
+}
+function ocMarcarTodosLoc(el) {
+  document.querySelectorAll(`.oc_baf[data-loc="${el.dataset.loc}"]`).forEach(c => c.checked = el.checked);
+  if (!el.checked) document.getElementById("oc_todosb").checked = false;
+}
+function ocConferirTodosLoc(l) {
+  const cs = [...document.querySelectorAll(`.oc_baf[data-loc="${l}"]`)];
+  const t = document.querySelector(`.oc_baf_todos[data-loc="${l}"]`);
+  if (t) t.checked = cs.length && cs.every(c => c.checked);
+  if (!cs.every(c => c.checked)) document.getElementById("oc_todosb").checked = false;
+}
+function ocTextoBairrosAfetados() {
+  const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
+  return afet.map(l => {
+    const cs = [...document.querySelectorAll(`.oc_baf[data-loc="${l}"]`)];
+    const sel = cs.filter(c => c.checked).map(c => c.value.split(": ").slice(1).join(": "));
+    if (!sel.length) return "";
+    return `${l}: ${cs.length && sel.length === cs.length ? "todos os bairros" : sel.join(", ")}`;
+  }).filter(Boolean).join(" | ");
 }
 function ocAtualizarLogradouros() {
   const loc = document.getElementById("oc_loc").value;
@@ -2425,7 +2449,7 @@ async function enviarOcorrencia() {
   const ini = v("oc_ini"), fim = v("oc_fim"), reg = v("oc_reg"), outras = v("oc_desc");
   const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
   const todosB = document.getElementById("oc_todosb").checked;
-  const bairrosAf = todosB ? "Todos os bairros" : [...document.querySelectorAll(".oc_baf:checked")].map(c => c.value).join("; ");
+  const bairrosAf = ocTextoBairrosAfetados();
   const obs = [...document.querySelectorAll(".oc_ob:checked")].map(c => c.value);
   const falta = [];
   if (!loc) falta.push("localidade"); if (!bairro) falta.push("bairro"); if (!lograd) falta.push("logradouro");
