@@ -513,6 +513,7 @@ const TELAS = {
   ssRede: () => telaPedidoSS(true),
   ssRamal: () => telaPedidoSS(true),
   pedidosSS: () => telaPedidosSS(),
+  pendAbrirEncerrar: () => `<h2>Pendências de abrir e encerrar SS</h2><div class="nota">Quando a SS for gerada, digite o número e marque como concluída. Ela sai da lista.</div><div id="pae_lista">Carregando...</div>`,
   meusAcessos: () => `<h2>Meus acessos</h2><div id="ma_lista">Carregando...</div>`,
 
   horaExtraHist: () => `<h2>Histórico de hora extra</h2><div id="he_lista">Carregando...</div>`,
@@ -1461,6 +1462,7 @@ function abrir(i) {
     if (it.tela === "horaExtraGerente") carregarHoraExtraRelatorio();
     if (it.tela === "meusAcessos") carregarMeusAcessos();
     if (it.tela === "pedidosSS") carregarPedidosSS();
+    if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
     if (it.tela === "pendenciasEstado") carregarEstadoSS();
     if (it.tela === "ocorMinhas") carregarOcorMinhas();
@@ -2566,9 +2568,14 @@ function menuOperadorDe(perfil) {
 function menuDoPerfil() {
   const n = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
   const simples = ["luzenildo", "francisco", "carlito", "joaquim", "igor", "ivocarlos", "janiogualberto"].some(x => n.includes(x));
-  if (simples) return menuSimplesDe(perfilAtual);
-  if (String(perfilAtual).startsWith("Operador Mozondó") || String(perfilAtual).startsWith("Operador Angico")) return menuOperadorDe(perfilAtual);
-  return PERFIS[perfilAtual];
+  let menu;
+  if (simples) menu = menuSimplesDe(perfilAtual);
+  else if (String(perfilAtual).startsWith("Operador Mozondó") || String(perfilAtual).startsWith("Operador Angico")) menu = menuOperadorDe(perfilAtual);
+  else menu = PERFIS[perfilAtual];
+  // Pendências de abrir e encerrar: você, Thiago, Igor e Oseias
+  const veem = window.MODO_GERENTE || ["deyse", "thiago", "igor", "oseias"].some(x => n.includes(x));
+  if (veem && menu) menu = [{nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}, ...menu];
+  return menu;
 }
 
 // ===== SERVIÇOS URGENTES: a gerência adiciona; cada pessoa vê a quantidade no botão e marca como feito =====
@@ -2987,7 +2994,16 @@ function blocoEncerramento(chave) {
   </div>`;
 }
 function telaPedidoSS(encerrar = false) {
-  const fotos = encerrar ? `<div class="card"><b>1. Foto do local</b> (a coordenada GPS entra na foto automaticamente)<br><input type="file" id="enc_fotos" accept="image/*" multiple class="campo"></div>` : "";
+  window.fotosEnc = [];
+  const fotos = encerrar ? `<div class="card"><b>Horário do serviço</b><br>
+      Início: <input type="time" id="enc_ini" class="campo"><br>
+      Fim: <input type="time" id="enc_fim" class="campo"></div>
+    <div class="card"><b>Fotos do local (até 10)</b> – a coordenada GPS entra na foto automaticamente<br>
+      <button class="acao" onclick="document.getElementById('enc_cam').click()">Tirar foto agora</button>
+      <button class="acao" style="background:#555" onclick="document.getElementById('enc_gal').click()">Anexar foto do celular</button>
+      <input type="file" id="enc_cam" accept="image/*" capture="environment" style="display:none" onchange="addFotoEnc(this)">
+      <input type="file" id="enc_gal" accept="image/*" multiple style="display:none" onchange="addFotoEnc(this)">
+      <div id="enc_fotos_lista" class="nota">Nenhuma foto ainda (0 de 10)</div></div>` : "";
   return `<h2>${encerrar ? "Abrir e encerrar SS" : "Pedir abertura de SS"}</h2>
     ${fotos}
     <div class="nota"><b>Ao pedir, a SS entra nas pendências do SCI e aguarda oportunidade para ser executada.</b> Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos.</div>
@@ -3003,6 +3019,16 @@ function telaPedidoSS(encerrar = false) {
     <textarea id="ps_obs" class="campo" rows="3" placeholder="Observação (o que foi observado no local)"></textarea>
     <div id="ps_enc"></div>
     <button class="acao" onclick="enviarPedidoSS(${encerrar})">${encerrar ? "Enviar pedido de abertura e encerramento" : "Enviar pedido de SS"}</button>`;
+}
+function addFotoEnc(input) {
+  window.fotosEnc = window.fotosEnc || [];
+  const arquivos = Array.from(input.files || []);
+  let excedeu = false;
+  arquivos.forEach(a => { if (window.fotosEnc.length < 10) window.fotosEnc.push(a); else excedeu = true; });
+  input.value = "";
+  const lista = document.getElementById("enc_fotos_lista");
+  if (lista) lista.textContent = window.fotosEnc.length + " foto(s) de 10" + (window.fotosEnc.length ? ": " + window.fotosEnc.map(f => f.name).join(", ") : "");
+  if (excedeu) alert("O limite é de 10 fotos. As que passaram do limite não foram adicionadas.");
 }
 // Localização do aparelho (GPS). Usada no endereço e carimbada na foto da SS.
 function obterPosicao() {
@@ -3089,7 +3115,11 @@ async function enviarPedidoSS(encerrar = false) {
     } else {
       obsFinal = "[ABRIR E ENCERRAR] " + obs;
     }
-    const arquivos = (document.getElementById("enc_fotos") || {}).files || [];
+    const hIni = (document.getElementById("enc_ini") || {}).value || "";
+    const hFim = (document.getElementById("enc_fim") || {}).value || "";
+    if (!hIni || !hFim) { alert("Informe o horário de início e de fim do serviço."); return; }
+    obsFinal += " | Início: " + hIni + " | Fim: " + hFim;
+    const arquivos = window.fotosEnc || [];
     if (window.ssGps) obsFinal += " | GPS: " + window.ssGps.lat.toFixed(6) + ", " + window.ssGps.lon.toFixed(6);
     try {
       const links = [];
@@ -3128,6 +3158,34 @@ const DIGITEAM_OPCOES = [
 ];
 function selectDigiteam(id) {
   return `<select id="${id}" class="campo"><option value="">Escolha quem recebe no Digiteam…</option>${DIGITEAM_OPCOES.map(([n, m, u]) => `<option value="${n}">${n} – ${m} – ${u}</option>`).join("")}</select>`;
+}
+async function carregarPendAbrirEncerrar() {
+  const box = document.getElementById("pae_lista");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], obs: l[9] || "", situacao: l[10] || "pendente", fotos: l[15] || "" }))
+      .filter(x => /\[ABRIR E ENCERRAR\]/.test(x.obs) && x.situacao === "pendente");
+    if (!itens.length) { box.innerHTML = "<p>Nenhuma SS de abrir e encerrar pendente.</p>"; return; }
+    box.innerHTML = itens.reverse().map(p => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
+      <b>${p.tipo}</b><br><span style="font-size:14px">${p.esp} · ${p.loc} · pedido por ${p.quem} em ${formatarQuando(p.quando)}</span>
+      <pre style="white-space:pre-wrap;font-size:13px">${p.obs}</pre>
+      ${p.fotos ? "<div style=\"font-size:14px\">Fotos: " + p.fotos.split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") + "</div>" : ""}
+      <input id="pae_n_${p.linha}" class="campo" placeholder="Número da SS gerada">
+      <button class="acao" onclick="concluirAbrirEncerrar(${p.linha})">Marcar como concluída</button>
+    </div>`).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function concluirAbrirEncerrar(linha) {
+  const numero = (document.getElementById("pae_n_" + linha) || {}).value || "";
+  if (!numero.trim()) { alert("Digite o número da SS."); return; }
+  try {
+    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: "", concluida: "Sim", foto: "" });
+    if (res.erro) { alert(res.erro); return; }
+    carregarPendAbrirEncerrar();
+  } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
 }
 function telaPedidosSS() {
   return `<h2>Pedidos de SS</h2><div id="pss_lista">Carregando...</div>`;
