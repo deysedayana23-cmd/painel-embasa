@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 15h20</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 15h35</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -514,6 +514,7 @@ const TELAS = {
   ssRede: () => telaPedidoSS(true),
   ssRamal: () => telaPedidoSS(true),
   pedidosSS: () => telaPedidosSS(),
+  semLocalizacao: () => `<h2>Matrículas sem localização</h2><div class="nota">Matrículas das SS pendentes que ainda não têm coordenada (nem na tabela, nem na BaseLocalizacao, nem no GPS de campo).</div><div id="sl2_lista">Carregando...</div>`,
   pendExecutar: () => `<h2>SS pendente</h2><div class="nota">Quando executar a SS em campo, toque em "OK, executada". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
   pendAbrirEncerrar: () => `<h2>Pendências de abrir e encerrar SS</h2><div class="nota">Quando a SS for gerada, digite o número e marque como concluída. Ela sai da lista.</div><div id="pae_lista">Carregando...</div>`,
   meusAcessos: () => `<h2>Meus acessos</h2><div id="ma_lista">Carregando...</div>`,
@@ -1478,6 +1479,7 @@ function abrir(i) {
     if (it.tela === "pedidosSS") carregarPedidosSS();
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "pendExecutar") carregarPendExecutar();
+    if (it.tela === "semLocalizacao") carregarSemLocalizacao();
     if (it.local) window.almoxLocalPreset = it.local;
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
     if (it.tela === "pendenciasEstado") carregarEstadoSS();
@@ -2612,6 +2614,7 @@ function menuDoPerfil() {
   if (GRUPO_GESTAO.some(x => n.includes(x)) || (window.MODO_GERENTE && !emPrevia())) {
     const resto = achatarMenu(menuBaseDoPerfil(n)).filter(i => !["almoxarifadoCatalogo", "encerrarEscritorio"].includes(i.tela) && i.nome !== "Almoxarifado");
     const outros = [...resto, {nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}];
+    if ((window.MODO_GERENTE && !emPrevia()) || n.includes("thiago")) outros.push({nome: "Matrículas sem localização", tela: "semLocalizacao"});
     return [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}, {nome: "Almoxarifado", tela: "almoxarifadoCatalogo"}, {nome: "Outros", sub: outros}];
   }
   // Demais perfis: como antes
@@ -3207,7 +3210,10 @@ async function carregarPendExecutar() {
   if (!box) return;
   box.textContent = "Carregando...";
   try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo" });
+    const [res, base] = await Promise.all([
+      chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo" }),
+      carregarBaseLocalizacao()
+    ]);
     if (res.erro) { box.textContent = res.erro; return; }
     const cab = res.dados[0] || [];
     const linhas = res.dados.slice(1);
@@ -3223,6 +3229,7 @@ async function carregarPendExecutar() {
       const mat = matDaSS[String(l[1])];
       if (g && mat) gpsPorMat[mat] = g[1] + "," + g[2];
     });
+    Object.keys(base).forEach(m => { if (!gpsPorMat[m]) gpsPorMat[m] = base[m]; });
     const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7),
         gps: (idxMat >= 0 && !(idxLocal >= 0 && String(l[idxLocal] || "").trim())) ? gpsPorMat[String(l[idxMat] || "").trim()] : "" }))
       .filter(x => x.situacao === "pendente" && !executadas.has(x.ss) && String(x.resp).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n))));
@@ -3230,9 +3237,56 @@ async function carregarPendExecutar() {
     box.innerHTML = `<div class="nota">${minhas.length} SS pendente(s)</div>` + minhas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
-      ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Localização registrada em campo</a></div>` : ""}
+      ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : (idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim() ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
       <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
     </div>`).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+// Aba BaseLocalizacao: matricula | coordenadas | fonte | data  (coordenadas no formato "lat,lon")
+async function carregarBaseLocalizacao() {
+  const base = {};
+  try {
+    const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "BaseLocalizacao" });
+    if (r.erro) return base;
+    r.dados.slice(1).forEach(l => {
+      const m = String(l[0] || "").trim();
+      const c = String(l[1] || "").match(/(-?\d+[.,]\d+)\s*[,; ]\s*(-?\d+[.,]\d+)/);
+      if (m && c) base[m] = c[1].replace(",", ".") + "," + c[2].replace(",", ".");
+    });
+  } catch (e) {}
+  return base;
+}
+async function carregarSemLocalizacao() {
+  const box = document.getElementById("sl2_lista");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const [res, base] = await Promise.all([
+      chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo" }),
+      carregarBaseLocalizacao()
+    ]);
+    if (res.erro) { box.textContent = res.erro; return; }
+    const cab = res.dados[0] || [];
+    const linhas = res.dados.slice(1);
+    const idxMat = cab.findIndex(h => /matr/i.test(String(h)));
+    const idxLocal = cab.findIndex((h, k) => k >= 7 && /localiza|coordenad|mapa|gps/i.test(String(h)));
+    if (idxMat < 0) { box.innerHTML = "<p>A aba ExecucaoCampo ainda não tem coluna de matrícula.</p>"; return; }
+    linhas.filter(l => String(l[5]).toLowerCase() === "executada").forEach(l => {
+      const g = String(l[6] || "").match(/GPS:\s*(-?\d+\.\d+),(-?\d+\.\d+)/);
+      const pend = linhas.find(p => String(p[1]) === String(l[1]) && p[idxMat]);
+      if (g && pend) base[String(pend[idxMat]).trim()] = g[1] + "," + g[2];
+    });
+    const executadas = new Set(linhas.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1])));
+    const faltam = {};
+    linhas.filter(l => String(l[5]).toLowerCase() === "pendente" && !executadas.has(String(l[1]))).forEach(l => {
+      const m = String(l[idxMat] || "").trim();
+      const temNaLinha = idxLocal >= 0 && String(l[idxLocal] || "").trim();
+      if (m && !temNaLinha && !base[m]) (faltam[m] = faltam[m] || []).push(String(l[1]));
+    });
+    const mats = Object.keys(faltam);
+    box.innerHTML = mats.length ? `<div class="nota">${mats.length} matrícula(s) sem localização nas SS pendentes</div>
+      <textarea class="campo" rows="8" readonly>${mats.join("\n")}</textarea>
+      ${mats.map(m => `<div class="card" style="margin-bottom:6px">Matrícula <b>${m}</b> · SS ${faltam[m].join(", ")}</div>`).join("")}` : "<p>Todas as SS pendentes têm localização.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 // Mostra uma coluna extra da aba ExecucaoCampo; localização vira link para o mapa
