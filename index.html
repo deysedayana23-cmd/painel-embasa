@@ -1412,7 +1412,7 @@ function mostrarMenu(itens, titulo) {
 }
 
 // ===== Contadores nos botões de SS e pendência =====
-const NOME_EXIBIDO = { encerrarEscritorio: "SS para encerrar", pendExecutar: "Pendência de SS para executar" };
+const NOME_EXIBIDO = { encerrarEscritorio: "Pendências de SS a digitar", pendExecutar: "Pendência de SS para executar" };
 const CONTAGEM_SS_TELAS = { todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
@@ -1467,6 +1467,7 @@ function abrir(i) {
     if (it.tela === "pedidosSS") carregarPedidosSS();
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "pendExecutar") carregarPendExecutar();
+    if (it.local) window.almoxLocalPreset = it.local;
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
     if (it.tela === "pendenciasEstado") carregarEstadoSS();
     if (it.tela === "ocorMinhas") carregarOcorMinhas();
@@ -2569,19 +2570,35 @@ function menuOperadorDe(perfil) {
   principal.push({nome: "Outros", sub: resto});
   return principal;
 }
+const GRUPO_CAMPO = ["luzenildo", "joaquim", "francisco", "carlito", "ivo", "janiogualberto", "isaque", "isaac"];
+const GRUPO_GESTAO = ["deyse", "thiago", "alan", "genildo", "igor", "oseias"];
+function menuBaseDoPerfil(n) {
+  const simples = ["luzenildo", "francisco", "carlito", "joaquim", "igor", "ivocarlos", "janiogualberto"].some(x => n.includes(x));
+  if (simples) return menuSimplesDe(perfilAtual);
+  if (String(perfilAtual).startsWith("Operador Mozondó") || String(perfilAtual).startsWith("Operador Angico")) return menuOperadorDe(perfilAtual);
+  return PERFIS[perfilAtual];
+}
+function achatarMenu(m) {
+  return (m || []).flatMap(i => (i.nome === "Outros" && i.sub) ? i.sub : [i]);
+}
 function menuDoPerfil() {
   const n = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
-  const simples = ["luzenildo", "francisco", "carlito", "joaquim", "igor", "ivocarlos", "janiogualberto"].some(x => n.includes(x));
-  let menu;
-  if (simples) menu = menuSimplesDe(perfilAtual);
-  else if (String(perfilAtual).startsWith("Operador Mozondó") || String(perfilAtual).startsWith("Operador Angico")) menu = menuOperadorDe(perfilAtual);
-  else menu = PERFIS[perfilAtual];
-  // Pendências de abrir e encerrar: você, Thiago, Igor e Oseias
-  const veem = window.MODO_GERENTE || ["deyse", "thiago", "igor", "oseias"].some(x => n.includes(x));
-  if (veem && menu) menu = [{nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}, ...menu];
-  // Quem executa em campo vê a sua lista de SS para executar
-  const encerra = window.MODO_GERENTE || ["deyse", "thiago", "igor", "oseias", "alan", "genildo"].some(x => n.includes(x));
-  if (!encerra && menu) menu = [{nome: "Pendência de SS para executar", tela: "pendExecutar"}, ...menu];
+  // Equipe de campo: pendência para executar, almoxarifado de cada localidade e Outros
+  if (GRUPO_CAMPO.some(x => n.includes(x))) {
+    const locais = Object.keys(QUEM_MOVIMENTA_ALMOX).filter(l => QUEM_MOVIMENTA_ALMOX[l].some(nm => normalizarNome(nm) && n.includes(normalizarNome(nm))));
+    const botoesAlmox = locais.map(l => ({nome: "Almoxarifado – " + l, tela: "almoxarifadoCatalogo", local: l}));
+    const outros = achatarMenu(menuBaseDoPerfil(n)).filter(i => i.tela !== "almoxarifadoCatalogo" && i.nome !== "Almoxarifado");
+    return [{nome: "Pendência de SS para executar", tela: "pendExecutar"}, ...botoesAlmox, {nome: "Outros", sub: outros}];
+  }
+  // Gestão: pendências de SS a digitar, almoxarifado e Outros
+  if (GRUPO_GESTAO.some(x => n.includes(x)) || window.MODO_GERENTE) {
+    const resto = achatarMenu(menuBaseDoPerfil(n)).filter(i => !["almoxarifadoCatalogo", "encerrarEscritorio"].includes(i.tela) && i.nome !== "Almoxarifado");
+    const outros = [...resto, {nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}];
+    return [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}, {nome: "Almoxarifado", tela: "almoxarifadoCatalogo"}, {nome: "Outros", sub: outros}];
+  }
+  // Demais perfis: como antes
+  let menu = menuBaseDoPerfil(n);
+  if (String(perfilAtual).startsWith("Operador Mozondó") || String(perfilAtual).startsWith("Operador Angico")) menu = menuBaseDoPerfil(n);
   return menu;
 }
 
@@ -3281,7 +3298,7 @@ async function responderSS(linha, mandarDigiteam) {
 // ===== ALMOXARIFADO: menu com as operações; cada uma abre na área abaixo =====
 function telaAlmoxarifado() {
   return `<h2>Almoxarifado – São Desidério</h2>
-    <select id="ac_local" class="campo" onchange="abrirAlmox(window.almoxAtual || 'saldo')"><option value="">Local do almoxarifado…</option>${LOCAIS_ALMOX.map(l => `<option>${l}</option>`).join("")}</select>
+    <select id="ac_local" class="campo" onchange="abrirAlmox(window.almoxAtual || 'saldo')"><option value="">Local do almoxarifado…</option>${LOCAIS_ALMOX.map(l => `<option ${window.almoxLocalPreset === l ? "selected" : ""}>${l}</option>`).join("")}</select>
     <div class="nota">Qualquer pessoa consulta o saldo e faz pedido. Retirar e adicionar só para a equipe do local.</div>
     <button class="acao" onclick="abrirAlmox('saldo')">Consultar saldo por item</button>
     <button class="acao" onclick="abrirAlmox('geral')">Verificar estoque geral</button>
