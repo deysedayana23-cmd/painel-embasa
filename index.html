@@ -325,7 +325,24 @@ const TELAS = {
       <div class="card"><b>Ligações novas</b><br>Feitas: 12 de 40 · Faltam 28 até 30/11</div>
       <div class="card"><b>Substituição de hidrômetro</b><br>Faltam 15 · Grupo 1: até dia 10 (antes da leitura)</div>
     </div>
-    <button class="acao" style="background:#b71c1c">Divergência nesta meta</button>`,
+    <button class="acao" style="background:#b71c1c">Divergência nesta meta</button>
+    <h3 style="margin-top:18px">SS da cesta e prazo de cada tipo</h3>
+    <div class="nota">Meta: serviços realizados no prazo (comerciais) = 99%. Atual: 95%. Prazo contado a partir da geração da SS.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="text-align:left;border-bottom:2px solid #ccc"><th style="padding:6px">Código</th><th style="padding:6px">Tipo</th><th style="padding:6px">Prazo</th></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">Religação</td><td style="padding:6px">Qualquer tipo de religação (inclui restabelecimento de inativa)</td><td style="padding:6px"><b>24 horas</b></td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">43</td><td style="padding:6px">Vazamento de água (rede, ramal, hidrômetro, não especificado)</td><td style="padding:6px"><b>24 horas</b></td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">45</td><td style="padding:6px">Falta de água no imóvel</td><td style="padding:6px"><b>24 horas</b></td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">36</td><td style="padding:6px">Reclamação</td><td style="padding:6px">Previsão Inicial (dias corridos)</td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">25</td><td style="padding:6px">Manutenção de esgoto</td><td style="padding:6px">Previsão Inicial (dias corridos)</td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">26</td><td style="padding:6px">Manutenção de hidrômetro</td><td style="padding:6px">Previsão Inicial (dias corridos)</td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">37</td><td style="padding:6px">Recomposição de pavimento</td><td style="padding:6px">Previsão Inicial (dias corridos)</td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">34</td><td style="padding:6px">Processo administrativo</td><td style="padding:6px">Previsão Inicial (dias corridos)</td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">24</td><td style="padding:6px">Retirada de entulho / limpeza geral</td><td style="padding:6px">Previsão Inicial (dias corridos)</td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">55</td><td style="padding:6px">Atendimento condomínio sem CNPJ</td><td style="padding:6px">Previsão Inicial (dias corridos)</td></tr>
+      <tr style="border-bottom:1px solid #eee"><td style="padding:6px">46</td><td style="padding:6px">Verificação de irregularidade</td><td style="padding:6px">Previsão Inicial (dias corridos)</td></tr>
+    </table>
+    <div class="nota" style="margin-top:10px">A data de execução nunca pode ser futura nem anterior à abertura da SS. SS internas (não vindas de atendimento) não entram nesta conta.</div>`,
 
   cronograma: () => `
     <h2>Cronograma de leitura</h2>
