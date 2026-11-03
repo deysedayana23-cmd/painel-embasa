@@ -513,6 +513,7 @@ const TELAS = {
   ssRede: () => telaPedidoSS(true),
   ssRamal: () => telaPedidoSS(true),
   pedidosSS: () => telaPedidosSS(),
+  pendExecutar: () => `<h2>Pendência de SS para executar</h2><div class="nota">Quando executar a SS em campo, toque em "Executada em campo". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
   pendAbrirEncerrar: () => `<h2>Pendências de abrir e encerrar SS</h2><div class="nota">Quando a SS for gerada, digite o número e marque como concluída. Ela sai da lista.</div><div id="pae_lista">Carregando...</div>`,
   meusAcessos: () => `<h2>Meus acessos</h2><div id="ma_lista">Carregando...</div>`,
 
@@ -1400,8 +1401,9 @@ function mostrarMenu(itens, titulo) {
     const nomeBotao = it.urgente ? `Serviços urgentes (${window.qtdUrgentes || 0})` : it.nome;
     const destaque = it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
     const contavel = CONTAGEM_SS_TELAS[it.tela];
-    const rotulo = contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${it.nome} (${window.contagemSS[contavel]})` : nomeBotao;
-    html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${it.nome}" onclick="abrir(${i})">${rotulo}</button>`;
+    const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
+    const rotulo = contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
+    html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${nomeExibido}" onclick="abrir(${i})">${rotulo}</button>`;
   });
   html += `</div>`;
   app.innerHTML = html;
@@ -1410,6 +1412,7 @@ function mostrarMenu(itens, titulo) {
 }
 
 // ===== Contadores nos botões de SS e pendência =====
+const NOME_EXIBIDO = { encerrarEscritorio: "SS para encerrar", pendExecutar: "Pendência de SS para executar" };
 const CONTAGEM_SS_TELAS = { todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
@@ -1463,6 +1466,7 @@ function abrir(i) {
     if (it.tela === "meusAcessos") carregarMeusAcessos();
     if (it.tela === "pedidosSS") carregarPedidosSS();
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
+    if (it.tela === "pendExecutar") carregarPendExecutar();
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
     if (it.tela === "pendenciasEstado") carregarEstadoSS();
     if (it.tela === "ocorMinhas") carregarOcorMinhas();
@@ -2575,6 +2579,9 @@ function menuDoPerfil() {
   // Pendências de abrir e encerrar: você, Thiago, Igor e Oseias
   const veem = window.MODO_GERENTE || ["deyse", "thiago", "igor", "oseias"].some(x => n.includes(x));
   if (veem && menu) menu = [{nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}, ...menu];
+  // Quem executa em campo vê a sua lista de SS para executar
+  const encerra = window.MODO_GERENTE || ["deyse", "thiago", "igor", "oseias", "alan", "genildo"].some(x => n.includes(x));
+  if (!encerra && menu) menu = [{nome: "Pendência de SS para executar", tela: "pendExecutar"}, ...menu];
   return menu;
 }
 
@@ -3158,6 +3165,34 @@ const DIGITEAM_OPCOES = [
 ];
 function selectDigiteam(id) {
   return `<select id="${id}" class="campo"><option value="">Escolha quem recebe no Digiteam…</option>${DIGITEAM_OPCOES.map(([n, m, u]) => `<option value="${n}">${n} – ${m} – ${u}</option>`).join("")}</select>`;
+}
+// Aba ExecucaoCampo: data_hora | ss | tipo | localidade | responsavel | situacao | confirmado_por
+async function carregarPendExecutar() {
+  const box = document.getElementById("pex_lista");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const linhas = res.dados.slice(1);
+    const eu = nomesDoUsuario();
+    const executadas = new Set(linhas.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1])));
+    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase() }))
+      .filter(x => x.situacao === "pendente" && !executadas.has(x.ss) && String(x.resp).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n))));
+    if (!minhas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
+    box.innerHTML = minhas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
+      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}
+      <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">Executada em campo</button>
+    </div>`).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function marcarExecutada(ss, tipo, loc) {
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo",
+      linhas: [[new Date().toISOString(), "'" + ss, tipo, loc, nomesDoUsuario(), "executada", window.credenciais.usuario]] });
+    if (res.erro) { alert(res.erro); return; }
+    carregarPendExecutar();
+  } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
 }
 async function carregarPendAbrirEncerrar() {
   const box = document.getElementById("pae_lista");
