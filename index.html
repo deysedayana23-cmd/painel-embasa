@@ -134,23 +134,10 @@ const TELAS = {
     </div>
     <div class="nota">Verificação não gera SS. Se ficar sem marcar até o fim do dia, aparece para a gerência.</div>`,
 
-  ocorAbrir: () => `
-    <h2>Solicitar abertura de ocorrência operacional</h2>
-    <input class="campo" placeholder="Localidade e bairro">
-    <input class="campo" placeholder="Endereço do problema">
-    <select class="campo"><option>Tipo…</option><option>Falta de água</option><option>Falta de energia na unidade</option><option>Outro</option></select>
-    <textarea class="campo" rows="3" placeholder="Descrição (quem ligou, desde quando)"></textarea>
-    <button class="acao">Enviar para o escritório abrir</button>
-    <div class="nota">Pedido enviado. Você acompanha em "Meus pedidos".</div>`,
+  ocorAbrir: () => telaOcorAbrir(),
+  ocorMinhas: () => `<h2>Minhas ocorrências</h2><div id="om_lista">Carregando...</div>`,
 
-  ocorEncerrar: () => `
-    <h2>Solicitar encerramento de ocorrência operacional</h2>
-    <div class="card" style="margin-bottom:10px">Ocorrências abertas na sua localidade (exemplo):<br>
-      <b>Falta de energia · Mozondó · aberta 01/11</b></div>
-    <select class="campo"><option>Escolha a ocorrência…</option><option>Falta de energia · Mozondó</option></select>
-    <textarea class="campo" rows="3" placeholder="Situação atual (ex.: sistema normalizado, bomba ligada)"></textarea>
-    <button class="acao">Enviar pedido de encerramento</button>
-    <div class="nota">O escritório confirma antes de encerrar no sistema.</div>`,
+
 
   nivelAngico: () => `
     <h2>Níveis – ETA Angico</h2>
@@ -291,11 +278,7 @@ const TELAS = {
     <button class="acao">Gerar texto do pedido</button>
     <div class="nota">O texto vai para o escritório. Quando estiver pronto, aparece em "Meus pedidos".</div>`,
 
-  solicitarSS: () => AVISO_DIGITINHO + `
-    <h2>Gerar SS</h2>
-    <button class="acao" onclick="alert('Protótipo: aqui o formulário gera a SS para o Digiteam.')">Gerar SS e mandar para o Digiteam</button>
-    <button class="acao" style="background:#2e7d32" onclick="alert('Protótipo: aqui o formulário gera a SS para o escritório encerrar (já executada em campo).')">Gerar SS para o escritório encerrar</button>
-    <div class="nota">Quando a SS já existir no Digiteam, não precisa gerar outra. Veja em "Vencimentos".</div>`,
+  solicitarSS: () => AVISO_DIGITINHO + telaPedidoSS(false),
 
   segundaVia: () => `
     <h2>Segunda via</h2>
@@ -327,6 +310,13 @@ const TELAS = {
     <select class="campo"><option>Tipo de abastecimento…</option><option>Rede de distribuição</option><option>Booster</option><option>Reservatório elevado</option><option>Reservatório apoiado</option></select>
     <select class="campo"><option>O cliente pode abrir a cava?</option><option>Sim</option><option>Não</option></select>
     <button class="acao">Gerar ESS para o Edivaldo</button>`,
+
+  metasAngico: () => `
+    <h2>Metas – ETA Angico</h2>
+    <div class="cards">
+      <div class="card"><b>IPD</b><br><span style="font-size:14px">Valor a ser informado pela gerência</span></div>
+      <div class="card"><b>IQA</b><br><span style="font-size:14px">Valor a ser informado pela gerência</span></div>
+    </div>`,
 
   metas: () => `
     <h2>Minhas metas</h2>
@@ -398,7 +388,7 @@ const TELAS = {
       <select id="cs_ret_tipo" class="campo" onchange="mudouRetirada()"><option value="">Serviço da reforma…</option><option>Retirada de vazamento</option><option>Outro reparo</option></select>
       <select id="cs_ret_dn" class="campo" style="display:none"><option value="">DN do tubo (mm)…</option>${[20, 25, 32, 40, 50, 60, 75, 100, 150, 200].map(d => `<option>${d}</option>`).join("")}</select>
     </div>
-    <select id="cs_equip" class="campo" onchange="mudouEquipamento()"><option value="">Equipamento…</option></select>
+    <select id="cs_equip" class="campo" onchange="mudouEquipamento()"><option value="">Equipamento…</option>${EQUIPAMENTOS_PADRAO.map(e => `<option>${e}</option>`).join("")}</select>
     <select id="cs_dos" class="campo" style="display:none"><option value="">Qual dosadora?</option><option>Sulfato</option><option>Flúor</option><option>Cloro</option></select>
     <div id="cs_add" style="display:none">
       <input id="cs_outro" class="campo" placeholder="Nome do equipamento que você quer adicionar">
@@ -462,7 +452,15 @@ const TELAS = {
       </div>`).join("")}
     <button class="acao" onclick="enviarTudoEpi()">Enviar pedido de EPI e ferramentas</button>`,
 
-  episHistorico: () => `<h2>Pedidos de EPI</h2><div id="epi_lista">Carregando...</div>`,
+  episHistorico: () => `<h2>Pedidos de EPI</h2>
+    <div class="nota">Marque os pedidos que quer juntar num e-mail só.</div>
+    <div id="epi_lista">Carregando...</div>
+    <h3>E-mail com os pedidos marcados</h3>
+    <input id="epi_para" class="campo" placeholder="Para (e-mail do destinatário)">
+    <button class="acao" onclick="gerarEmailEpi()">Gerar e-mail com os marcados</button>
+    <textarea id="epi_email" class="campo" rows="10" placeholder="O e-mail aparece aqui"></textarea>
+    <button class="acao" style="background:#555" onclick="copiarEmailEpi()">Copiar e-mail</button>
+    <a id="epi_mailto" class="acao" style="display:none;padding:10px 14px;text-decoration:none" href="#">Abrir no meu e-mail</a>`,
 
   ferramentas: () => `
     <h2>Pedido de ferramentas</h2>
@@ -500,6 +498,8 @@ const TELAS = {
   cadastroEquipe: () => telaCadastroEquipe(),
   pedidoSS: () => telaPedidoSS(false),
   pedidoSSEncerrar: () => telaPedidoSS(true),
+  ssRede: () => telaPedidoSS(true),
+  ssRamal: () => telaPedidoSS(true),
   pedidosSS: () => telaPedidosSS(),
   meusAcessos: () => `<h2>Meus acessos</h2><div id="ma_lista">Carregando...</div>`,
 
@@ -555,41 +555,22 @@ const TELAS = {
     <h2>Digiteam</h2>
     <button class="acao" style="background:#555">Recuperação de senha (em breve)</button>`,
 
-  pendenciasEstado: () => `
-    <h2>SS com Estado preenchido (para verificar)</h2>
-    ${tabela(["Tipo","Localidade","Estado","Ação"],[
-      ["Religação","Sede","Executada, aguarda comando","Encerrar (Claude)"],
-      ["Corte","Angico","Leitura menor, conferir anterior","Verificar"]
-    ])}
-    <div class="nota">O Claude encerra automaticamente conforme a regra de cada tipo.</div>`,
+  pendenciasEstado: () => telaEstadoSS(),
 
   tramitacao: () => `
     <h2>Tramitação</h2>
     <div class="card">São Marcos e Passagem de Pedra: tramitar de Catolândia para Baianópolis</div><br>
     <div class="card">Buriti Cortado: tramitar de Baianópolis para Catolândia</div>`,
 
-  abastecimento: () => `
-    <h2>Abastecimento (cartões)</h2>
-    <input class="campo" placeholder="Placa">
-    <input class="campo" placeholder="Funcionário">
-    <input class="campo" placeholder="Itens (litros)">
-    <input class="campo" placeholder="Valor">
-    <input class="campo" placeholder="Saldo no cartão">
-    <button class="acao">Registrar</button>`,
+  abastecimento: () => telaAbastecimento(),
 
   pendenciasTodas: () => `
     <h2>Pendências das localidades</h2>
     <div class="card">Catolândia (1019 ou 88881388), Baianópolis, Angico, Mozondó e Buriti Cortado (códigos a confirmar)</div>`,
 
-  urgencias: () => perfilAtual.startsWith("Gerente") ? telaUrgenciaGerente() : telaUrgenciaCampo(),
+  urgencias: () => perfilAtual.startsWith("Gerente") ? telaUrgenciaGerente() : perfilAtual.startsWith("Operador Angico") ? telaUrgenciaAngico() : telaUrgenciaCampo(),
 
-  medicao: () => `
-    <h2>Medição (consórcio)</h2>
-    <input class="campo" placeholder="Serviço realizado">
-    <input class="campo" placeholder="Número da SS">
-    <input type="file" class="campo" multiple>
-    <button class="acao">Abrir ESS, encerrar e anexar fotos</button>
-    <div class="nota">Insumos sugeridos conforme o serviço. Sem o item 03.01.01. Sem itens de esgoto.</div>`,
+  medicao: () => telaMedicao(),
 
   horaExtraGerente: () => telaHoraExtraRelatorio(),
 
@@ -597,17 +578,27 @@ const TELAS = {
     <h2>Validações de urgência</h2>
     <div class="card">Urgência de exemplo · resolvida pelo funcionário · <button class="acao" style="padding:6px">Validar</button></div>`,
 
-  alertaPrefeitura: () => `
-    <h2>Alertas</h2>
-    <div class="card">Entrega da prefeitura: nenhuma marcada até dia 4 (exemplo)</div>`,
+  alertaPrefeitura: () => telaAlertaPrefeitura(),
+  pendenciasAprovacao: () => telaPendenciasAprovacao(),
+  backup: () => telaBackup(),
+  ssPrazo: () => telaSSPrazo(),
+  adicionarInfo: () => `<h2>Adicionar informações</h2><div class="nota">Escolha o que quer atualizar.</div><button class="btn" style="width:100%" onclick="abrir(0)">Metas</button>`,
+  metasAdmin: () => telaMetasAdmin(),
+  servicosUrgentes: () => telaServicosUrgentes(),
+  ssVazRede: () => telaPedidoSS(true),
+  ssVazRamal: () => telaPedidoSS(true),
+  ssVazHid: () => telaPedidoSS(true),
+  ssVenc24: () => telaSSLista("Vencem em até 24 horas"),
+  ssVenc48: () => telaSSLista("Vencem em até 48 horas"),
+  ssTodas: () => telaSSLista("Todas as SS em aberto"),
+  encerrarEscritorio: () => telaEncerrarEscritorio(),
 
   mapaAquisicoes: () => `
-    <h2>Solicitações de aquisição</h2>
-    <div class="card">Textos gerados aparecem aqui para análise (WhatsApp)</div>`,
+    <h2>Solicitações de aquisição (RILC)</h2>
+    <div class="nota">Os pedidos da equipe aparecem aqui para análise. Quando você responder, a resposta aparece em Meus pedidos de quem pediu.</div>
+    <div id="aq_lista">Carregando...</div>`,
 
-  mapaPedidos: () => `
-    <h2>Pedidos de SS da equipe</h2>
-    <div class="card">Pedidos novos aparecem aqui antes de o Claude gerar</div>`
+  mapaPedidos: () => telaPedidosSS()
 };
 
 /* ============================================================
@@ -615,6 +606,7 @@ const TELAS = {
    ============================================================ */
 const PERFIS = {
   "Agente de campo (exemplo: Luzenildo)": [
+    {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true}, {nome:"SS para acompanhar", tela:"ssPrazo"},
     {nome:"Vencimentos (24h e 48h)", tela:"vencimentos"},
     {nome:"Todas as SS abertas (90 dias)", tela:"todasSS"},
     {nome:"SCI", sub:[
@@ -630,35 +622,40 @@ const PERFIS = {
     {nome:"Urgências", tela:"urgencias"},
     {nome:"Ocorrência operacional", sub:[
       {nome:"Solicitar abertura", tela:"ocorAbrir"},
-      {nome:"Solicitar encerramento", tela:"ocorEncerrar"}
+      {nome:"Minhas ocorrências", tela:"ocorMinhas"}
     ]},
     {nome:"Metas", tela:"metas"},
     {nome:"Cronograma de leitura e contas retidas", tela:"cronograma"},
     {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
     {nome:"Almoxarifado", tela:"almoxarifadoCatalogo"},
     {nome:"Aquisição (RILC)", tela:"aquisicao"},
-    {nome:"EPI e ferramentas", tela:"epi"},
+    {nome:"EPI", tela:"epi"},
     {nome:"Pedir abertura de SS", tela:"pedidoSS"},
     {nome:"Abrir e encerrar SS", tela:"pedidoSSEncerrar"},
-    {nome:"Meus acessos", tela:"meusAcessos"},
+    {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Demandas Agersa", tela:"gersa"},
     {nome:"Hora extra", sub:[{nome:"Informar hora extra", tela:"horaExtra"},{nome:"Histórico de hora extra", tela:"horaExtraHist"}]},
     {nome:"Escalas e sobreaviso", tela:"escalaSobreaviso"},
     {nome:"Digiteam (recuperação de senha)", tela:"renovaRecuperacao"}
   ],
   "Operador ETA São Desidério (exemplo: Igor)": [
+    {nome:"SS para encerrar pelo escritório", tela:"encerrarEscritorio"},
+    {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true},
+    {nome:"SS com Estado (verificar)", tela:"pendenciasEstado"},
     {nome:"Urgências", tela:"urgencias"},
-    {nome:"Produto químico", sub:[
+    {nome:"Estoque diário produto químico", sub:[
       {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
       {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
       {nome:"Consultar estoque", tela:"quimicoEstoque"},
       {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
     ]},
     {nome:"Escala de turno", tela:"escalaTurno"},
-    {nome:"EPI e ferramentas", tela:"epi"},
+    {nome:"EPI", tela:"epi"},
     {nome:"Pedir abertura de SS", tela:"pedidoSS"},
     {nome:"Abrir e encerrar SS", tela:"pedidoSSEncerrar"},
-    {nome:"Meus acessos", tela:"meusAcessos"},
+    {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Hora extra", sub:[{nome:"Informar hora extra", tela:"horaExtra"},{nome:"Histórico de hora extra", tela:"horaExtraHist"}]},
     {nome:"Níveis dos reservatórios", sub:[
       {nome:"Alimentar planilha de níveis", tela:"nivelSD"},
@@ -669,18 +666,20 @@ const PERFIS = {
     {nome:"Solicitações de SS da equipe", tela:"solicitarSS"}
   ],
   "Operador ETA São Desidério próprio (exemplo: Acácio)": [
+    {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true},
     {nome:"Urgências", tela:"urgencias"},
-    {nome:"Produto químico", sub:[
+    {nome:"Estoque diário produto químico", sub:[
       {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
       {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
       {nome:"Consultar estoque", tela:"quimicoEstoque"},
       {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
     ]},
     {nome:"Escala de turno", tela:"escalaTurno"},
-    {nome:"EPI e ferramentas", tela:"epi"},
+    {nome:"EPI", tela:"epi"},
     {nome:"Pedir abertura de SS", tela:"pedidoSS"},
     {nome:"Abrir e encerrar SS", tela:"pedidoSSEncerrar"},
-    {nome:"Meus acessos", tela:"meusAcessos"},
+    {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Marcação de férias", tela:"ferias"},
     {nome:"Hora extra", sub:[{nome:"Informar hora extra", tela:"horaExtra"},{nome:"Histórico de hora extra", tela:"horaExtraHist"}]}
   ],
@@ -692,57 +691,69 @@ const PERFIS = {
     ]},
     {nome:"Leitura diária (7h)", tela:"leituraDiaria"},
     {nome:"Urgências", tela:"urgencias"},
-    {nome:"Produto químico", sub:[
+    {nome:"Estoque diário produto químico", sub:[
       {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
       {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
       {nome:"Consultar estoque", tela:"quimicoEstoque"},
       {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
     ]},
-    {nome:"Descargas de rede da semana", tela:"descargas"},
     {nome:"SS do SCI (Angico)", tela:"solicitarSS"},
     {nome:"Metas", tela:"metas"},
-    {nome:"EPI e ferramentas", tela:"epi"},
+    {nome:"EPI", tela:"epi"},
     {nome:"Pedir abertura de SS", tela:"pedidoSS"},
     {nome:"Abrir e encerrar SS", tela:"pedidoSSEncerrar"},
-    {nome:"Meus acessos", tela:"meusAcessos"},
+    {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Hora extra", sub:[{nome:"Informar hora extra", tela:"horaExtra"},{nome:"Histórico de hora extra", tela:"horaExtraHist"}]}
   ],
   "Operador Mozondó (Genildo)": [
+    {nome:"SS para encerrar pelo escritório", tela:"encerrarEscritorio"},
+    {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true},
     {nome:"Níveis dos reservatórios", sub:[
       {nome:"Alimentar planilha de níveis", tela:"nivelMozondo"},
       {nome:"Alimentar planilha dos macros", tela:"macrosMozondo"},
       {nome:"Consultar histórico", tela:"nivelHistMozondo"}
     ]},
     {nome:"Urgências", tela:"urgencias"},
-    {nome:"Produto químico", sub:[
+    {nome:"Estoque diário produto químico", sub:[
       {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
       {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
       {nome:"Consultar estoque", tela:"quimicoEstoque"},
       {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
     ]},
     {nome:"Escala de turno", tela:"escalaMozondo"},
-    {nome:"EPI e ferramentas", tela:"epi"},
+    {nome:"EPI", tela:"epi"},
     {nome:"Pedir abertura de SS", tela:"pedidoSS"},
     {nome:"Abrir e encerrar SS", tela:"pedidoSSEncerrar"},
-    {nome:"Meus acessos", tela:"meusAcessos"},
+    {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Hora extra", sub:[{nome:"Informar hora extra", tela:"horaExtra"},{nome:"Histórico de hora extra", tela:"horaExtraHist"}]}
   ],
   "Atendente (Thiago)": [
+    {nome:"SS para encerrar pelo escritório", tela:"encerrarEscritorio"},
+    {nome:"Pendências de aprovação", tela:"pendenciasAprovacao"},
+    {nome:"SS com Estado (verificar)", tela:"pendenciasEstado"},
     {nome:"Pedidos de SS (gerar e responder)", tela:"pedidosSS"},
     {nome:"SS com Estado para verificar", tela:"pendenciasEstado"},
     {nome:"Tramitação (Catolândia ↔ Baianópolis)", tela:"tramitacao"},
     {nome:"Pendências das 6 localidades", tela:"pendenciasTodas"},
     {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Cronograma de leitura e contas retidas", tela:"cronograma"},
     {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
     {nome:"Vencimentos (24h e 48h)", tela:"vencimentos"},
     {nome:"Todas as SS abertas (90 dias)", tela:"todasSS"}
   ],
   "Gerente (você)": [
+    {nome:"Adicionar informações", sub:[{nome:"Metas", tela:"metasAdmin"}]},
+    {nome:"SS para encerrar pelo escritório", tela:"encerrarEscritorio"},
+    {nome:"Pendências de aprovação", tela:"pendenciasAprovacao"},
+    {nome:"Gerar relatório (backup)", tela:"backup"},
     {nome:"Urgências (criar e acompanhar)", tela:"urgencias"},
     {nome:"Demandas Agersa (acompanhar e validar)", tela:"gersa"},
     {nome:"Pendências com Estado", tela:"pendenciasEstado"},
     {nome:"Abastecimento (cartões)", tela:"abastecimento"},
+    {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Medição do consórcio", tela:"medicao"},
     {nome:"Relatório de hora extra", tela:"horaExtraGerente"},
     {nome:"Alertas (prefeitura, prazos)", tela:"alertaPrefeitura"},
@@ -1236,8 +1247,8 @@ const LOCAIS_ALMOX = ["ETA Angico", "ETA São Desidério", "Escritório São Des
 // Quem pode retirar ou adicionar em cada almoxarifado (qualquer um pode consultar o saldo)
 const QUEM_MOVIMENTA_ALMOX = {
   "ETA Angico": ["Ramon", "Renato"],
-  "ETA São Desidério": ["Igor", "Oseias", "Acácio", "Acácio dos Santos Carvalho Ferreira", "Jânio Lima", "Jânio Lima de Oliveira", "Eduardo", "Eduardo Alexandre de Assis", "Thiago", "Tiago"],
-  "Escritório São Desidério": ["Igor", "Oseias", "Acácio", "Acácio dos Santos Carvalho Ferreira", "Jânio Lima", "Jânio Lima de Oliveira", "Eduardo", "Eduardo Alexandre de Assis", "Thiago", "Tiago"],
+  "ETA São Desidério": ["Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo", "Luzenildo", "Joaquim", "Carlito", "Francisco", "Thiago", "Tiago"],
+  "Escritório São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo", "Thiago", "Tiago"],
   "Escritório Catolândia": ["Isaque", "Isaac"],
   "Escritório Baianópolis": ["Ivo Carlos", "Jânio Gualberto"],
   "ETA Mozondó": ["Genildo", "Alan", "Juvenson", "Valdesandro", "Valdesandro Goncalves De Souza"]
@@ -1246,7 +1257,7 @@ function podeMovimentarAlmox(local) {
   if (window.MODO_GERENTE) return true;
   const norm = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const eu = norm(window.nomeUsuario);
-  return (QUEM_MOVIMENTA_ALMOX[local] || []).some(n => norm(n) === eu);
+  return (QUEM_MOVIMENTA_ALMOX[local] || []).some(n => norm(n) && eu.includes(norm(n)));
 }
 const ROTINA_ITENS = [
   "Relatório de água bruta enviado no grupo",
@@ -1303,19 +1314,50 @@ const CONTRATOS_COELBA = [
 // Reclamação Coelba aparece para todos os perfis
 Object.entries(PERFIS).forEach(([chave, lista]) => {
   lista.push({ nome: "Reclamação Coelba", tela: "coelba" });
-  if (!chave.startsWith("Gerente")) lista.push({ nome: "Pedido de ferramentas", tela: "ferramentas" });
   if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "aquisicao")) lista.push({ nome: "RILC (compra em loja)", tela: "aquisicao" });
   if (!chave.startsWith("Gerente")) lista.push({ nome: "Reforma ou conserto de equipamento", tela: "conserto" });
-  lista.push({ nome: "Cadastro de equipamento", tela: "cadEquip" });
   if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "gersa")) lista.push({ nome: "Demandas Agersa", tela: "gersa" });
   if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "almoxarifadoCatalogo")) lista.push({ nome: "Almoxarifado", tela: "almoxarifadoCatalogo" });
   lista.push({ nome: "Rotina do dia 1", tela: "rotina" });
+});
+// Ramon e Renato: só Níveis e macro ETA e Urgências
+PERFIS["Operador Angico (Ramon ou Renato)"] = [
+  {nome:"Níveis e macro ETA", sub:[
+    {nome:"Alimentar planilha de níveis", tela:"nivelAngico"},
+    {nome:"Alimentar planilha dos macros", tela:"macrosAngico"},
+    {nome:"Consultar histórico", tela:"nivelHistAngico"}
+  ]},
+  {nome:"Estoque diário produto químico", sub:[
+    {nome:"Alimentar o sistema", tela:"quimicoAlimentar"},
+    {nome:"Histórico de uso e recebimento", tela:"quimicoHistorico"},
+    {nome:"Consultar estoque", tela:"quimicoEstoque"},
+    {nome:"Gerar texto para o grupo", tela:"consumoQuimico"}
+  ]},
+  {nome:"Urgências", tela:"urgencias"},
+  {nome:"Demandas Agersa", tela:"gersa"},
+  {nome:"Almoxarifado", tela:"almoxarifadoCatalogo"},
+  {nome:"Metas", tela:"metasAngico"}
+];
+// Menu enxuto: o principal fica com o que é de uso diário; o resto vai para "Outros"
+const PRINCIPAL_CAMPO = ["Vazamento de rede", "Vazamento de ramal", "SS para acompanhar", "SS para encerrar pelo escritório", "Pedir abertura de SS", "Abrir e encerrar SS",
+  "Ocorrência operacional", "Vencimentos (24h e 48h)", "Todas as SS abertas (90 dias)", "SCI", "Urgências",
+  "Níveis e macro ETA", "Níveis dos reservatórios", "Estoque diário produto químico"];
+const PRINCIPAL_GERENTE = ["SS para encerrar pelo escritório", "Adicionar informações", "Pendências de aprovação", "Urgências (criar e acompanhar)", "Pedidos de SS (gerar e responder)",
+  "Pedidos de SS da equipe", "Relatório de hora extra", "Pedidos de EPI", "Pedidos RILC", "Solicitações de aquisição",
+  "Demandas Agersa (acompanhar e validar)", "Pendências com Estado", "Abastecimento (cartões)", "Cadastro da equipe (matrículas)"];
+Object.keys(PERFIS).forEach(k => {
+  const principal = (k.startsWith("Gerente") || k === "Atendente (Thiago)") ? PRINCIPAL_GERENTE : PRINCIPAL_CAMPO;
+  const itens = PERFIS[k];
+  const manter = itens.filter(i => principal.includes(i.nome) || i.grande);
+  const outros = itens.filter(i => !(principal.includes(i.nome) || i.grande));
+  if (outros.length) PERFIS[k] = [...manter, {nome: "Outros", sub: outros}];
 });
 
 let perfilAtual = "Operador Mozondó (Genildo)";
 let pilha = [];
 
 function init() {
+  carregarQtdUrgentes().then(() => { if (!pilha.length) renderAtual(); });
   const sel = document.getElementById("perfil");
   if (window.MODO_GERENTE) {
     sel.innerHTML = PESSOAS.map(([nome, perfil]) => `<option value="${perfil}">${nome}</option>`).join("");
@@ -1329,10 +1371,12 @@ function init() {
 function trocarPerfil() {
   perfilAtual = document.getElementById("perfil").value;
   pilha = [];
-  mostrarMenu(PERFIS[perfilAtual], "Início");
+  mostrarMenu(menuDoPerfil(), "Início");
 }
 
 function mostrarMenu(itens, titulo) {
+  if (!pilha.length) itens = [{nome: "Serviços urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
+  itens = itens.filter(i => (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
   const app = document.getElementById("app");
   let html = "";
   if (pilha.length) html += `<button class="voltar" onclick="voltar()">← Voltar</button>`;
@@ -1340,7 +1384,9 @@ function mostrarMenu(itens, titulo) {
   if (!pilha.length && !perfilAtual.startsWith("Gerente")) html += BANNER_VERIF;
   html += `<h2>${titulo}</h2><div class="grid">`;
   itens.forEach((it, i) => {
-    html += `<button class="btn" onclick="abrir(${i})">${it.nome}</button>`;
+    const nomeBotao = it.urgente ? `Serviços urgentes (${window.qtdUrgentes || 0})` : it.nome;
+    const destaque = it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
+    html += `<button class="btn" ${destaque} onclick="abrir(${i})">${nomeBotao}</button>`;
   });
   html += `</div>`;
   app.innerHTML = html;
@@ -1348,7 +1394,7 @@ function mostrarMenu(itens, titulo) {
 }
 
 function abrir(i) {
-  const menu = pilha.length ? pilha[pilha.length-1].itens : PERFIS[perfilAtual];
+  const menu = pilha.length ? pilha[pilha.length-1].itens : menuDoPerfil();
   const it = menu[i];
   if (it.sub) {
     pilha.push({itens: it.sub, titulo: it.nome});
@@ -1361,7 +1407,7 @@ function abrir(i) {
     if (it.tela === "quimicoHistorico") verHistorico("Quimicos");
     const chaveNiv = { nivelHistSD: "sd", nivelHistAngico: "angico", nivelHistMozondo: "mozondo" }[it.tela];
     if (chaveNiv) carregarNiveis(chaveNiv);
-    if (it.tela === "urgencias") carregarUrgencias();
+    if (it.tela === "urgencias") { if (perfilAtual.startsWith("Operador Angico")) carregarUrgenciaAngico(); else carregarUrgencias(); }
     if (it.tela === "consumoQuimico") carregarSaldosQuimicos();
     if (it.tela === "escalaTurno" || it.tela === "escalaMozondo") {
       const [ano, mesNum] = hojeISO().split("-");
@@ -1374,8 +1420,27 @@ function abrir(i) {
     if (it.tela === "horaExtraGerente") carregarHoraExtraRelatorio();
     if (it.tela === "meusAcessos") carregarMeusAcessos();
     if (it.tela === "pedidosSS") carregarPedidosSS();
-    if (it.tela === "rotina") abrirRotina();
-    if (it.tela === "cadastroEquipe") lerAcessosCadastro();
+    if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
+    if (it.tela === "pendenciasEstado") carregarEstadoSS();
+    if (it.tela === "ocorMinhas") carregarOcorMinhas();
+    if (it.tela === "ssPrazo") carregarSSPrazo();
+    if (it.tela === "servicosUrgentes") carregarServicosUrgentes();
+    if (it.tela === "metasAdmin") carregarMetasAdmin();
+    if (it.tela === "encerrarEscritorio") carregarEncerrarEscritorio();
+    if (it.tela === "ssRede") presetSS("43", "1");
+    if (it.tela === "ssRamal") presetSS("43", "2");
+    if (it.tela === "ssVazRede") presetSS("43", "1");
+    if (it.tela === "ssVazRamal") presetSS("43", "2");
+    if (it.tela === "ssVazHid") presetSS("43", "3");
+    if (it.tela === "ssVenc24") carregarSSLista("24");
+    if (it.tela === "ssVenc48") carregarSSLista("48");
+    if (it.tela === "ssTodas") carregarSSLista("todas");
+    if (it.tela === "medicao") carregarMedicao();
+    if (it.tela === "mapaAquisicoes") carregarSolicitacoesAquisicao();
+    if (it.tela === "mapaPedidos") carregarPedidosSS();
+    if (it.tela === "alertaPrefeitura") carregarAlertaPrefeitura();
+    if (it.tela === "pendenciasAprovacao") carregarPendenciasAprovacao();
+    if (it.tela === "cadastroEquipe") { lerAcessosCadastro().then(lerAcessosEnviados); }
     if (it.tela === "rilcHistorico") verHistorico("RILC");
     if (it.tela === "conertoHistorico") verHistorico("Conserto");
     if (it.tela === "pedMatHist") verHistorico("PedidoMaterial");
@@ -1392,7 +1457,7 @@ function renderAtual() {
     const top = pilha[pilha.length-1];
     mostrarMenu(top.itens, top.titulo);
   } else {
-    mostrarMenu(PERFIS[perfilAtual], "Início");
+    mostrarMenu(menuDoPerfil(), "Início");
   }
 }
 
@@ -1403,10 +1468,10 @@ function voltar() {
       const top = pilha[pilha.length-1];
       mostrarMenu(top.itens, top.titulo);
     } else {
-      mostrarMenu(PERFIS[perfilAtual], "Início");
+      mostrarMenu(menuDoPerfil(), "Início");
     }
   } else {
-    mostrarMenu(PERFIS[perfilAtual], "Início");
+    mostrarMenu(menuDoPerfil(), "Início");
   }
 }
 
@@ -1669,6 +1734,44 @@ function telaUrgenciaCampo() {
     <div class="nota">Urgências da sua localidade ou em que você foi indicado. Pendente aparece em vermelho; depois de resolvida, fica verde com o nome de quem resolveu.</div>
     <div id="ur_lista">Carregando...</div>`;
 }
+// Angico: lê a urgência enviada pela gerência e responde (executou, SS, observação)
+// colunas da aba Urgencias: 1 data_hora, 2 usuario, 3 localidade, 4 descricao, 5 para_quem, 6 prazo, 7 situacao, 8 resolvida_por, 9 data_resolucao, 10 executado, 11 ss_resposta, 12 observacao_equipe, 13 ocultar_equipe
+function telaUrgenciaAngico() {
+  return `<h2>Urgências – Angico</h2>
+    <div class="nota">Leia a urgência. Se executou, marque e informe a SS e a observação, se precisar. Depois envie para a gerência.</div>
+    <div id="ua_lista">Carregando...</div>`;
+}
+async function carregarUrgenciaAngico() {
+  const box = document.getElementById("ua_lista");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Urgencias" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], desc: l[3], prazo: l[5], local: l[2], exec: l[9] || "", ss: l[10] || "", obs: l[11] || "", oculta: l[12] === "Sim" }))
+      .filter(u => u.local === "Angico" && !u.oculta);
+    if (!itens.length) { box.innerHTML = "<p>Nenhuma urgência para o Angico.</p>"; return; }
+    box.innerHTML = itens.reverse().map(u => u.exec
+      ? `<div class="card" style="margin-bottom:8px;border-left:6px solid #2e7d32"><b>${u.desc}</b><br><span style="font-size:14px">Prazo: ${formatarPrazo(u.prazo)} · enviado à gerência: executado ${u.exec}${u.ss ? " · SS " + u.ss : ""}${u.obs ? " · " + u.obs : ""}</span></div>`
+      : `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828"><b>${u.desc}</b><br><span style="font-size:14px">Prazo: ${formatarPrazo(u.prazo)}</span>
+          <label>Foi executado? <select id="ua_e_${u.linha}" class="campo"><option>Sim</option><option>Não</option></select></label>
+          <input id="ua_s_${u.linha}" class="campo" placeholder="Número da SS (se tiver)">
+          <textarea id="ua_o_${u.linha}" class="campo" rows="2" placeholder="Observação (se precisar)"></textarea>
+          <button class="acao" onclick="enviarUrgenciaAngico(${u.linha})">Enviar para a gerência</button></div>`).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function enviarUrgenciaAngico(linha) {
+  const executado = document.getElementById("ua_e_" + linha).value;
+  const ss = document.getElementById("ua_s_" + linha).value.trim();
+  const obs = document.getElementById("ua_o_" + linha).value.trim();
+  try {
+    const res = await chamarApi({ acao: "responderUrgenciaEquipe", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, executado: executado, ss: ss, obs: obs });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Enviado para a gerência.");
+    carregarUrgenciaAngico();
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); }
+}
+
 function formatarPrazo(v) {
   if (!v) return "sem prazo";
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v.split("-").reverse().join("/");
@@ -1708,7 +1811,7 @@ async function carregarUrgencias() {
       // colunas: data_hora, usuario, localidade, descricao, para_quem, prazo, situacao, resolvida_por, data_resolucao
       const pessoas = String(l[4] || "").split(",").map(t => t.trim().toLowerCase());
       const visivel = gerente || pessoas.includes(eu) || minhas.includes(String(l[2]).toLowerCase());
-      if (visivel) itens.push({ linha: i + 1, criada: l[0], local: l[2], desc: l[3], para: l[4], prazo: l[5], situacao: l[6], por: l[7], quando: l[8] });
+      if (visivel) itens.push({ linha: i + 1, criada: l[0], local: l[2], desc: l[3], para: l[4], prazo: l[5], situacao: l[6], por: l[7], quando: l[8], exec: l[9] || "", ssResp: l[10] || "", obsEq: l[11] || "", oculta: l[12] === "Sim" });
     });
     itens.sort((a, b) => (a.situacao === "aberta" ? 0 : 1) - (b.situacao === "aberta" ? 0 : 1));
     if (!itens.length) { box.innerHTML = "<p>Nenhuma urgência.</p>"; return; }
@@ -1725,12 +1828,21 @@ async function carregarUrgencias() {
         <b>${u.desc}</b><br>
         <span style="font-size:14px">${u.local} · prazo: ${formatarPrazo(u.prazo)} · criada por ${u.criada ? "" : ""}${formatarQuando(u.criada)}</span><br>
         <span style="font-size:14px">Para: ${u.para || "—"}</span>
+        ${u.exec ? `<div style="font-size:14px;margin-top:6px">Resposta do Angico: executado ${u.exec}${u.ssResp ? " · SS " + u.ssResp : ""}${u.obsEq ? " · " + u.obsEq : ""}</div>` : ""}
+        ${window.MODO_GERENTE && !u.oculta ? `<button class="acao" style="margin:6px 0 0 0;padding:6px;background:#555" onclick="ocultarUrgenciaEquipe(${u.linha})">Ocultar da equipe</button>` : ""}
         ${acao}</div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 function urgenciaAinda() {
   alert("Anotado: a urgência continua aberta.");
+}
+async function ocultarUrgenciaEquipe(linha) {
+  try {
+    const res = await chamarApi({ acao: "ocultarUrgenciaEquipe", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
+    if (res.erro) { alert(res.erro); return; }
+    carregarUrgencias();
+  } catch (e) { alert("Não consegui ocultar. Verifique a internet."); }
 }
 async function resolverUrgencia(linha) {
   try {
@@ -1788,8 +1900,833 @@ function telaAgersaCampo() {
     <div class="nota">Mostra só as demandas da sua localidade.</div>
     <div id="ag_lista"><div class="nota">Carregando...</div></div>`;
 }
+// ===== ABASTECIMENTO DE CARTÕES (aba Abastecimento). Qualquer pessoa registra e edita; cada alteração fica no histórico =====
+const CARTOES_ABASTECIMENTO = [
+  { nome: "Carro", tipo: "Carro" },
+  { nome: "Consórcio Motos São Desidério", tipo: "Moto" },
+  { nome: "Consórcio Motos Catolândia", tipo: "Moto" },
+  { nome: "Moto Generos (Baianópolis) – saldo no posto", tipo: "Moto" },
+  { nome: "Moto Consórcio (Baianópolis) – saldo no posto", tipo: "Moto" },
+  { nome: "Moto particular – Igor", tipo: "Moto particular" },
+  { nome: "Moto particular – Oseias", tipo: "Moto particular" },
+  { nome: "Moto particular – Angico", tipo: "Moto particular" }
+];
+const NIVEIS_TANQUE = ["Vazio", "1/4", "1/2", "3/4", "Cheio"];
+function cartaoOpcoes(sel = "") {
+  return CARTOES_ABASTECIMENTO.map(c => `<option value="${c.nome}" ${c.nome === sel ? "selected" : ""}>${c.nome}</option>`).join("");
+}
+// Cartão da moto de quem está logado (já vem selecionado)
+function cartaoPadrao() {
+  const n = normalizarNome(window.nomeUsuario);
+  if (n.includes("igor")) return "Moto particular – Igor";
+  if (n.includes("oseias")) return "Moto particular – Oseias";
+  if (n.includes("ramon") || n.includes("renato")) return "Moto particular – Angico";
+  return "";
+}
+function nivelOpcoes(sel) {
+  return NIVEIS_TANQUE.map(n => `<option ${n === sel ? "selected" : ""}>${n}</option>`).join("");
+}
+function telaAbastecimento() {
+  return `<h2>Abastecimento (cartões)</h2>
+    <h3>Registrar abastecimento</h3>
+    <input type="date" id="ab_data" class="campo" value="${hojeISO()}">
+    <input id="ab_func" class="campo" placeholder="Funcionário" value="${window.nomeUsuario || ""}">
+    <select id="ab_cartao" class="campo" onchange="mostrarPlacaAbast()"><option value="">Cartão / moto…</option>${cartaoOpcoes(cartaoPadrao())}</select>
+    <input id="ab_placa" class="campo" placeholder="Placa">
+    <input id="ab_valor" class="campo" type="number" step="0.01" placeholder="Valor do abastecimento (R$)">
+    <input id="ab_litros" class="campo" type="number" step="0.01" placeholder="Litros">
+    <select id="ab_nivel" class="campo"><option value="">Nível do tanque…</option>${nivelOpcoes("")}</select>
+    <input id="ab_saldo" class="campo" type="number" step="0.01" placeholder="Saldo do cartão após este uso (R$)">
+    <button class="acao" onclick="registrarAbastecimento()">Registrar</button>
+    <h3>Histórico de abastecimentos</h3>
+    <button class="acao" style="background:#555" onclick="carregarHistAbast()">Ver histórico</button>
+    <div id="ab_hist"></div>
+    <h3>Alterações feitas</h3>
+    <button class="acao" style="background:#555" onclick="carregarAlteracoesAbast()">Ver alterações</button>
+    <div id="ab_alt"></div>`;
+}
+function mostrarPlacaAbast() {
+  const c = CARTOES_ABASTECIMENTO.find(x => x.nome === document.getElementById("ab_cartao").value);
+  document.getElementById("ab_placa").placeholder = c && c.tipo === "Carro" ? "Placa do carro" : "Placa (se houver)";
+}
+function tipoDoCartao(nome) {
+  const c = CARTOES_ABASTECIMENTO.find(x => x.nome === nome);
+  return c ? c.tipo : "";
+}
+async function registrarAbastecimento() {
+  const cartao = document.getElementById("ab_cartao").value;
+  const data = document.getElementById("ab_data").value;
+  const func = document.getElementById("ab_func").value.trim();
+  const valor = document.getElementById("ab_valor").value;
+  const litros = document.getElementById("ab_litros").value;
+  const nivel = document.getElementById("ab_nivel").value;
+  const saldo = document.getElementById("ab_saldo").value;
+  if (!cartao || !data || !func || !valor || !litros || !nivel || saldo === "") { alert("Preencha cartão, data, funcionário, valor, litros, nível do tanque e saldo após o uso."); return; }
+  const linha = [new Date().toISOString(), window.credenciais.usuario, "'" + data, func, cartao, tipoDoCartao(cartao),
+    document.getElementById("ab_placa").value.trim(), valor, litros, nivel, saldo, "", ""];
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Abastecimento", linhas: [linha] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Abastecimento registrado.");
+    renderAtual();
+  } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
+}
+// colunas da aba Abastecimento: registrado_em, usuario, data, funcionario, cartao, tipo, placa, valor, litros, nivel, saldo_apos, ultima_edicao_por, data_edicao
+async function carregarHistAbast() {
+  const box = document.getElementById("ab_hist");
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Abastecimento" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const linhas = res.dados.map((l, i) => ({ linha: i + 1, l })).slice(1).reverse();
+    box.innerHTML = linhas.length ? `<table><tr><th>Data</th><th>Funcionário</th><th>Cartão</th><th>Placa</th><th>Tipo</th><th>Valor</th><th>Litros</th><th>Tanque</th><th>Saldo após</th><th></th></tr>` +
+      linhas.map(({ linha, l }) => `<tr><td>${String(l[2]).split("-").reverse().join("/")}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[6] || ""}</td><td>${l[5]}</td><td>${l[7]}</td><td>${l[8]}</td><td>${l[9]}</td><td>${l[10]}</td>
+        <td><button class="acao" style="margin:0;padding:4px 8px" onclick="abrirEditarAbast(${linha})">Editar</button></td></tr>
+        <tr id="ab_ed_${linha}" style="display:none"><td colspan="10">
+          <input id="abe_data_${linha}" type="date" class="campo" value="${String(l[2]).slice(0, 10)}">
+          <input id="abe_func_${linha}" class="campo" value="${l[3]}">
+          <select id="abe_cartao_${linha}" class="campo">${CARTOES_ABASTECIMENTO.map(c => `<option ${c.nome === l[4] ? "selected" : ""}>${c.nome}</option>`).join("")}</select>
+          <input id="abe_placa_${linha}" class="campo" value="${l[6] || ""}" placeholder="Placa">
+          <input id="abe_valor_${linha}" class="campo" type="number" step="0.01" value="${l[7]}">
+          <input id="abe_litros_${linha}" class="campo" type="number" step="0.01" value="${l[8]}">
+          <select id="abe_nivel_${linha}" class="campo">${nivelOpcoes(l[9])}</select>
+          <input id="abe_saldo_${linha}" class="campo" type="number" step="0.01" value="${l[10]}">
+          <button class="acao" onclick="salvarEdicaoAbast(${linha}, '${l[5]}')">Salvar alteração</button>
+        </td></tr>`).join("") + "</table>" : "<p>Nenhum abastecimento registrado.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+function abrirEditarAbast(linha) {
+  const el = document.getElementById("ab_ed_" + linha);
+  el.style.display = el.style.display === "none" ? "" : "none";
+}
+async function salvarEdicaoAbast(linha, tipoAntigo) {
+  const cartao = document.getElementById("abe_cartao_" + linha).value;
+  const campos = [
+    "'" + document.getElementById("abe_data_" + linha).value,
+    document.getElementById("abe_func_" + linha).value.trim(),
+    cartao,
+    tipoDoCartao(cartao) || tipoAntigo,
+    document.getElementById("abe_placa_" + linha).value.trim(),
+    document.getElementById("abe_valor_" + linha).value,
+    document.getElementById("abe_litros_" + linha).value,
+    document.getElementById("abe_nivel_" + linha).value,
+    document.getElementById("abe_saldo_" + linha).value
+  ];
+  try {
+    const res = await chamarApi({ acao: "editarAbastecimento", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, campos: campos });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Alteração salva e registrada no histórico.");
+    carregarHistAbast();
+  } catch (e) { alert("Não consegui salvar. Verifique a internet."); }
+}
+async function carregarAlteracoesAbast() {
+  const box = document.getElementById("ab_alt");
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Historico" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const linhas = res.dados.slice(1).filter(l => String(l[2]).includes("abastecimento")).reverse();
+    box.innerHTML = linhas.length ? `<table><tr><th>Quando</th><th>Quem</th><th>O que mudou</th></tr>` +
+      linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</td><td>${l[1]}</td><td>${l[2]}<br><small>${l[3]}</small></td></tr>`).join("") + "</table>" : "<p>Nenhuma alteração.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+
+// ===== MEDIÇÃO DO CONSÓRCIO (aba Medicao): registro da SS e acompanhamento =====
+// colunas: data_hora, usuario, servico, ss, encerrada, fotos_anexadas, insumos_adicionados, fotos_links
+function telaMedicao() {
+  return `<h2>Medição (consórcio)</h2>
+    <div class="nota">Registre o serviço e a SS. Depois acompanhe no histórico se a SS foi encerrada, se as fotos foram anexadas e se os insumos foram adicionados.</div>
+    <input id="md_servico" class="campo" placeholder="Serviço realizado">
+    <input id="md_ss" class="campo" placeholder="Número da SS">
+    <div class="card"><b>Fotos do serviço (opcional)</b><br><input type="file" id="md_fotos" accept="image/*" multiple class="campo"></div>
+    <button class="acao" onclick="registrarMedicao()">Registrar medição</button>
+    <h3>Histórico</h3>
+    <div id="md_lista">Carregando...</div>`;
+}
+async function registrarMedicao() {
+  const servico = document.getElementById("md_servico").value.trim();
+  const ss = document.getElementById("md_ss").value.trim();
+  if (!servico || !ss) { alert("Informe o serviço e o número da SS."); return; }
+  const arquivos = document.getElementById("md_fotos").files;
+  let links = [];
+  try {
+    for (const arq of arquivos) {
+      const base64 = await lerArquivoBase64(arq);
+      const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha, base64: base64, tipo: arq.type, nome: arq.name });
+      if (r.erro) { alert(r.erro); return; }
+      links.push(r.url);
+    }
+  } catch (e) { alert("Não consegui enviar as fotos. Verifique a internet."); return; }
+  const linha = [new Date().toISOString(), window.credenciais.usuario, servico, "'" + ss, "Não", links.length ? "Sim" : "Não", "Não", links.join(" ")];
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Medicao", linhas: [linha] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Medição registrada.");
+    renderAtual();
+  } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
+}
+async function carregarMedicao() {
+  const box = document.getElementById("md_lista");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Medicao" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const linhas = res.dados.map((l, i) => ({ linha: i + 1, l })).slice(1).reverse();
+    if (!linhas.length) { box.innerHTML = "<p>Nenhuma medição registrada.</p>"; return; }
+    const sn = v => `<select class="campo" id="md_${v.k}_${v.linha}">${["Não", "Sim"].map(o => `<option ${o === v.val ? "selected" : ""}>${o}</option>`).join("")}</select>`;
+    box.innerHTML = linhas.map(({ linha, l }) => `<div class="card" style="margin-bottom:10px">
+        <b>SS ${l[3]}</b> · ${l[2]}<br>
+        <span style="font-size:14px">Registrado por ${l[1]} em ${formatarQuando(l[0])}</span>
+        <div>Fotos: ${l[7] ? l[7].split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") : "nenhuma"}</div>
+        <div class="row">
+          <label>SS encerrada? ${sn({ k: "enc", linha, val: l[4] })}</label>
+          <label>Fotos anexadas? ${sn({ k: "fot", linha, val: l[5] })}</label>
+          <label>Insumos adicionados? ${sn({ k: "ins", linha, val: l[6] })}</label>
+        </div>
+        <button class="acao" onclick="atualizarMedicao(${linha})">Atualizar</button>
+      </div>`).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function atualizarMedicao(linha) {
+  const enc = document.getElementById("md_enc_" + linha).value;
+  const fot = document.getElementById("md_fot_" + linha).value;
+  const ins = document.getElementById("md_ins_" + linha).value;
+  try {
+    const res = await chamarApi({ acao: "atualizarMedicao", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, encerrada: enc, fotos: fot, insumos: ins });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Atualizado.");
+    carregarMedicao();
+  } catch (e) { alert("Não consegui atualizar. Verifique a internet."); }
+}
+
+// ===== ALERTA DE ENTREGA DE CONTAS DA PREFEITURA (referência 11) =====
+const REF_PREFEITURA = "11";
+const ENTREGAS_PREFEITURA = [
+  { loc: "Baianópolis", chaves: ["ivocarlos", "janiogualberto"] },
+  { loc: "Catolândia", chaves: ["isaque", "isaac"] },
+  { loc: "São Desidério", chaves: ["luzenildo", "joaquim", "carlito", "francisco"] }
+];
+function grupoEntregaPrefeitura() {
+  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  return ENTREGAS_PREFEITURA.find(g => g.chaves.some(c => quem.includes(c))) || null;
+}
+function podeVerAlertaPrefeitura() {
+  return window.MODO_GERENTE || !!grupoEntregaPrefeitura();
+}
+function telaAlertaPrefeitura() {
+  if (window.MODO_GERENTE) return `<h2>Alertas – entrega de contas da prefeitura (referência ${REF_PREFEITURA})</h2><div id="al_pref">Carregando...</div>`;
+  return `<h2>Entrega de contas da prefeitura</h2><div id="al_pref">Carregando...</div>`;
+}
+// colunas da aba PedidoSS usadas aqui: 2 tipo, 4 localidade, 9 observação, 10 situação, 11 SS, 17 concluída, 18 foto anexada
+async function carregarAlertaPrefeitura() {
+  const box = document.getElementById("al_pref");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const entregas = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], loc: l[4], obs: l[9] || "", situacao: l[10] || "", ss: l[11] || "", concluida: l[16] || "", foto: l[17] || "" }))
+      .filter(e => String(e.tipo).includes("ENTREGA") && e.obs.includes("referência " + REF_PREFEITURA));
+    const statusDe = loc => {
+      const e = entregas.filter(x => x.loc === loc).pop();
+      if (!e) return '<span class="tag t-alerta">Ainda não entregue</span>';
+      return e.ss ? `<span class="tag t-ok">Entregue · SS nº ${e.ss}${e.concluida ? " · concluída: " + e.concluida : ""}${e.foto ? " · foto anexada: " + e.foto : ""}</span>`
+        : '<span class="tag t-alerta">Enviado à gerência, aguardando SS</span>';
+    };
+    if (window.MODO_GERENTE) {
+      box.innerHTML = ENTREGAS_PREFEITURA.map(g => `<div class="card" style="margin-bottom:8px"><b>${g.loc}</b><br>${statusDe(g.loc)}</div>`).join("");
+      return;
+    }
+    const grupo = grupoEntregaPrefeitura();
+    if (!grupo) { box.innerHTML = "<p>Nenhum alerta para você.</p>"; return; }
+    const hoje = hojeISO();
+    box.innerHTML = `<div class="card" style="border-left:6px solid #c62828;margin-bottom:10px">
+      <b>Faturas da prefeitura – referência ${REF_PREFEITURA}</b><br>
+      <span style="font-size:14px">${grupo.loc}</span><br>
+      <span style="font-size:14px">Situação: ${statusDe(grupo.loc)}</span>
+      <div style="margin-top:8px"><button class="acao" onclick="document.getElementById('ent_form').style.display=''">Marcar como entregue</button></div>
+      <div id="ent_form" style="display:none;margin-top:10px">
+        <label>Data da entrega <input type="date" id="ent_data" class="campo" value="${hoje}"></label>
+        <textarea id="ent_obs" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
+        <label>Foto do recebido <input type="file" id="ent_fotos" accept="image/*" multiple class="campo"></label>
+        <button class="acao" onclick="enviarEntregaPrefeitura('${grupo.loc}')">Salvar e enviar à gerência</button>
+      </div>
+    </div>`;
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function enviarEntregaPrefeitura(loc) {
+  const data = document.getElementById("ent_data").value;
+  const obs = document.getElementById("ent_obs").value.trim();
+  const arquivos = document.getElementById("ent_fotos").files;
+  if (!data) { alert("Informe a data da entrega."); return; }
+  if (!arquivos.length) { alert("Tire e anexe a foto do recebido."); return; }
+  let links = [];
+  try {
+    for (const arq of arquivos) {
+      const base64 = await lerArquivoBase64(arq);
+      const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha, base64: base64, tipo: arq.type, nome: arq.name });
+      if (r.erro) { alert(r.erro); return; }
+      links.push(r.url);
+    }
+  } catch (e) { alert("Não consegui enviar a foto. Verifique a internet."); return; }
+  const dataBR = data.split("-").reverse().join("/");
+  const texto = `Entrega de contas da prefeitura – referência ${REF_PREFEITURA} – entregue em ${dataBR}` + (obs ? " – " + obs : "");
+  // colunas: data_hora, usuario, tipo, especificacao, localidade, bairro, logradouro, matricula, hidrometro, observacao, situacao, ss, por, data, digiteam, fotos
+  const linha = [new Date().toISOString(), window.credenciais.usuario, "61 – SERVICO LEITURA E ENTREGA", "1 – ENTREGA DE CONTA",
+    loc, "", "", "", "", texto, "pendente", "", "", "", "", links.join(" ")];
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS", linhas: [linha] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Entrega enviada à gerência. Ela aparece para o Thiago e para a Deyse.");
+    carregarAlertaPrefeitura();
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
+}
+
+// ===== PENDÊNCIAS DE APROVAÇÃO (Deyse e Thiago): tudo que chega para aprovar ou responder numa tela só =====
+function telaPendenciasAprovacao() {
+  return `<h2>Pendências de aprovação</h2>
+    <div class="nota">Tudo o que chegou para você aprovar ou responder.</div>
+    <h3>Pedidos de SS</h3><div id="pa_ss">Carregando...</div>
+    <h3>Compras em loja (RILC) sem resposta</h3><div id="pa_rilc">Carregando...</div>
+    <h3>Pedidos de EPI</h3><div id="pa_epi">Carregando...</div>
+    <h3>Ações das equipes sobre SS</h3><div id="pa_acoes">Carregando...</div>
+    <h3>Ocorrências para abrir</h3><div id="pa_oc">Carregando...</div>
+    <h3>Acessos enviados pela equipe</h3><div id="pa_acessos">Carregando...</div>`;
+}
+async function carregarPendenciasAprovacao() {
+  await Promise.all([
+    carregarPedidosSS("pa_ss"),
+    carregarSolicitacoesAquisicao("pa_rilc"),
+    carregarEpiGerente("pa_epi"),
+    lerAcessosEnviados("pa_acessos"),
+    carregarOcorrenciasGerente("pa_oc"),
+    carregarAcoesSS("pa_acoes")
+  ]);
+}
+
+// ===== BACKUP ANTES DE ATUALIZAR O APP: exporta todas as abas da planilha num arquivo =====
+const ABAS_BACKUP = ["Usuarios","Acessos","PedidoSS","HoraExtra","Rotina","Urgencias","EPI","AgersaEvidencia","Agersa","Ferramentas","RILC","RILCResposta","Conserto","Equipamentos","Niveis","Leituras","Quimicos","Almoxarifado","PedidoMaterial","Historico","Abastecimento","Medicao","EstadoSS"];
+function telaBackup() {
+  return `<h2>Gerar relatório (backup)</h2>
+    <div class="nota">Gera um arquivo com todos os dados da planilha. Guarde esse arquivo antes de atualizar a versão do painel. Ele contém os dados de usuários, então não envie para ninguém.</div>
+    <button class="acao" onclick="gerarBackup()">Gerar relatório agora</button>
+    <div id="bk_status" style="margin-top:10px"></div>`;
+}
+async function gerarBackup() {
+  const status = document.getElementById("bk_status");
+  const pacote = { gerado_em: new Date().toISOString(), abas: {} };
+  try {
+    for (const aba of ABAS_BACKUP) {
+      status.textContent = "Lendo " + aba + "...";
+      const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: aba });
+      pacote.abas[aba] = res.erro ? { erro: res.erro } : res.dados;
+    }
+    const blob = new Blob([JSON.stringify(pacote, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const data = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = "backup_painel_embasa_" + data + ".json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const linhas = Object.entries(pacote.abas).map(([k, v]) => `<li>${k}: ${v.erro ? "erro" : Math.max(0, v.length - 1) + " registro(s)"}</li>`).join("");
+    status.innerHTML = "<b>Backup gerado.</b><ul>" + linhas + "</ul>";
+  } catch (e) { status.textContent = "Não consegui gerar o backup. Verifique a internet."; }
+}
+
+// ===== OCORRÊNCIA OPERACIONAL: a equipe pede; a gerência abre no sistema e devolve o número; a equipe marca quando finalizou =====
+// colunas da aba Ocorrencia: 1 data_hora, 2 usuario, 3 localidade, 4 endereco, 5 tipo, 6 descricao, 7 situacao, 8 oc_numero, 9 respondido_por, 10 finalizado_em
+function telaOcorAbrir() {
+  return `<h2>Pedir abertura de ocorrência operacional</h2>
+    <div class="nota">O escritório abre a ocorrência no sistema e devolve o número. Você acompanha em "Minhas ocorrências".</div>
+    <select id="oc_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+    <input id="oc_end" class="campo" placeholder="Endereço do problema">
+    <button class="acao" style="background:#0a6e8a" onclick="usarGPSOcorrencia()">Usar minha localização (GPS)</button>
+    <select id="oc_tipo" class="campo"><option value="">Tipo…</option><option>Falta de água</option><option>Falta de energia na unidade</option><option>Outro</option></select>
+    <textarea id="oc_desc" class="campo" rows="3" placeholder="Descrição (quem ligou, desde quando)"></textarea>
+    <button class="acao" onclick="enviarOcorrencia()">Enviar para o escritório abrir</button>`;
+}
+async function usarGPSOcorrencia() {
+  const pos = await obterPosicao();
+  if (!pos) { alert("Não consegui pegar a localização. Verifique o GPS e a permissão do navegador."); return; }
+  document.getElementById("oc_end").value = "GPS: " + pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
+}
+async function enviarOcorrencia() {
+  const loc = document.getElementById("oc_loc").value;
+  const end = document.getElementById("oc_end").value.trim();
+  const tipo = document.getElementById("oc_tipo").value;
+  const desc = document.getElementById("oc_desc").value.trim();
+  if (!loc || !end || !tipo || !desc) { alert("Preencha a localidade, o endereço, o tipo e a descrição."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, loc, end, tipo, desc, "solicitada", "", "", ""]] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Pedido enviado. O número da ocorrência aparece em Minhas ocorrências.");
+    renderAtual();
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
+}
+async function carregarOcorMinhas() {
+  const box = document.getElementById("om_lista");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const eu = String(window.credenciais.usuario).toLowerCase();
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], situacao: l[6] || "solicitada", num: l[7] || "", fin: l[9] || "" }))
+      .filter(o => String(o.quem).toLowerCase() === eu).reverse();
+    if (!itens.length) { box.innerHTML = "<p>Nenhuma ocorrência.</p>"; return; }
+    box.innerHTML = itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${o.situacao === "finalizada" ? "#2e7d32" : "#c62828"}">
+      <b>${o.tipo}</b> · ${o.loc}<br><span style="font-size:14px">${o.end} · pedido em ${formatarQuando(o.quando)}</span><br>
+      <span style="font-size:14px">${o.num ? "Ocorrência nº <b>" + o.num + "</b>" : "Aguardando o escritório abrir"}${o.situacao === "finalizada" ? " · serviço finalizado em " + formatarQuando(o.fin) : ""}</span>
+      ${o.num && o.situacao !== "finalizada" ? `<br><button class="acao" onclick="finalizarOcorrencia(${o.linha})">Serviço finalizado</button>` : ""}
+    </div>`).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function finalizarOcorrencia(linha) {
+  try {
+    const res = await chamarApi({ acao: "finalizarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
+    if (res.erro) { alert(res.erro); return; }
+    carregarOcorMinhas();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
+// Gerência e atendente: pedidos de ocorrência para abrir no sistema
+async function carregarOcorrenciasGerente(boxId = "oc_ger") {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], desc: l[5], situacao: l[6] || "solicitada", num: l[7] || "" }))
+      .filter(o => o.situacao === "solicitada").reverse();
+    box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
+      <b>${o.tipo}</b> · ${o.loc} · pedido por ${o.quem}<br><span style="font-size:14px">${o.end} · ${o.desc}</span>
+      <input id="oc_n_${o.linha}" class="campo" placeholder="Número da ocorrência aberta">
+      <button class="acao" onclick="responderOcorrencia(${o.linha})">Devolver número para a equipe</button>
+    </div>`).join("") : "<p>Nenhuma ocorrência pendente.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function responderOcorrencia(linha) {
+  const numero = (document.getElementById("oc_n_" + linha) || {}).value || "";
+  if (!numero.trim()) { alert("Digite o número da ocorrência."); return; }
+  try {
+    const res = await chamarApi({ acao: "responderOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim() });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Número devolvido para a equipe.");
+    carregarOcorrenciasGerente();
+  } catch (e) { alert("Não consegui responder. Verifique a internet."); }
+}
+
+// ===== SS PARA ACOMPANHAR: SS que vencem em 24 horas e SS abertas nos últimos 3 meses. A equipe escolhe e diz se manda ao Digiteam =====
+// Aba SSAbertas (exportada do SCI pela gerência): ss | especificacao | localidade | abertura | vencimento | situacao
+// Aba AcaoSS: data_hora | usuario | ss | especificacao | localidade | vencimento | acao | situacao
+function dataSS(v) {
+  const t = String(v || "").trim();
+  const m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4] || 0), Number(m[5] || 0));
+  const d = new Date(t);
+  return isNaN(d) ? null : d;
+}
+function telaSSPrazo() {
+  return `<h2>SS para acompanhar</h2>
+    <div class="nota">Marque as SS e escolha o que fazer com elas. A gerência recebe a sua escolha.</div>
+    <select id="sp_acao" class="campo"><option>Mandar no Digiteam</option><option>Não mandar no Digiteam</option></select>
+    <button class="acao" onclick="enviarAcaoSS()">Enviar as marcadas</button>
+    <h3>Vencem em até 24 horas</h3><div id="sp_24">Carregando...</div>
+    <h3>Abertas nos últimos 3 meses</h3><div id="sp_90">Carregando...</div>`;
+}
+async function carregarSSPrazo() {
+  const agora = new Date();
+  const em24 = new Date(agora.getTime() + 24 * 3600 * 1000);
+  const tres = new Date(agora.getTime() - 90 * 24 * 3600 * 1000);
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
+    if (res.erro) { document.getElementById("sp_24").textContent = res.erro; return; }
+    const linhas = res.dados.slice(1).map(l => ({ ss: String(l[0]), esp: l[1], loc: l[2], abertura: dataSS(l[3]), vencimento: dataSS(l[4]), situacao: l[5] || "" }))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu/i.test(x.situacao));
+    const vencem = linhas.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= em24).sort((a, b) => a.vencimento - b.vencimento);
+    const abertas = linhas.filter(x => x.abertura && x.abertura >= tres).sort((a, b) => b.abertura - a.abertura);
+    const tabela = (lista, campo) => lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
+        <label><input type="checkbox" class="sp_sel" value="${x.ss}" data-esp="${String(x.esp).replace(/"/g, "")}" data-loc="${x.loc}" data-venc="${x.vencimento ? x.vencimento.toISOString() : ""}"> <b>SS ${x.ss}</b></label><br>
+        <span style="font-size:14px">${x.esp} · ${x.loc}${x[campo] ? " · " + (campo === "vencimento" ? "vence" : "aberta") + " em " + x[campo].toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : ""}</span>
+      </div>`).join("") : "<p>Nenhuma SS.</p>";
+    document.getElementById("sp_24").innerHTML = tabela(vencem, "vencimento");
+    document.getElementById("sp_90").innerHTML = tabela(abertas, "abertura");
+  } catch (e) { document.getElementById("sp_24").textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function enviarAcaoSS() {
+  const marcadas = [...document.querySelectorAll(".sp_sel:checked")];
+  if (!marcadas.length) { alert("Marque pelo menos uma SS."); return; }
+  const acao = document.getElementById("sp_acao").value;
+  const linhas = marcadas.map(c => [new Date().toISOString(), window.credenciais.usuario, c.value, c.dataset.esp, c.dataset.loc, c.dataset.venc, acao, "pendente"]);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS", linhas: linhas });
+    if (res.erro) { alert(res.erro); return; }
+    alert(linhas.length + " SS enviada(s) para a gerência: " + acao + ".");
+    carregarSSPrazo();
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
+}
+// Gerência: ações das equipes sobre as SS
+async function carregarAcoesSS(boxId = "pa_acoes") {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map(l => ({ quando: l[0], quem: l[1], ss: l[2], esp: l[3], loc: l[4], acao: l[6], situacao: l[7] || "" })).reverse();
+    box.innerHTML = itens.length ? `<table><tr><th>SS</th><th>Serviço</th><th>Localidade</th><th>Ação</th><th>Quem</th></tr>` +
+      itens.map(x => `<tr><td>${x.ss}</td><td>${x.esp}</td><td>${x.loc}</td><td>${x.acao}</td><td>${x.quem}</td></tr>`).join("") + "</table>"
+      : "<p>Nenhuma ação.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+
+// ===== SS PARA ENCERRAR PELO ESCRITÓRIO: a equipe informa a SS executada; o escritório encerra no sistema e marca =====
+// Aba EncerrarSS: data_hora | usuario | ss | servico | localidade | observacao | situacao | encerrada_por | data_encerramento
+function podeVerEncerrarEscritorio() {
+  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  return ["deyse", "thiago", "oseias", "igor", "alan", "genildo"].some(n => quem.includes(n));
+}
+function telaEncerrarEscritorio() {
+  return `<h2>SS para encerrar pelo escritório</h2>
+    <div class="nota">Informe a SS que foi executada e precisa ser encerrada pelo escritório.</div>
+    <input id="ee_ss" class="campo" placeholder="Número da SS">
+    <input id="ee_serv" class="campo" placeholder="Serviço executado">
+    <select id="ee_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+    <textarea id="ee_obs" class="campo" rows="2" placeholder="Observação (o que foi feito)"></textarea>
+    <button class="acao" onclick="enviarEncerrarEscritorio()">Enviar para o escritório encerrar</button>
+    <h3>Pendentes</h3><div id="ee_lista">Carregando...</div>`;
+}
+async function enviarEncerrarEscritorio() {
+  const ss = document.getElementById("ee_ss").value.trim();
+  const serv = document.getElementById("ee_serv").value.trim();
+  const loc = document.getElementById("ee_loc").value;
+  const obs = document.getElementById("ee_obs").value.trim();
+  if (!ss || !serv || !loc) { alert("Informe a SS, o serviço e a localidade."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EncerrarSS",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + ss, serv, loc, obs, "pendente", "", ""]] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Enviado para o escritório encerrar.");
+    renderAtual();
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
+}
+async function carregarEncerrarEscritorio(boxId = "ee_lista") {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.textContent = "Carregando...";
+  const quemEncerra = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  const gerencia = window.MODO_GERENTE || ["thiago", "igor", "oseias", "alan", "genildo"].some(n => quemEncerra.includes(n));
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EncerrarSS" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], ss: l[2], serv: l[3], loc: l[4], obs: l[5], situacao: l[6] || "pendente", por: l[7] || "" }))
+      .filter(x => x.situacao === "pendente").reverse();
+    box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
+      <b>SS ${x.ss}</b> · ${x.serv} · ${x.loc}<br><span style="font-size:14px">${x.obs || ""} · enviado por ${x.quem} em ${formatarQuando(x.quando)}</span>
+      ${gerencia ? `<br><button class="acao" onclick="marcarEncerrada(${x.linha})">Marcar como encerrada</button>` : ""}
+    </div>`).join("") : "<p>Nenhuma SS pendente.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function marcarEncerrada(linha) {
+  try {
+    const res = await chamarApi({ acao: "marcarEncerrada", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
+    if (res.erro) { alert(res.erro); return; }
+    carregarEncerrarEscritorio();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
+
+// ===== LISTA DE SS PARA A EQUIPE: vencendo em 24 ou 48 horas e todas em aberto. Quem está na rua marca e escolhe a ação =====
+// Aba SSAbertas (exportada do SCI pela gerência): ss | tipo | localidade | abertura | vencimento | situacao | nome | matricula
+function telaSSLista(titulo) {
+  return `<h2>${titulo}</h2>
+    <select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option><option>Só gerar</option></select>
+    <button class="acao" onclick="enviarSSLista()">Enviar as marcadas</button>
+    <div id="sl_lista">Carregando...</div>`;
+}
+async function carregarSSLista(filtro) {
+  const box = document.getElementById("sl_lista");
+  if (!box) return;
+  const agora = new Date();
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu/i.test(x.situacao));
+    if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
+    if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
+    lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
+    const fmt = d => d ? d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
+    box.innerHTML = lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
+        <label><input type="checkbox" class="sl_sel" value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
+        <span style="font-size:14px">${x.nome} · matrícula ${x.mat} · ${x.loc}<br>Aberta em ${fmt(x.abertura)} · vence em ${fmt(x.vencimento)}</span>
+      </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function enviarSSLista() {
+  const marcadas = [...document.querySelectorAll(".sl_sel:checked")];
+  if (!marcadas.length) { alert("Marque pelo menos uma SS."); return; }
+  const acao = document.getElementById("sl_acao").value;
+  const linhas = marcadas.map(c => [new Date().toISOString(), window.credenciais.usuario, c.value, c.dataset.tipo, c.dataset.loc, "", acao, "pendente"]);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS", linhas: linhas });
+    if (res.erro) { alert(res.erro); return; }
+    alert(linhas.length + " SS enviada(s) para a gerência: " + acao + ".");
+    carregarSSLista(null);
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
+}
+
+// Menu enxuto para quem está na rua (Luzenildo, Francisco, Carlito, Joaquim, Igor, Ivo e Janio Gualberto)
+const SS_NOMES_MENU = ["Vazamento de rede", "Vazamento de ramal", "Pedir abertura de SS", "Abrir e encerrar SS", "SS para acompanhar",
+  "Vencimentos (24h e 48h)", "Todas as SS abertas (90 dias)", "SCI", "SS para encerrar pelo escritório", "Pedido de SS"];
+function menuSimplesDe(perfil) {
+  const orig = PERFIS[perfil] || [];
+  const outros = orig.find(i => i.nome === "Outros");
+  const manter = orig.filter(i => i.nome !== "Outros" && !SS_NOMES_MENU.includes(i.nome));
+  return [
+    {nome: "Vazamento", sub: [
+      {nome: "Vazamento de rede", tela: "ssVazRede"},
+      {nome: "Vazamento de ramal", tela: "ssVazRamal"},
+      {nome: "Vazamento de hidrômetro", tela: "ssVazHid"}
+    ]},
+    {nome: "Abrir SS", tela: "pedidoSS"},
+    {nome: "Abrir e encerrar SS", tela: "pedidoSSEncerrar"},
+    {nome: "SS a vencer em até 24 horas", tela: "ssVenc24"},
+    {nome: "SS a vencer em até 48 horas", tela: "ssVenc48"},
+    {nome: "Todas as SS em aberto", tela: "ssTodas"},
+    {nome: "SS para encerrar pelo escritório", tela: "encerrarEscritorio"},
+    {nome: "Outros", sub: [...manter, ...(outros ? outros.sub : [])]}
+  ];
+}
+// Operadores de Mozondó e Angico: níveis do macro, ocorrência, reclamação Coelba; o resto em Outros
+function menuOperadorDe(perfil) {
+  const orig = PERFIS[perfil] || [];
+  const outrosSub = (orig.find(i => i.nome === "Outros") || {sub: []}).sub;
+  const todos = [...orig.filter(i => i.nome !== "Outros"), ...outrosSub];
+  const niveis = todos.find(i => i.nome === "Níveis dos reservatórios" || i.nome === "Níveis e macro ETA");
+  const reservados = ["Níveis dos reservatórios", "Níveis e macro ETA", "Ocorrência operacional", "Reclamação Coelba", "SS para encerrar pelo escritório"];
+  const principal = [];
+  if (niveis) principal.push({nome: "Níveis de leitura do macro", sub: niveis.sub});
+  principal.push({nome: "Ocorrência operacional", sub: [{nome: "Solicitar abertura", tela: "ocorAbrir"}, {nome: "Minhas ocorrências", tela: "ocorMinhas"}]});
+  principal.push({nome: "Reclamação Coelba", tela: "coelba"});
+  principal.push({nome: "SS para encerrar pelo escritório", tela: "encerrarEscritorio"});
+  const resto = todos.filter(i => i !== niveis && !reservados.includes(i.nome));
+  principal.push({nome: "Outros", sub: resto});
+  return principal;
+}
+function menuDoPerfil() {
+  const n = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  const simples = ["luzenildo", "francisco", "carlito", "joaquim", "igor", "ivocarlos", "janiogualberto"].some(x => n.includes(x));
+  if (simples) return menuSimplesDe(perfilAtual);
+  if (String(perfilAtual).startsWith("Operador Mozondó") || String(perfilAtual).startsWith("Operador Angico")) return menuOperadorDe(perfilAtual);
+  return PERFIS[perfilAtual];
+}
+
+// ===== SERVIÇOS URGENTES: a gerência adiciona; cada pessoa vê a quantidade no botão e marca como feito =====
+// Aba ServicosUrgentes: data_hora | usuario | para | descricao | situacao | feito_por | data_feito
+window.qtdUrgentes = 0;
+function nomesDoUsuario() {
+  return normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+}
+function servicoParaMim(para) {
+  const p = normalizarNome(para);
+  if (String(para).trim().toLowerCase() === "todos") return true;
+  const eu = nomesDoUsuario();
+  return String(para).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n)));
+}
+async function carregarQtdUrgentes() {
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
+    if (res.erro) { window.qtdUrgentes = 0; return; }
+    window.qtdUrgentes = res.dados.slice(1).filter(l => l[4] !== "feito" && servicoParaMim(l[2])).length;
+  } catch (e) { window.qtdUrgentes = 0; }
+}
+function telaServicosUrgentes() {
+  const form = window.MODO_GERENTE ? `
+    <h3>Adicionar serviço urgente</h3>
+    <textarea id="su_desc" class="campo" rows="2" placeholder="O que precisa ser feito"></textarea>
+    <div class="nota">Para quem (marque um ou mais, ou marque Todos):</div>
+    <label style="display:block"><input type="checkbox" class="su_p" value="Todos"> Todos</label>
+    ${PESSOAS.filter(p => p[0] !== "Deyse").map(p => `<label style="display:block"><input type="checkbox" class="su_p" value="${p[0]}"> ${p[0]}</label>`).join("")}
+    <button class="acao" onclick="adicionarServicoUrgente()">Adicionar serviço urgente</button>
+    <h3>Lista</h3>` : "";
+  return `<h2>Serviços urgentes</h2>${form}<div id="su_lista">Carregando...</div>`;
+}
+async function adicionarServicoUrgente() {
+  const desc = document.getElementById("su_desc").value.trim();
+  const para = [...document.querySelectorAll(".su_p:checked")].map(c => c.value);
+  if (!desc || para.length === 0) { alert("Escreva o serviço e marque para quem."); return; }
+  const paraTxt = para.includes("Todos") ? "Todos" : para.join(", ");
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, paraTxt, desc, "pendente", "", ""]] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Serviço urgente adicionado.");
+    renderAtual();
+  } catch (e) { alert("Não consegui adicionar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
+}
+async function carregarServicosUrgentes() {
+  const box = document.getElementById("su_lista");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], para: l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "" }))
+      .filter(x => window.MODO_GERENTE || servicoParaMim(x.para)).reverse();
+    window.qtdUrgentes = itens.filter(x => x.situacao !== "feito" && servicoParaMim(x.para)).length;
+    box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${x.situacao === "feito" ? "#2e7d32" : "#c62828"}">
+      <b>${x.desc}</b><br><span style="font-size:14px">Para: ${x.para} · adicionado por ${x.quem} em ${formatarQuando(x.quando)}</span>
+      ${x.situacao === "feito" ? `<br><span style="font-size:14px">Feito por ${x.feito}</span>` : (!window.MODO_GERENTE && servicoParaMim(x.para) ? `<br><button class="acao" onclick="concluirServicoUrgente(${x.linha})">Marcar como feito</button>` : "")}
+    </div>`).join("") : "<p>Nenhum serviço urgente.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function concluirServicoUrgente(linha) {
+  try {
+    const res = await chamarApi({ acao: "concluirServicoUrgente", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
+    if (res.erro) { alert(res.erro); return; }
+    carregarServicosUrgentes();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
+
+// ===== ADICIONAR INFORMAÇÕES (só a gerência): um botão para cada coisa que ela precisa atualizar. Começa com as metas =====
+// Aba Metas: data_hora | usuario | meta | localidade | valor | observacao
+const METAS_LISTA = [
+  {meta: "Índice de Inativas", loc: "Geral", unidade: "Índice atual", referencia: "meta 13 · atual 15", acao: "Conferir as contas inativas: pode haver ligação religada em campo que ainda aparece inativa no sistema e que pode ser religada no sistema."},
+  {meta: "Eficiência da Cobrança Part. Acumulada", loc: "São Desidério", unidade: "% atingido", referencia: "meta 100% · outubro: 88,75%", acao: "Para bater: analisar todos os SPs da referência atual, fazer todos os cortes e entregar todas as contas retidas."},
+  {meta: "Eficiência da Cobrança Part. Acumulada", loc: "Angico", unidade: "% atingido", referencia: "meta 100% · outubro: 92,65%", acao: "Para bater: analisar todos os SPs da referência atual, fazer todos os cortes e entregar todas as contas retidas."},
+  {meta: "Eficiência da Cobrança Part. Acumulada", loc: "Catolândia", unidade: "% atingido", referencia: "meta 100% · outubro: 94,10%", acao: "Para bater: analisar todos os SPs da referência atual, fazer todos os cortes e entregar todas as contas retidas."},
+  {meta: "Eficiência da Cobrança Part. Acumulada", loc: "Baianópolis", unidade: "% atingido", referencia: "meta 100% · outubro: 96,94%", acao: "Para bater: analisar todos os SPs da referência atual, fazer todos os cortes e entregar todas as contas retidas."},
+  {meta: "Acréscimo de ligação de água", loc: "Geral", prazo: "09/12/2026", unidade: "ligações que faltam"},
+  {meta: "Índice de Recuperação do SCR Particular", loc: "Geral", unidade: "R$ que ainda faltam", referencia: "contas vencidas até dezembro/2025"},
+  {meta: "Arrecadação", loc: "Geral"},
+  {meta: "Ligações novas", loc: "Geral"},
+  {meta: "Substituição de hidrômetro", loc: "Geral"},
+  {meta: "IPD", loc: "ETA Angico"},
+  {meta: "IQA", loc: "ETA Angico", unidade: "% atingido", referencia: "meta 98,50 · atual 85", acao: "Atraso causado pela rotina de contaminações no sistema Angico."},
+  {meta: "Serviços Realizados no Prazo (comerciais)", loc: "Geral", unidade: "% atingido", referencia: "meta 99 · atual 95", acao: "Executar as SS da cesta dentro do prazo de cada tipo (ver a lista de SS da cesta com os prazos)."}
+];
+function telaMetasAdmin() {
+  return `<h2>Metas – atualizar</h2>
+    <div class="nota">Atualize cada meta quando tiver o número novo. O painel guarda o histórico.</div>
+    <div id="ma_admin">Carregando...</div>`;
+}
+async function carregarMetasAdmin() {
+  const box = document.getElementById("ma_admin");
+  if (!box) return;
+  let ultimos = {};
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Metas" });
+    if (!res.erro) res.dados.slice(1).forEach(l => { ultimos[l[2] + "|" + l[3]] = { valor: l[4], quando: l[0] }; });
+  } catch (e) {}
+  box.innerHTML = METAS_LISTA.map((m, i) => {
+    const u = ultimos[m.meta + "|" + m.loc];
+    return `<div class="card" style="margin-bottom:10px">
+      <b>${m.meta}</b> · ${m.loc}${m.prazo ? " · prazo " + m.prazo : ""}${m.referencia ? "<br><span style=\"font-size:14px\">Referência: " + m.referencia + "</span>" : ""}<br>
+      <span style="font-size:14px">${u ? "Último valor: " + u.valor + " (em " + formatarQuando(u.quando) + ")" : "Sem valor cadastrado"}</span>
+      ${m.acao ? `<div class="nota">${m.acao}</div>` : ""}
+      <input id="mt_v_${i}" class="campo" placeholder="${m.unidade ? (m.unidade.startsWith("%") ? "Resultado atual (%)" : "Quanto ainda falta") : "Novo valor"}">
+      <input id="mt_o_${i}" class="campo" placeholder="Observação (opcional)">
+      <button class="acao" onclick="salvarMeta(${i})">Salvar</button>
+    </div>`;
+  }).join("");
+}
+async function salvarMeta(i) {
+  const m = METAS_LISTA[i];
+  const valor = document.getElementById("mt_v_" + i).value.trim();
+  const obs = document.getElementById("mt_o_" + i).value.trim();
+  if (!valor) { alert("Digite o valor."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Metas",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, m.meta, m.loc, valor, obs]] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Meta atualizada.");
+    carregarMetasAdmin();
+  } catch (e) { alert("Não consegui salvar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
+}
+
+// SS com Estado preenchido: só a gerência e o Thiago, o Oseias e o Igor veem
+function podeVerEstadoSS() {
+  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  return ["deyse", "thiago", "oseias", "igor"].some(n => quem.includes(n));
+}
+function telaEstadoSS() {
+  return `<h2>SS com Estado preenchido</h2>
+    <div class="nota">Registre a SS com o estado que apareceu e se o comando foi executado.</div>
+    <input id="es_ss" class="campo" placeholder="Número da SS">
+    <input id="es_tipo" class="campo" placeholder="Tipo (ex.: Religação, Corte)">
+    <select id="es_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+    <input id="es_estado" class="campo" placeholder="Estado que aparece na SS">
+    <select id="es_cmd" class="campo"><option value="">Comando executado?</option><option>Sim</option><option>Não</option></select>
+    <button class="acao" onclick="salvarEstadoSS()">Salvar</button>
+    <div id="es_lista">Carregando...</div>`;
+}
+async function carregarEstadoSS() {
+  const box = document.getElementById("es_lista");
+  if (!box) return;
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EstadoSS" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const linhas = res.dados.slice(1).reverse();
+    box.innerHTML = linhas.length ? `<table><tr><th>SS</th><th>Tipo</th><th>Localidade</th><th>Estado</th><th>Comando executado</th></tr>` +
+      linhas.map(l => `<tr><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[5]}</td><td>${l[6]}</td></tr>`).join("") + "</table>" : "<p>Nenhuma SS registrada.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function salvarEstadoSS() {
+  const ss = document.getElementById("es_ss").value.trim();
+  const tipo = document.getElementById("es_tipo").value.trim();
+  const loc = document.getElementById("es_loc").value;
+  const estado = document.getElementById("es_estado").value.trim();
+  const cmd = document.getElementById("es_cmd").value;
+  if (!ss || !tipo || !loc || !estado || !cmd) { alert("Preencha a SS, o tipo, a localidade, o estado e se o comando foi executado."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EstadoSS",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, ss, tipo, loc, estado, cmd]] });
+    if (res.erro) { alert(res.erro); return; }
+    renderAtual();
+  } catch (e) { alert("Não consegui salvar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
+}
+
+// Quem atende cada localidade na Agersa (recebe a demanda)
+const AGERSA_EQUIPE = {
+  "São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo"],
+  "Angico": ["Ramon", "Renato"],
+  "Catolândia": ["Isaque"],
+  "Baianópolis": ["Ivo Carlos", "Jânio Gualberto"],
+  "Mozondó": ["Genildo", "Alan", "Juvenson", "Valdesandro"],
+  "Captação São Desidério": ["Ramon", "Renato"]
+};
+function mostrarResponsaveisAgersa() {
+  const local = document.getElementById("ag_nl").value;
+  document.getElementById("ag_resp").innerHTML = local
+    ? AGERSA_EQUIPE[local].map(n => `<label style="display:block;margin:4px 0"><input type="checkbox" class="ag_r" value="${n}" checked> ${n}</label>`).join("")
+    : "";
+}
+async function criarDemandaAgersa() {
+  const local = document.getElementById("ag_nl").value;
+  const demanda = document.getElementById("ag_nd").value.trim();
+  const resp = [...document.querySelectorAll(".ag_r:checked")].map(c => c.value);
+  if (!local || !demanda || resp.length === 0) { alert("Escolha a localidade, escreva a demanda e marque quem vai atender."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Agersa",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, local, demanda, resp.join(", "), "aberta"]] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Demanda enviada aos funcionários de " + local + ".");
+    carregarAgersaGerente();
+    document.getElementById("ag_nd").value = "";
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
+}
 function telaAgersaGerente() {
   return `<h2>Demandas Agersa – acompanhamento</h2>
+    <h3>Nova demanda</h3>
+    <select id="ag_nl" class="campo" onchange="mostrarResponsaveisAgersa()"><option value="">Localidade…</option>${Object.keys(AGERSA_EQUIPE).map(l => `<option>${l}</option>`).join("")}</select>
+    <div id="ag_resp"></div>
+    <textarea id="ag_nd" class="campo" rows="2" placeholder="Demanda (o que deve ser feito)"></textarea>
+    <button class="acao" onclick="criarDemandaAgersa()">Enviar demanda aos funcionários</button>
     <select id="ag_loc" class="campo" onchange="carregarAgersaGerente()"><option value="">Todas as localidades</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
     <div id="ag_ger">Carregando...</div>`;
 }
@@ -1843,7 +2780,9 @@ async function carregarAgersa() {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Agersa" });
     if (res.erro) { box.innerHTML = `<p>${res.erro}</p>`; return; }
     // colunas: data_hora, usuario, localidade, demanda, responsavel, situacao
-    const minhas = res.dados.slice(1).filter(l => localidadeVisivel(l[2]));
+    // Ramon e Renato veem só as demandas do Angico e da Captação São Desidério
+    const ehAngico = String(perfilAtual || "").startsWith("Operador Angico");
+    const minhas = res.dados.slice(1).filter(l => ehAngico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]));
     box.innerHTML = minhas.length === 0 ? '<div class="nota">Nenhuma demanda da sua localidade.</div>' :
       minhas.map(l => `
         <div class="card" style="margin-bottom:10px">
@@ -2003,8 +2942,12 @@ function blocoEncerramento(chave) {
   </div>`;
 }
 function telaPedidoSS(encerrar = false) {
-  return `<h2>Pedir abertura de SS</h2>
-    <div class="nota">Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos. A SS não é enviada ao Digiteam por este pedido.</div>
+  const fotos = encerrar ? `<div class="card"><b>1. Foto do local</b> (a coordenada GPS entra na foto automaticamente)<br><input type="file" id="enc_fotos" accept="image/*" multiple class="campo"></div>` : "";
+  return `<h2>${encerrar ? "Abrir e encerrar SS" : "Pedir abertura de SS"}</h2>
+    ${fotos}
+    <div class="nota"><b>Ao pedir, a SS entra nas pendências do SCI e aguarda oportunidade para ser executada.</b> Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos.</div>
+    <select id="ps_acao" class="campo"><option>Só gerar</option><option>Mandar no Digiteam</option><option>Digitar e encerrar</option></select>
+    <button class="acao" style="background:#0a6e8a" onclick="usarGPSSS()">Usar minha localização (GPS)</button>
     <select id="ps_tipo" class="campo" onchange="encherEspSS()"><option value="">Tipo de serviço…</option>${Object.keys(TIPOS_SS).map(c => `<option value="${c}">${c} – ${TIPOS_SS[c][0]}</option>`).join("")}</select>
     <select id="ps_esp" class="campo" disabled onchange="mostrarEncerramento()"><option value="">Escolha o tipo primeiro</option></select>
     <select id="ps_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
@@ -2014,8 +2957,54 @@ function telaPedidoSS(encerrar = false) {
     <input id="ps_hd" class="campo" placeholder="Nº do hidrômetro (se souber)">
     <textarea id="ps_obs" class="campo" rows="3" placeholder="Observação (o que foi observado no local)"></textarea>
     <div id="ps_enc"></div>
-    ${encerrar ? `<div class="card"><b>Fotos para a gerência adicionar (opcional)</b><br><input type="file" id="enc_fotos" accept="image/*" multiple class="campo"></div>` : ""}
     <button class="acao" onclick="enviarPedidoSS(${encerrar})">${encerrar ? "Enviar pedido de abertura e encerramento" : "Enviar pedido de SS"}</button>`;
+}
+// Localização do aparelho (GPS). Usada no endereço e carimbada na foto da SS.
+function obterPosicao() {
+  return new Promise(resolver => {
+    if (!navigator.geolocation) return resolver(null);
+    navigator.geolocation.getCurrentPosition(
+      p => resolver({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => resolver(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+  });
+}
+async function usarGPSSS() {
+  const pos = await obterPosicao();
+  if (!pos) { alert("Não consegui pegar a localização. Verifique se o GPS e a permissão do navegador estão ligados."); return; }
+  window.ssGps = pos;
+  document.getElementById("ps_log").value = "GPS: " + pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
+  alert("Localização preenchida.");
+}
+// Carimba latitude e longitude na própria foto antes de enviar
+function carimbarFoto(arquivo, pos) {
+  return new Promise((resolver, rejeitar) => {
+    if (!pos) return lerArquivoBase64(arquivo).then(resolver, rejeitar);
+    const url = URL.createObjectURL(arquivo);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      const altura = Math.max(40, Math.round(c.height * 0.06));
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillRect(0, c.height - altura, c.width, altura);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold " + Math.round(altura * 0.45) + "px sans-serif";
+      ctx.fillText("Lat " + pos.lat.toFixed(6) + "  Lon " + pos.lon.toFixed(6), 12, c.height - altura * 0.35);
+      URL.revokeObjectURL(url);
+      resolver(c.toDataURL("image/jpeg", 0.85).split(",")[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); lerArquivoBase64(arquivo).then(resolver, rejeitar); };
+    img.src = url;
+  });
+}
+function presetSS(tipo, esp) {
+  document.getElementById("ps_tipo").value = tipo;
+  encherEspSS();
+  document.getElementById("ps_esp").value = esp;
+  mostrarEncerramento();
 }
 function encherEspSS() {
   const t = TIPOS_SS[document.getElementById("ps_tipo").value];
@@ -2040,6 +3029,7 @@ async function enviarPedidoSS(encerrar = false) {
   const nomeEsp = TIPOS_SS[tipo][1].find(x => String(x[0]) === esp)[1];
   let obsFinal = obs;
   let urls = "";
+  const acaoEscolhida = (document.getElementById("ps_acao") || {}).value || "Só gerar";
   if (encerrar) {
     const c = CAMPOS_ENCERRAMENTO[tipo + "-" + esp];
     if (c) {
@@ -2055,10 +3045,12 @@ async function enviarPedidoSS(encerrar = false) {
       obsFinal = "[ABRIR E ENCERRAR] " + obs;
     }
     const arquivos = (document.getElementById("enc_fotos") || {}).files || [];
+    if (window.ssGps) obsFinal += " | GPS: " + window.ssGps.lat.toFixed(6) + ", " + window.ssGps.lon.toFixed(6);
     try {
       const links = [];
       for (const arq of arquivos) {
-        const base64 = await lerArquivoBase64(arq);
+        const pos = (await obterPosicao()) || window.ssGps;
+        const base64 = await carimbarFoto(arq, pos);
         const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha, base64: base64, tipo: arq.type, nome: arq.name });
         if (r.erro) { alert(r.erro); return; }
         links.push(r.url);
@@ -2066,13 +3058,14 @@ async function enviarPedidoSS(encerrar = false) {
       urls = links.join(" ");
     } catch (e) { alert("Não consegui enviar as fotos. Verifique a internet."); return; }
   }
+  obsFinal = "[" + acaoEscolhida.toUpperCase() + "] " + obsFinal;
   const linha = [new Date().toISOString(), window.credenciais.usuario, TIPOS_SS[tipo][0] + " (" + tipo + ")", nomeEsp,
     loc, document.getElementById("ps_bairro").value.trim(), document.getElementById("ps_log").value.trim(),
     document.getElementById("ps_mat").value.trim(), document.getElementById("ps_hd").value.trim(), obsFinal, "pendente", "", "", "", "", urls];
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS", linhas: [linha] });
     if (res.erro) { alert(res.erro); return; }
-    alert("Pedido de SS enviado. O número aparece em Meus pedidos quando for gerado.");
+    alert("Pedido de SS enviado. Ela entra nas pendências do SCI e aguarda oportunidade para ser executada. O número aparece em Meus pedidos quando for gerado.");
     renderAtual();
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
 }
@@ -2094,8 +3087,8 @@ function selectDigiteam(id) {
 function telaPedidosSS() {
   return `<h2>Pedidos de SS</h2><div id="pss_lista">Carregando...</div>`;
 }
-async function carregarPedidosSS() {
-  const box = document.getElementById("pss_lista");
+async function carregarPedidosSS(boxId = "pss_lista") {
+  const box = document.getElementById(boxId);
   if (!box) return;
   box.textContent = "Carregando...";
   try {
@@ -2103,6 +3096,8 @@ async function carregarPedidosSS() {
     if (res.erro) { box.textContent = res.erro; return; }
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "" }));
     itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
+    window.pssCache = {};
+    itens.forEach(p => { window.pssCache[p.linha] = p; });
     if (!itens.length) { box.innerHTML = "<p>Nenhum pedido de SS.</p>"; return; }
     box.innerHTML = itens.reverse().map(p => {
       const pend = p.situacao === "pendente";
@@ -2114,6 +3109,9 @@ async function carregarPedidosSS() {
         ${p.fotos ? "<div style=\"font-size:14px\">Fotos para adicionar: " + p.fotos.split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") + "</div>" : ""}
         ${pend ? `<input id="pss_n_${p.linha}" class="campo" placeholder="Número da SS gerada">
           ${selectDigiteam("pss_d_" + p.linha)}
+          ${/ENCERRAR/.test(p.obs) ? `<label style="display:block;margin:6px 0"><input type="checkbox" id="pss_e_${p.linha}"> Ainda não foi encerrada: mandar para encerrar pelo escritório</label>` : ""}
+          <label>Concluída? <select id="pss_c_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
+          <label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
           <button class="acao" onclick="responderSS(${p.linha}, false)">Responder com a SS (sem Digiteam)</button>
           <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>`
           : `<div>SS nº <b>${p.ss}</b> · respondida por ${p.por}${p.dg ? " · enviada ao Digiteam de <b>" + p.dg + "</b>" : ""}</div>`}
@@ -2127,8 +3125,17 @@ async function responderSS(linha, mandarDigiteam) {
   if (!numero.trim()) { alert("Digite o número da SS."); return; }
   if (mandarDigiteam && !dg) { alert("Escolha quem recebe no Digiteam."); return; }
   try {
-    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: mandarDigiteam ? dg : "" });
+    const concluida = (document.getElementById("pss_c_" + linha) || {}).value || "";
+    const foto = (document.getElementById("pss_f_" + linha) || {}).value || "";
+    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: mandarDigiteam ? dg : "", concluida: concluida, foto: foto });
     if (res.erro) { alert(res.erro); return; }
+    const pendente = (document.getElementById("pss_e_" + linha) || {}).checked;
+    if (pendente) {
+      const info = (window.pssCache || {})[linha] || {};
+      await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EncerrarSS",
+        linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + numero.trim(), (info.tipo || "") + " – " + (info.esp || ""), info.loc || "", info.obs || "", "pendente", "", ""]] });
+      alert("SS enviada para a lista de encerrar pelo escritório.");
+    }
     carregarPedidosSS();
   } catch (e) { alert("Não consegui responder. Verifique a internet."); }
 }
@@ -2173,6 +3180,27 @@ function abrirAlmox(op) {
       <button class="acao" onclick="pedirCatalogo()">Gerar pedido</button>`;
   }
 }
+// Saldo a partir da planilha: a última contagem é o ponto de partida; retiradas e entradas depois dela ajustam.
+// Enquanto não houver contagem registrada, São Desidério usa a contagem antiga (transição).
+function calcularSaldosAlmox(dados, local) {
+  const estado = {};
+  dados.slice(1).forEach(l => {
+    // colunas: data_hora, usuario, local, tipo, material, quantidade, observacao
+    if (l[2] !== local) return;
+    const cod = String(l[4]).split(" – ")[0];
+    const q = parseFloat(l[5]) || 0;
+    const e = estado[cod] || (estado[cod] = { base: null, mov: 0 });
+    if (String(l[3]).startsWith("Contagem")) { e.base = q; e.mov = 0; }
+    else e.mov += String(l[3]).startsWith("Entrada") ? q : -q;
+  });
+  return estado;
+}
+function saldoDoItem(estado, local, cod, sdBase) {
+  const e = estado[cod] || { base: null, mov: 0 };
+  const base = e.base !== null ? e.base : (local === "ETA São Desidério" ? (parseFloat(sdBase) || 0) : 0);
+  return base + e.mov;
+}
+
 async function estoqueGeral() {
   const local = document.getElementById("ac_local").value;
   const box = document.getElementById("al_geral");
@@ -2180,16 +3208,9 @@ async function estoqueGeral() {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Almoxarifado" });
     if (res.erro) { box.textContent = res.erro; return; }
-    const mov = {};
-    res.dados.slice(1).forEach(l => {
-      if (l[2] !== local) return;
-      const cod = String(l[4]).split(" – ")[0];
-      const q = parseFloat(l[5]) || 0;
-      mov[cod] = (mov[cod] || 0) + (String(l[3]).startsWith("Entrada") ? q : -q);
-    });
+    const estado = calcularSaldosAlmox(res.dados, local);
     const linhas = CATALOGO_ALMOX.map(([c, d, sd]) => {
-      const base = local === "ETA São Desidério" ? (parseFloat(sd) || 0) : 0;
-      const saldo = base + (mov[c] || 0);
+      const saldo = saldoDoItem(estado, local, c, sd);
       return `<tr><td>${c}</td><td>${d}</td><td style="${saldo <= 0 ? "color:#c62828;font-weight:bold" : ""}">${saldo}</td></tr>`;
     }).join("");
     box.innerHTML = `<p>${local}: ${CATALOGO_ALMOX.length} itens. Saldo em vermelho = zerado ou negativo.</p>
@@ -2208,22 +3229,14 @@ async function mostrarSaldo() {
   const box = document.getElementById("ac_saldo");
   if (!cod || !local) { box.textContent = local ? "" : "Escolha o local primeiro."; return; }
   const item = itemCatalogo(cod);
-  // A contagem atual é só da ETA São Desidério; os outros locais começam em zero
-  const base = local === "ETA São Desidério" ? (parseFloat(item[2]) || 0) : 0;
   box.textContent = "Consultando saldo...";
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Almoxarifado" });
-    let mov = 0;
-    if (!res.erro) {
-      res.dados.slice(1).forEach(l => {
-        // colunas: data_hora, usuario, local, tipo, material, quantidade, observacao
-        if (l[2] === local && String(l[4]).startsWith(cod + " –")) {
-          const q = parseFloat(l[5]) || 0;
-          mov += String(l[3]).startsWith("Entrada") ? q : -q;
-        }
-      });
-    }
-    box.textContent = "Saldo atual: " + (base + mov) + " (contagem: " + base + ", movimentações desde a contagem: " + mov + ")";
+    if (res.erro) { box.textContent = res.erro; return; }
+    const estado = calcularSaldosAlmox(res.dados, local);
+    const e = estado[cod] || { base: null, mov: 0 };
+    const saldo = saldoDoItem(estado, local, cod, item[2]);
+    box.textContent = "Saldo atual: " + saldo + (e.base !== null ? " (última contagem: " + e.base + ", movimentações depois dela: " + e.mov + ")" : " (sem contagem registrada ainda)");
   } catch (e) { box.textContent = "Não consegui consultar agora. Verifique a internet."; }
 }
 
@@ -2298,7 +3311,32 @@ function localidadeDaRotina() {
 function itensRotina(loc) {
   return ROTINA_POR_LOCAL[loc] || [];
 }
+// Gerência: só consulta as respostas da rotina de cada localidade
+function telaRotinaConsulta() {
+  return `<h2>Rotina do dia 1 – respostas</h2>
+    <select id="rc_loc" class="campo" onchange="carregarRotinaConsulta()"><option value="">Localidade…</option>${Object.keys(ROTINA_POR_LOCAL).map(l => `<option>${l}</option>`).join("")}</select>
+    <input type="date" id="rc_data" class="campo" value="${hojeISO()}" onchange="carregarRotinaConsulta()">
+    <div id="rc_lista">Escolha a localidade.</div>`;
+}
+async function carregarRotinaConsulta() {
+  const box = document.getElementById("rc_lista");
+  if (!box) return;
+  const loc = document.getElementById("rc_loc").value;
+  const data = document.getElementById("rc_data").value;
+  if (!loc) { box.textContent = "Escolha a localidade."; return; }
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Rotina" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    // colunas: data_hora, usuario, data_rotina, item (com a localidade), situacao
+    const linhas = res.dados.slice(1).filter(l => String(l[2]).replace(/^'/, "").slice(0, 10) === data && String(l[3]).startsWith(loc + " – "));
+    box.innerHTML = linhas.length ? `<table><tr><th>Item</th><th>Situação</th><th>Quem marcou</th><th>Registrado em</th></tr>` +
+      linhas.map(l => `<tr><td>${String(l[3]).replace(loc + " – ", "")}</td><td>${l[4]}</td><td>${l[1]}</td><td>${formatarQuando(l[0])}</td></tr>`).join("") + "</table>"
+      : "<p>Nenhuma resposta para esta localidade nesta data.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
 function telaRotina() {
+  if (window.MODO_GERENTE) return telaRotinaConsulta();
   const padrao = localidadeDaRotina();
   return `<h2>Rotina do dia 1</h2>
     <select id="rt_loc" class="campo" onchange="abrirRotina()"><option value="">Localidade…</option>${Object.keys(ROTINA_POR_LOCAL).map(l => `<option ${l === padrao ? "selected" : ""}>${l}</option>`).join("")}</select>
@@ -2448,6 +3486,48 @@ async function responderRilc() {
   }
 }
 
+// ===== SOLICITAÇÕES DE AQUISIÇÃO (RILC): a gerência analisa e responde; a resposta vai para Meus pedidos de quem pediu =====
+// colunas da aba RILC: 1 data_hora, 2 usuario, 3 material, 4 quantidade, 5 urgencia, 6 prazo, 7 motivo_e_local, 8 situacao, 9 loja, 10 observacao, 11 respondido_por, 12 data_resposta
+async function carregarSolicitacoesAquisicao(boxId = "aq_lista") {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "RILC" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], material: l[2], qtd: l[3], urg: l[4], prazo: l[5], motivo: l[6], situacao: l[7] || "", loja: l[8] || "", obs: l[9] || "" }));
+    itens.sort((a, b) => (a.situacao ? 1 : 0) - (b.situacao ? 1 : 0));
+    if (!itens.length) { box.innerHTML = "<p>Nenhuma solicitação.</p>"; return; }
+    box.innerHTML = itens.reverse().map(p => {
+      const texto = `Solicitação RILC – ${p.quem}: ${p.material}, quantidade ${p.qtd}, urgência: ${p.urg}` + (p.prazo ? ", prazo: " + p.prazo : "") + `. Motivo/local: ${p.motivo}`;
+      const resposta = p.situacao
+        ? `<div style="margin-top:8px"><b>${p.situacao}</b>${p.loja ? " · loja: " + p.loja : ""}${p.obs ? " · " + p.obs : ""}</div>`
+        : `<select id="aq_d_${p.linha}" class="campo"><option>Liberado</option><option>Não liberado</option></select>
+           <input id="aq_l_${p.linha}" class="campo" placeholder="Loja onde buscar (se liberado)">
+           <textarea id="aq_o_${p.linha}" class="campo" rows="2" placeholder="Observação"></textarea>
+           <button class="acao" onclick="responderAquisicao(${p.linha})">Enviar resposta</button>`;
+      return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.situacao ? "#2e7d32" : "#c62828"}">
+        <b>${p.material}</b> · qtd ${p.qtd} · ${p.urg}${p.prazo ? " · prazo " + p.prazo : ""}<br>
+        <span style="font-size:14px">Pedido por ${p.quem} em ${formatarQuando(p.quando)} · ${p.motivo}</span>
+        <button class="acao" style="margin:6px 0;padding:6px" onclick="navigator.clipboard.writeText(${JSON.stringify(texto).replace(/"/g, "&quot;")}).then(() => alert('Texto copiado.'))">Copiar texto (WhatsApp)</button>
+        ${resposta}
+      </div>`;
+    }).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function responderAquisicao(linha) {
+  const decisao = document.getElementById("aq_d_" + linha).value;
+  const loja = document.getElementById("aq_l_" + linha).value.trim();
+  const obs = document.getElementById("aq_o_" + linha).value.trim();
+  if (decisao === "Liberado" && !loja) { alert("Informe a loja onde buscar."); return; }
+  try {
+    const res = await chamarApi({ acao: "responderRilcPedido", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, decisao: decisao, loja: loja, observacao: obs });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Resposta enviada. Aparece em Meus pedidos de quem pediu.");
+    carregarSolicitacoesAquisicao();
+  } catch (e) { alert("Não consegui enviar a resposta. Verifique a internet."); }
+}
+
 // ===== HORA EXTRA (aba HoraExtra) =====
 function alternarHoraExtra() {
   const temSS = document.querySelector('input[name="he_tem_ss"]:checked').value === "sim";
@@ -2590,13 +3670,21 @@ async function carregarMeusPedidos() {
     const ssMinhas = rs.erro ? [] : rs.dados.slice(1).filter(l => String(l[1]).toLowerCase() === eu);
     html += ssMinhas.length ? ssMinhas.reverse().map(l => {
       const resp = l[10] === "respondida" && l[11];
-      return `<div class="card" style="margin-bottom:8px"><b>${l[2]}</b> · ${l[4]}<br><span style="font-size:14px">Pedido em ${formatarQuando(l[0])} · ${resp ? "SS nº <b>" + l[11] + "</b>" + (l[14] ? " · enviada ao Digiteam de " + l[14] : "") : '<span class="tag t-alerta">Aguardando a SS</span>'}</span></div>`;
+      return `<div class="card" style="margin-bottom:8px"><b>${l[2]}</b> · ${l[4]}<br><span style="font-size:14px">Pedido em ${formatarQuando(l[0])} · ${resp ? "SS nº <b>" + l[11] + "</b>" + (l[14] ? " · enviada ao Digiteam de " + l[14] : "") + (l[16] ? " · concluída: " + l[16] : "") + (l[17] ? " · foto anexada: " + l[17] : "") : '<span class="tag t-alerta">Nas pendências do SCI, aguardando oportunidade</span>'}</span></div>`;
     }).join("") : "<p>Nenhum pedido de SS.</p>";
+    // RILC: resposta da gerência para quem pediu
+    const rr = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "RILC" });
+    html += "<h3>Compras em loja (RILC)</h3>";
+    const rilcMinhas = rr.erro ? [] : rr.dados.slice(1).filter(l => String(l[1]).toLowerCase() === eu);
+    html += rilcMinhas.length ? rilcMinhas.reverse().map(l => {
+      const sit = l[7] ? (l[7] === "Liberado" ? `<b>Liberado</b> – buscar em: ${l[8] || "—"}` : `<b>${l[7]}</b>`) : '<span class="tag t-alerta">Aguardando análise</span>';
+      return `<div class="card" style="margin-bottom:8px"><b>${l[2]}</b> · qtd ${l[3]}<br><span style="font-size:14px">Pedido em ${formatarQuando(l[0])} · ${sit}${l[9] ? "<br>Obs.: " + l[9] : ""}</span></div>`;
+    }).join("") : "<p>Nenhum pedido de compra.</p>";
     box.innerHTML = html;
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
-async function carregarEpiGerente() {
-  const box = document.getElementById("epi_lista");
+async function carregarEpiGerente(boxId = "epi_lista") {
+  const box = document.getElementById(boxId);
   if (!box) return;
   box.textContent = "Carregando...";
   try {
@@ -2609,16 +3697,36 @@ async function carregarEpiGerente() {
     });
     if (!itens.length) { box.innerHTML = "<p>Nenhum pedido de EPI.</p>"; return; }
     itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
+    window.episItens = itens;
     box.innerHTML = itens.reverse().map(p => {
       const pendente = p.situacao === "pendente";
       const tag = p.situacao === "recebido" ? `<span class="tag t-ok">Recebido</span>`
         : p.situacao === "entregue" ? `<span class="tag t-alerta">Entregue por ${p.por || "—"}, aguardando recebimento</span>`
         : `<span class="tag t-alerta">Pendente</span>`;
       const botao = pendente ? `<button class="acao" onclick="atualizarEpi(${p.linha}, 'entregue')">Marcar como entregue</button>` : "";
-      return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${pendente ? "#c62828" : "#2e7d32"}"><b>${p.quem}</b> · ${p.item} · tamanho ${p.tam} · qtd ${p.qtd}<br>` +
+      return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${pendente ? "#c62828" : "#2e7d32"}"><input type="checkbox" class="epi_sel" value="${p.linha}"> <b>${p.quem}</b> · ${p.item} · tamanho ${p.tam} · qtd ${p.qtd}<br>` +
         `<span style="font-size:14px">Pedido em ${formatarQuando(p.data)} · ${tag}</span>${botao}</div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+// E-mail com os pedidos de EPI marcados (copiar ou abrir no e-mail)
+function gerarEmailEpi() {
+  const marcados = [...document.querySelectorAll(".epi_sel:checked")].map(c => Number(c.value));
+  const itens = (window.episItens || []).filter(p => marcados.includes(p.linha));
+  if (!itens.length) { alert("Marque pelo menos um pedido."); return; }
+  const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const assunto = "Pedidos de EPI – " + hoje;
+  const linhas = itens.map(p => `• ${p.quem}: ${p.item} – tamanho ${p.tam} – quantidade ${p.qtd} (pedido em ${formatarQuando(p.data)})`);
+  const corpo = "Segue a relação de pedidos de EPI:\n\n" + linhas.join("\n") + "\n\nAtt.,\n" + (window.nomeUsuario || "");
+  document.getElementById("epi_email").value = "Assunto: " + assunto + "\n\n" + corpo;
+  const link = document.getElementById("epi_mailto");
+  link.href = "mailto:" + encodeURIComponent(document.getElementById("epi_para").value.trim()) + "?subject=" + encodeURIComponent(assunto) + "&body=" + encodeURIComponent(corpo);
+  link.style.display = "";
+}
+function copiarEmailEpi() {
+  const t = document.getElementById("epi_email");
+  if (!t.value) { alert("Gere o e-mail primeiro."); return; }
+  navigator.clipboard.writeText(t.value).then(() => alert("E-mail copiado."), () => { t.select(); alert("Selecione o texto e copie."); });
 }
 async function atualizarEpi(linha, etapa) {
   try {
@@ -2638,7 +3746,7 @@ const CADASTRO_EQUIPE = [
   { nome: "Valdesandro Goncalves de Souza", matricula: "t058942", local: "Catolândia e Baianópolis", acesso: "Não" },
   { nome: "Alan Bispo Ribeiro", matricula: "t867209", local: "Catolândia e Baianópolis", acesso: "Não" },
   { nome: "Genildo Alves dos Santos", matricula: "t066154", local: "Catolândia e Baianópolis", acesso: "Não" },
-  { nome: "Acácio dos Santos Carvalho Ferreira", matricula: "e37086a", local: "—", acesso: "—" },
+  { nome: "Acácio dos Santos Carvalho Ferreira", matricula: "e37086a", local: "São Desidério", acesso: "—" },
   { nome: "Isaque Mendes", matricula: "t859264", local: "Catolândia", acesso: "—" },
   { nome: "Ramon Jesus dos Santos", matricula: "t080183", local: "Angico", acesso: "—" },
   { nome: "Renato do Nascimento Gomes Junior", matricula: "t116190", local: "Angico", acesso: "—" },
@@ -2646,17 +3754,41 @@ const CADASTRO_EQUIPE = [
   { nome: "Ivo Carlos de Souza", matricula: "e140570", local: "Baianópolis", acesso: "—" },
   { nome: "Janio Gualberto Macedo", matricula: "e138096", local: "Baianópolis", acesso: "—" }
 ];
-const SISTEMAS_ACESSO = ["SCI", "Digiteam", "SIAGUA", "Geoweb", "SAP"];
+const SISTEMAS_ACESSO = ["SCI", "Digiteam", "Webrol", "Jupiter", "VPN", "Geoweb"];
+// Quem tem cada sistema:
+// - SCI e Geoweb: só Thiago e Ivo Carlos têm senha
+// - Digiteam: todos os agentes de sistema
+// - Jupiter: só os operadores (não o Ramon nem o Renato)
+// - Webrol e VPN: todos
+const AGENTES_SISTEMA = ["luzenildo", "joaquim", "carlito", "francisco", "isaque", "ivocarlos", "janiogualberto"];
+const OPERADORES_SISTEMA = ["igor", "oseias", "acacio", "janiolima", "eduardo", "genildo", "alan", "juvenson", "valdesandro"];
+function sistemasDe(nome) {
+  const n = normalizarNome(nome);
+  const lista = ["Webrol", "VPN"];
+  if (n.includes("thiago") || n.includes("ivocarlos")) lista.push("SCI", "Geoweb");
+  if (AGENTES_SISTEMA.some(a => n.includes(a)) || n.includes("ramon") || n.includes("renato")) lista.push("Digiteam");
+  if (OPERADORES_SISTEMA.some(o => n.includes(o))) lista.push("Jupiter");
+  return SISTEMAS_ACESSO.filter(x => lista.includes(x));
+}
+// Usuário no Digiteam (o login que aparece no Digiteam)
+function usuarioDigiteam(nome) {
+  const n = normalizarNome(nome);
+  // Ramon e Renato usam o Digiteam do Oseias nos serviços do Angico
+  if (n.includes("ramon") || n.includes("renato")) return "551864 (Oseias – para os serviços do Angico)";
+  const achado = DIGITEAM_OPCOES.find(([nomeOpt]) => n.includes(normalizarNome(nomeOpt)));
+  return achado ? achado[1] : "";
+}
 const STATUS_ACESSO = ["não testado", "acesso ok", "precisa trocar a senha"];
 let ACESSOS_CACHE = [];
 function telaCadastroEquipe() {
-  const linhas = CADASTRO_EQUIPE.map((p, i) => `<tr><td>${p.nome}</td><td>${p.matricula}</td><td>${p.local}</td><td>${p.acesso}</td><td><button class="acao" style="margin:0;padding:4px 8px" onclick="verAcessos(${i})">Dados e acessos</button></td></tr>`).join("");
+  const linhas = CADASTRO_EQUIPE.map((p, i) => `<tr><td>${p.nome}</td><td>${p.matricula}</td><td>${p.local}</td><td><button class="acao" style="margin:0;padding:4px 8px" onclick="verAcessos(${i})">Dados e acessos</button></td></tr>`).join("");
   return `<h2>Cadastro da equipe</h2>
-    <div class="nota">Matrícula de rede e acessos. Não são guardadas senhas: cada funcionário marca o próprio status do acesso.</div>
-    <table><tr><th>Nome</th><th>Matrícula de rede</th><th>Localidade</th><th>Acesso ao SCI</th><th></th></tr>${linhas}</table>
-    <div id="cad_detalhe"></div>`;
-}
-async function lerAcessosCadastro() {
+    <div class="nota">Matrícula de rede e acessos. Não são guardadas senhas: cada funcionário marca o status dos próprios acessos e envia para a gerência.</div>
+    <table><tr><th>Nome</th><th>Matrícula de rede</th><th>Localidade</th><th></th></tr>${linhas}</table>
+    <div id="cad_detalhe"></div>
+    <h3>Acessos enviados pela equipe</h3>
+    <div id="ac_enviados">Carregando...</div>`;
+}async function lerAcessosCadastro() {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Acessos" });
     ACESSOS_CACHE = res.erro ? [] : res.dados.slice(1);
@@ -2671,16 +3803,15 @@ async function verAcessos(i) {
   const p = CADASTRO_EQUIPE[i];
   const area = document.getElementById("cad_detalhe");
   area.innerHTML = `<h3>${p.nome}</h3><p>Matrícula de rede: <b>${p.matricula}</b></p>` +
-    SISTEMAS_ACESSO.map((sis, k) => {
+    sistemasDe(p.nome).map((sis, k) => {
       const a = acessoDe(p.nome, sis);
-      return `<div class="card" style="margin-bottom:8px"><b>${sis}</b>
+      return `<div class="card" style="margin-bottom:8px"><b>${sis}</b>${sis === "Digiteam" ? ` · usuário: <b>${usuarioDigiteam(p.nome) || "não informado"}</b>` : ""}
         <input id="ac_mat_${k}" class="campo" placeholder="Matrícula no sistema" value="${a[2] || ""}">
         <select id="ac_st_${k}" class="campo">${STATUS_ACESSO.map(st => `<option ${a[3] === st ? "selected" : ""}>${st}</option>`).join("")}</select>
         <div style="font-size:13px">${a[4] ? "Última atualização: " + formatarQuando(a[4]) + " por " + (a[5] || "—") : "Sem atualização"}</div>
         <button class="acao" onclick="salvarAcesso('${p.nome.replace(/'/g, "")}', '${sis}', ${k})">Salvar</button></div>`;
     }).join("");
-}
-async function salvarAcesso(nome, sistema, k) {
+}async function salvarAcesso(nome, sistema, k) {
   const matricula = document.getElementById("ac_mat_" + k).value.trim();
   const status = document.getElementById("ac_st_" + k).value;
   try {
@@ -2698,15 +3829,49 @@ async function carregarMeusAcessos() {
   const meu = CADASTRO_EQUIPE.find(p => normalizarNome(p.nome) === normalizarNome(window.nomeUsuario));
   if (!meu) { box.innerHTML = "<p>Seu nome ainda não está no cadastro. Avise a gerência.</p>"; return; }
   await lerAcessosCadastro();
-  box.innerHTML = SISTEMAS_ACESSO.map((sis, k) => {
+  box.innerHTML = sistemasDe(meu.nome).map((sis, k) => {
     const a = acessoDe(meu.nome, sis);
-    return `<div class="card" style="margin-bottom:8px"><b>${sis}</b>
-      <div style="font-size:14px">Matrícula: ${a[2] || "—"}</div>
+    const devolvido = a[3] === "devolvido para teste";
+    const userDg = sis === "Digiteam" ? (usuarioDigiteam(meu.nome) || "não informado") : "";
+    return `<div class="card" style="margin-bottom:8px">
+      <b>${sis}</b>${userDg ? ` · usuário: <b>${userDg}</b>` : ""}${devolvido ? ' <span class="tag t-alerta">Devolvido: refazer o teste da senha</span>' : ""}
       <select id="ma_st_${k}" class="campo">${STATUS_ACESSO.map(st => `<option ${a[3] === st ? "selected" : ""}>${st}</option>`).join("")}</select>
-      <button class="acao" onclick="marcarMeuAcesso('${meu.nome}', '${sis}', ${k})">Salvar status</button></div>`;
-  }).join("") + `<div class="nota">Marque o status depois de entrar em cada sistema com a sua senha.</div>`;
+    </div>`;
+  }).join("") + `<button class="acao" onclick="enviarMeusAcessos('${meu.nome}')">Enviar para a gerência</button>
+    <div class="nota">Depois de entrar em cada sistema com a sua senha, marque o status e envie. A gerência confere e pode devolver para você refazer o teste.</div>`;
 }
-async function marcarMeuAcesso(nome, sistema, k) {
+async function enviarMeusAcessos(nome) {
+  const sistemas = sistemasDe(nome);
+  try {
+    for (let k = 0; k < sistemas.length; k++) {
+      const status = document.getElementById("ma_st_" + k).value;
+      const res = await chamarApi({ acao: "salvarAcesso", usuario: window.credenciais.usuario, senha: window.credenciais.senha, nome, sistema: sistemas[k], status, enviado: "Sim" });
+      if (res.erro) { alert(res.erro); return; }
+    }
+    alert("Enviado para a gerência.");
+    carregarMeusAcessos();
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); }
+}
+
+// Gerência: acessos enviados pela equipe, com opção de devolver para novo teste
+async function lerAcessosEnviados(boxId = "ac_enviados") {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  await lerAcessosCadastro();
+  const enviados = ACESSOS_CACHE.filter(l => l[6] === "Sim");
+  box.innerHTML = enviados.length ? `<table><tr><th>Pessoa</th><th>Sistema</th><th>Status</th><th>Enviado por</th><th></th></tr>` +
+    enviados.map((l, i) => `<tr><td>${l[0]}</td><td>${l[1]}</td><td>${l[3]}</td><td>${l[5] || "—"}</td>
+      <td><button class="acao" style="margin:0;padding:4px 8px" onclick="devolverTesteAcesso('${l[0].replace(/'/g, "")}', '${l[1]}')">Devolver para teste da senha</button></td></tr>`).join("") + "</table>"
+    : "<p>Nenhum acesso enviado.</p>";
+}
+async function devolverTesteAcesso(nome, sistema) {
+  try {
+    const res = await chamarApi({ acao: "salvarAcesso", usuario: window.credenciais.usuario, senha: window.credenciais.senha, nome, sistema, status: "devolvido para teste", enviado: "Não" });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Devolvido: a pessoa vai ver que precisa refazer o teste da senha.");
+    lerAcessosEnviados();
+  } catch (e) { alert("Não consegui devolver. Verifique a internet."); }
+}async function marcarMeuAcesso(nome, sistema, k) {
   const status = document.getElementById("ma_st_" + k).value;
   try {
     const res = await chamarApi({ acao: "salvarAcesso", usuario: window.credenciais.usuario, senha: window.credenciais.senha, nome, sistema, status });
@@ -2792,11 +3957,26 @@ async function carregarHoraExtraHist() {
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 function telaHoraExtraRelatorio() {
-  const agora = hojeISO().slice(0, 7);
+  const mes = hojeISO().slice(0, 7);
+  const ultimo = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)).getUTCDate();
   return `<h2>Relatório de hora extra</h2>
-    <input type="month" id="rh_mes" class="campo" value="${agora}" onchange="carregarHoraExtraRelatorio()">
+    <div class="row">
+      <label>De <input type="date" id="rh_de" class="campo" value="${mes}-01" onchange="carregarHoraExtraRelatorio()"></label>
+      <label>Até <input type="date" id="rh_ate" class="campo" value="${mes}-${String(ultimo).padStart(2, "0")}" onchange="carregarHoraExtraRelatorio()"></label>
+    </div>
     <select id="rh_pessoa" class="campo" onchange="carregarHoraExtraRelatorio()"><option value="">Todas as pessoas</option>${PESSOAS.map(p => `<option>${p[0]}</option>`).join("")}</select>
+    <button class="acao" onclick="salvarRelatorioHEPdf()">Salvar em PDF</button>
     <div id="rh_lista">Carregando...</div>`;
+}
+// Salva o relatório em PDF pelo diálogo de impressão do navegador ("Salvar como PDF")
+function salvarRelatorioHEPdf() {
+  if (!document.getElementById("estilo-impressao-he")) {
+    const st = document.createElement("style");
+    st.id = "estilo-impressao-he";
+    st.textContent = "@media print { body * { visibility: hidden !important; } #rh_lista, #rh_lista * { visibility: visible !important; } #rh_lista { position: absolute; left: 0; top: 0; width: 100%; } }";
+    document.head.appendChild(st);
+  }
+  window.print();
 }
 function normalizarNome(t) {
   return String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z]/g, "");
@@ -2804,15 +3984,16 @@ function normalizarNome(t) {
 async function carregarHoraExtraRelatorio() {
   const box = document.getElementById("rh_lista");
   if (!box) return;
-  const mes = (document.getElementById("rh_mes") || {}).value || hojeISO().slice(0, 7);
+  const de = (document.getElementById("rh_de") || {}).value || hojeISO().slice(0, 7) + "-01";
+  const ate = (document.getElementById("rh_ate") || {}).value || hojeISO();
   const pessoa = (document.getElementById("rh_pessoa") || {}).value || "";
   box.textContent = "Carregando...";
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "HoraExtra" });
     if (res.erro) { box.textContent = res.erro; return; }
-    let lista = registrosHoraExtra(res).filter(r => r.data.startsWith(mes));
+    let lista = registrosHoraExtra(res).filter(r => r.data >= de && r.data <= ate);
     if (pessoa) lista = lista.filter(r => normalizarNome(r.usuario) === normalizarNome(pessoa));
-    if (!lista.length) { box.innerHTML = "<p>Nenhum registro neste mês.</p>"; return; }
+    if (!lista.length) { box.innerHTML = "<p>Nenhum registro neste período.</p>"; return; }
     const grupos = {};
     lista.forEach(r => { (grupos[r.usuario] = grupos[r.usuario] || []).push(r); });
     box.innerHTML = Object.keys(grupos).sort().map(u => formularioHoraExtra(u, grupos[u])).join("");
