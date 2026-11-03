@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 19h05</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 19h10</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2318,8 +2318,6 @@ function telaOcorAbrir() {
     <select id="oc_loc" class="campo" onchange="ocAtualizarLocal()"><option value="">Localidade…</option>${locs.map(l => `<option>${l}</option>`).join("")}</select>
     <div id="oc_bairro_box"><input id="oc_bairro" class="campo" placeholder="Bairro"></div>
     <div id="oc_end_box"><input id="oc_end" class="campo" placeholder="Logradouro (rua, travessa, avenida)"></div>
-    <button class="acao" style="background:#0a6e8a" onclick="usarGPSOcorrencia()">Usar minha localização (GPS)</button>
-    <input id="oc_gps" class="campo" placeholder="Localização GPS (opcional)" readonly>
     <select id="oc_unid" class="campo" onchange="ocAtualizarLocal()"><option value="">Onde foi o problema…</option>${OC_UNIDADES.map(u => `<option>${u}</option>`).join("")}</select>
     <select id="oc_tipo" class="campo" onchange="ocAtualizarHorario()"><option value="">Tipo de ocorrência…</option>${OC_TIPOS.map(t => `<option>${t}</option>`).join("")}</select>
     <h3>Quem ficou sem água</h3>
@@ -2410,7 +2408,7 @@ async function usarGPSOcorrencia() {
 function ocFmt(v) { if (!v) return ""; const [d, h] = v.split("T"); const [a, m, dd] = d.split("-"); return `${dd}/${m}/${a} ${h}`; }
 async function enviarOcorrencia() {
   const v = id => (document.getElementById(id).value || "").trim();
-  const loc = v("oc_loc"), bairro = v("oc_bairro"), lograd = v("oc_end"), gps = v("oc_gps"), unid = v("oc_unid"), tipo = v("oc_tipo");
+  const loc = v("oc_loc"), bairro = v("oc_bairro"), lograd = v("oc_end"), gps = "", unid = v("oc_unid"), tipo = v("oc_tipo");
   const ini = v("oc_ini"), fim = v("oc_fim"), reg = v("oc_reg"), outras = v("oc_desc");
   const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
   const todosB = document.getElementById("oc_todosb").checked;
