@@ -1398,11 +1398,40 @@ function mostrarMenu(itens, titulo) {
   itens.forEach((it, i) => {
     const nomeBotao = it.urgente ? `Serviços urgentes (${window.qtdUrgentes || 0})` : it.nome;
     const destaque = it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
-    html += `<button class="btn" ${destaque} onclick="abrir(${i})">${nomeBotao}</button>`;
+    const contavel = CONTAGEM_SS_TELAS[it.tela];
+    const rotulo = contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${it.nome} (${window.contagemSS[contavel]})` : nomeBotao;
+    html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${it.nome}" onclick="abrir(${i})">${rotulo}</button>`;
   });
   html += `</div>`;
   app.innerHTML = html;
   window.scrollTo(0,0);
+  if (itens.some(i => CONTAGEM_SS_TELAS[i.tela])) atualizarContagemSS();
+}
+
+// ===== Contadores nos botões de SS e pendência =====
+const CONTAGEM_SS_TELAS = { todasSS: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
+async function atualizarContagemSS() {
+  if (window.contagemSSCarregando) return;
+  window.contagemSSCarregando = true;
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  const contar = async (aba, filtro) => {
+    try {
+      const res = await chamarApi({ acao: "listar", ...cred, aba });
+      if (res.erro) return 0;
+      return res.dados.slice(1).filter(filtro).length;
+    } catch (e) { return 0; }
+  };
+  const [todas, encerrar, pedidos] = await Promise.all([
+    contar("SSAbertas", l => l[0] && !/encerrad|cancelad|conclu/i.test(l[5] || "")),
+    contar("EncerrarSS", l => (l[6] || "pendente") === "pendente"),
+    contar("PedidoSS", l => (l[10] || "pendente") === "pendente")
+  ]);
+  window.contagemSS = { todas, encerrar, pedidos };
+  window.contagemSSCarregando = false;
+  document.querySelectorAll("#app button[data-tela]").forEach(b => {
+    const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
+    if (chave) b.textContent = `${b.dataset.nome} (${window.contagemSS[chave]})`;
+  });
 }
 
 function abrir(i) {
