@@ -1383,9 +1383,13 @@ function init() {
 }
 
 function trocarPerfil() {
-  perfilAtual = document.getElementById("perfil").value;
+  const sel = document.getElementById("perfil");
+  perfilAtual = sel.value;
+  if (window.MODO_GERENTE && sel.selectedIndex >= 0) window.pessoaPrevia = sel.options[sel.selectedIndex].text;
   pilha = [];
+  window.contagemSS = undefined;
   mostrarMenu(menuDoPerfil(), "Início");
+  if (window.credenciais) carregarQtdUrgentes().then(() => { if (!pilha.length) renderAtual(); });
 }
 
 function mostrarMenu(itens, titulo) {
@@ -2436,7 +2440,7 @@ async function carregarAcoesSS(boxId = "pa_acoes") {
 // ===== SS PARA ENCERRAR PELO ESCRITÓRIO: a equipe informa a SS executada; o escritório encerra no sistema e marca =====
 // Aba EncerrarSS: data_hora | usuario | ss | servico | localidade | observacao | situacao | encerrada_por | data_encerramento
 function podeVerEncerrarEscritorio() {
-  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  const quem = identidadeAtual();
   return ["deyse", "thiago", "oseias", "igor", "alan", "genildo"].some(n => quem.includes(n));
 }
 function telaEncerrarEscritorio() {
@@ -2581,8 +2585,15 @@ function menuBaseDoPerfil(n) {
 function achatarMenu(m) {
   return (m || []).flatMap(i => (i.nome === "Outros" && i.sub) ? i.sub : [i]);
 }
+function emPrevia() {
+  return !!(window.MODO_GERENTE && window.pessoaPrevia && normalizarNome(window.pessoaPrevia) !== "deyse");
+}
+function identidadeAtual() {
+  if (emPrevia()) return normalizarNome(window.pessoaPrevia);
+  return normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+}
 function menuDoPerfil() {
-  const n = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  const n = identidadeAtual();
   // Equipe de campo: pendência para executar, almoxarifado de cada localidade e Outros
   if (GRUPO_CAMPO.some(x => n.includes(x))) {
     const locais = Object.keys(QUEM_MOVIMENTA_ALMOX).filter(l => QUEM_MOVIMENTA_ALMOX[l].some(nm => normalizarNome(nm) && n.includes(normalizarNome(nm))));
@@ -2591,7 +2602,7 @@ function menuDoPerfil() {
     return [{nome: "Pendência de SS para executar", tela: "pendExecutar"}, ...botoesAlmox, {nome: "Outros", sub: outros}];
   }
   // Gestão: pendências de SS a digitar, almoxarifado e Outros
-  if (GRUPO_GESTAO.some(x => n.includes(x)) || window.MODO_GERENTE) {
+  if (GRUPO_GESTAO.some(x => n.includes(x)) || (window.MODO_GERENTE && !emPrevia())) {
     const resto = achatarMenu(menuBaseDoPerfil(n)).filter(i => !["almoxarifadoCatalogo", "encerrarEscritorio"].includes(i.tela) && i.nome !== "Almoxarifado");
     const outros = [...resto, {nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}];
     return [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}, {nome: "Almoxarifado", tela: "almoxarifadoCatalogo"}, {nome: "Outros", sub: outros}];
@@ -2606,7 +2617,7 @@ function menuDoPerfil() {
 // Aba ServicosUrgentes: data_hora | usuario | para | descricao | situacao | feito_por | data_feito
 window.qtdUrgentes = 0;
 function nomesDoUsuario() {
-  return normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  return identidadeAtual();
 }
 function servicoParaMim(para) {
   const p = normalizarNome(para);
@@ -2727,7 +2738,7 @@ async function salvarMeta(i) {
 
 // SS com Estado preenchido: só a gerência e o Thiago, o Oseias e o Igor veem
 function podeVerEstadoSS() {
-  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  const quem = identidadeAtual();
   return ["deyse", "thiago", "oseias", "igor"].some(n => quem.includes(n));
 }
 function telaEstadoSS() {
