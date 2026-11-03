@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 16h30</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 16h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -3237,11 +3237,13 @@ async function carregarPendExecutar() {
     box.innerHTML = `<div class="nota">${minhas.length} SS pendente(s)</div>` + minhas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
-      ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : (idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim() ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
+      ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
       <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
     </div>`).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
+// Localidades em que o funcionário não precisa de mapa (não mostra "Sem localização")
+const LOCALIDADES_SEM_MAPA = ["Catolândia"];
 // Aba BaseLocalizacao: matricula | coordenadas | fonte | data  (coordenadas no formato "lat,lon")
 async function carregarBaseLocalizacao() {
   const base = {};
@@ -3281,7 +3283,7 @@ async function carregarSemLocalizacao() {
     linhas.filter(l => String(l[5]).toLowerCase() === "pendente" && !executadas.has(String(l[1]))).forEach(l => {
       const m = String(l[idxMat] || "").trim();
       const temNaLinha = idxLocal >= 0 && String(l[idxLocal] || "").trim();
-      if (m && !temNaLinha && !base[m]) (faltam[m] = faltam[m] || []).push(String(l[1]));
+      if (m && !temNaLinha && !base[m] && !LOCALIDADES_SEM_MAPA.includes(String(l[3]).trim())) (faltam[m] = faltam[m] || []).push(String(l[1]));
     });
     const mats = Object.keys(faltam);
     box.innerHTML = mats.length ? `<div class="nota">${mats.length} matrícula(s) sem localização nas SS pendentes</div>
