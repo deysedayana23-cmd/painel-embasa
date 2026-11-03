@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 18h20</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 18h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2300,30 +2300,90 @@ async function gerarBackup() {
 
 // ===== OCORRÊNCIA OPERACIONAL: a equipe pede; a gerência abre no sistema e devolve o número; a equipe marca quando finalizou =====
 // colunas da aba Ocorrencia: 1 data_hora, 2 usuario, 3 localidade, 4 endereco, 5 tipo, 6 descricao, 7 situacao, 8 oc_numero, 9 respondido_por, 10 finalizado_em
+const OC_TIPOS = ["Falta de energia (Coelba)", "Vazamento de rede", "Vazamento de adutora", "Manutenção na ETA", "Manutenção na captação", "Manutenção de bomba / booster", "Limpeza de reservatório", "Baixo nível dos reservatórios", "Outro"];
+const OC_UNIDADES = ["Rede de distribuição", "ETA", "Captação", "Booster / elevatória", "Reservatório", "Adutora"];
+const OC_OBS = ["Equipe já está no local", "Aguardando a Coelba religar a energia", "Aguardando material", "Aguardando a UNBM", "Manobra de registro em andamento", "Abastecimento voltando aos poucos"];
+const OC_AFETADAS_MOZONDO = ["Catolândia", "Baianópolis", "Buriti Cortado", "Mozondó"];
+const OC_BAIRROS = {
+  "São Desidério": ["1 - CENTRO", "3 - BARRAGEM", "4 - TANGARA", "6 - APARECIDA", "12 - PORTO RICO", "19 - CIDADE ALTA", "21 - CIDADE SANTA"],
+  "Catolândia": ["1 - CENTRO", "30 - ZONA RURAL", "40 - SANTANA II"],
+  "Baianópolis": ["ALTO BELA VISTA"]
+};
 function telaOcorAbrir() {
+  const locs = LOCALIDADES_HORA_EXTRA;
   return `<h2>Pedir abertura de ocorrência operacional</h2>
     <div class="nota">O escritório abre a ocorrência no sistema e devolve o número. Você acompanha em "Minhas ocorrências".</div>
-    <select id="oc_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
-    <input id="oc_end" class="campo" placeholder="Endereço do problema">
+    <h3>Onde aconteceu o problema</h3>
+    <select id="oc_loc" class="campo" onchange="ocAtualizarLocal()"><option value="">Localidade…</option>${locs.map(l => `<option>${l}</option>`).join("")}</select>
+    <input id="oc_bairro" class="campo" list="oc_bairros" placeholder="Bairro"><datalist id="oc_bairros"></datalist>
+    <input id="oc_end" class="campo" placeholder="Logradouro (rua, travessa, avenida)">
     <button class="acao" style="background:#0a6e8a" onclick="usarGPSOcorrencia()">Usar minha localização (GPS)</button>
-    <select id="oc_tipo" class="campo"><option value="">Tipo…</option><option>Falta de água</option><option>Falta de energia na unidade</option><option>Outro</option></select>
-    <textarea id="oc_desc" class="campo" rows="3" placeholder="Descrição (quem ligou, desde quando)"></textarea>
+    <input id="oc_gps" class="campo" placeholder="Localização GPS (opcional)" readonly>
+    <select id="oc_unid" class="campo" onchange="ocAtualizarLocal()"><option value="">Onde foi o problema…</option>${OC_UNIDADES.map(u => `<option>${u}</option>`).join("")}</select>
+    <select id="oc_tipo" class="campo" onchange="ocAtualizarHorario()"><option value="">Tipo de ocorrência…</option>${OC_TIPOS.map(t => `<option>${t}</option>`).join("")}</select>
+    <h3>Quem ficou sem água</h3>
+    <div class="nota">Localidades afetadas (marque todas que ficaram sem água):</div>
+    ${locs.map(l => `<label style="display:block"><input type="checkbox" class="oc_af" value="${l}"> ${l}</label>`).join("")}
+    <label style="display:block;margin-top:8px"><input type="checkbox" id="oc_todosb"> Todos os bairros (problema na ETA ou na captação)</label>
+    <input id="oc_bairrosaf" class="campo" placeholder="Bairros afetados (se não forem todos)">
+    <h3>Horário</h3>
+    <div class="nota">Início</div><input id="oc_ini" type="datetime-local" class="campo" onchange="ocAtualizarHorario()">
+    <div class="nota">Previsão de fim</div><input id="oc_fim" type="datetime-local" class="campo">
+    <div class="nota">Tempo de regularização (horas)</div><input id="oc_reg" type="number" min="1" class="campo" placeholder="Ex.: 12">
+    <div class="nota">Vazamento: o fim fica 6 horas depois do início e a regularização em 12 horas (pode mudar).</div>
+    <h3>Observação</h3>
+    ${OC_OBS.map(o => `<label style="display:block"><input type="checkbox" class="oc_ob" value="${o}"> ${o}</label>`).join("")}
+    <textarea id="oc_desc" class="campo" rows="3" placeholder="Outras informações (quem ligou, desde quando, o que foi feito)"></textarea>
     <button class="acao" onclick="enviarOcorrencia()">Enviar para o escritório abrir</button>`;
+}
+function ocDataLocal(d) { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); }
+function ocAtualizarLocal() {
+  const loc = document.getElementById("oc_loc").value;
+  const unid = document.getElementById("oc_unid").value;
+  const dl = document.getElementById("oc_bairros");
+  if (dl) dl.innerHTML = (OC_BAIRROS[loc] || []).map(b => `<option value="${b}">`).join("");
+  const naEta = unid === "ETA" || unid === "Captação";
+  if (naEta) document.getElementById("oc_todosb").checked = true;
+  const afetadas = (naEta && loc === "Mozondó") ? OC_AFETADAS_MOZONDO : (loc ? [loc] : []);
+  document.querySelectorAll(".oc_af").forEach(c => { if (afetadas.includes(c.value)) c.checked = true; });
+}
+function ocAtualizarHorario() {
+  const ini = document.getElementById("oc_ini");
+  if (!ini.value) ini.value = ocDataLocal(new Date());
+  const tipo = document.getElementById("oc_tipo").value;
+  if (/vazamento/i.test(tipo)) {
+    const d = new Date(ini.value); d.setHours(d.getHours() + 6);
+    document.getElementById("oc_fim").value = ocDataLocal(d);
+    document.getElementById("oc_reg").value = 12;
+  }
 }
 async function usarGPSOcorrencia() {
   const pos = await obterPosicao();
   if (!pos) { alert("Não consegui pegar a localização. Verifique o GPS e a permissão do navegador."); return; }
-  document.getElementById("oc_end").value = "GPS: " + pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
+  document.getElementById("oc_gps").value = pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
 }
+function ocFmt(v) { if (!v) return ""; const [d, h] = v.split("T"); const [a, m, dd] = d.split("-"); return `${dd}/${m}/${a} ${h}`; }
 async function enviarOcorrencia() {
-  const loc = document.getElementById("oc_loc").value;
-  const end = document.getElementById("oc_end").value.trim();
-  const tipo = document.getElementById("oc_tipo").value;
-  const desc = document.getElementById("oc_desc").value.trim();
-  if (!loc || !end || !tipo || !desc) { alert("Preencha a localidade, o endereço, o tipo e a descrição."); return; }
+  const v = id => (document.getElementById(id).value || "").trim();
+  const loc = v("oc_loc"), bairro = v("oc_bairro"), lograd = v("oc_end"), gps = v("oc_gps"), unid = v("oc_unid"), tipo = v("oc_tipo");
+  const ini = v("oc_ini"), fim = v("oc_fim"), reg = v("oc_reg"), outras = v("oc_desc");
+  const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
+  const todosB = document.getElementById("oc_todosb").checked;
+  const bairrosAf = todosB ? "Todos os bairros" : v("oc_bairrosaf");
+  const obs = [...document.querySelectorAll(".oc_ob:checked")].map(c => c.value);
+  const falta = [];
+  if (!loc) falta.push("localidade"); if (!bairro) falta.push("bairro"); if (!lograd) falta.push("logradouro");
+  if (!unid) falta.push("onde foi o problema"); if (!tipo) falta.push("tipo");
+  if (!afet.length) falta.push("localidades afetadas"); if (!bairrosAf) falta.push("bairros afetados");
+  if (!ini) falta.push("início"); if (!fim) falta.push("previsão de fim"); if (!reg) falta.push("tempo de regularização");
+  if (falta.length) { alert("Falta preencher: " + falta.join(", ") + "."); return; }
+  const endereco = `Bairro: ${bairro} | Logradouro: ${lograd}${gps ? " | GPS: " + gps : ""}`;
+  const desc = [`Local do problema: ${unid}`, `Localidades afetadas: ${afet.join(", ")}`, `Bairros afetados: ${bairrosAf}`,
+    `Início: ${ocFmt(ini)}`, `Previsão de fim: ${ocFmt(fim)}`, `Regularização: ${reg} horas`,
+    obs.length ? `Observação: ${obs.join("; ")}` : "", outras ? `Outras informações: ${outras}` : ""].filter(Boolean).join("\n");
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia",
-      linhas: [[new Date().toISOString(), window.credenciais.usuario, loc, end, tipo, desc, "solicitada", "", "", ""]] });
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, loc, endereco, tipo, desc, "solicitada", "", "", ""]] });
     if (res.erro) { alert(res.erro); return; }
     alert("Pedido enviado. O número da ocorrência aparece em Minhas ocorrências.");
     renderAtual();
@@ -2365,7 +2425,7 @@ async function carregarOcorrenciasGerente(boxId = "oc_ger") {
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], desc: l[5], situacao: l[6] || "solicitada", num: l[7] || "" }))
       .filter(o => o.situacao === "solicitada").reverse();
     box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
-      <b>${o.tipo}</b> · ${o.loc} · pedido por ${o.quem}<br><span style="font-size:14px">${o.end} · ${o.desc}</span>
+      <b>${o.tipo}</b> · ${o.loc} · pedido por ${o.quem}<br><span style="font-size:14px">${o.end}<br>${String(o.desc || "").replace(/\n/g, "<br>")}</span>
       <input id="oc_n_${o.linha}" class="campo" placeholder="Número da ocorrência aberta">
       <button class="acao" onclick="responderOcorrencia(${o.linha})">Devolver número para a equipe</button>
     </div>`).join("") : "<p>Nenhuma ocorrência pendente.</p>";
