@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 19h10</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 19h20</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2316,8 +2316,8 @@ function telaOcorAbrir() {
     <div class="nota">O escritório abre a ocorrência no sistema e devolve o número. Você acompanha em "Minhas ocorrências".</div>
     <h3>Onde aconteceu o problema</h3>
     <select id="oc_loc" class="campo" onchange="ocAtualizarLocal()"><option value="">Localidade…</option>${locs.map(l => `<option>${l}</option>`).join("")}</select>
-    <div id="oc_bairro_box"><input id="oc_bairro" class="campo" placeholder="Bairro"></div>
-    <div id="oc_end_box"><input id="oc_end" class="campo" placeholder="Logradouro (rua, travessa, avenida)"></div>
+    <div id="oc_bairro_box"><select id="oc_bairro" class="campo" disabled><option value="">Escolha a localidade primeiro</option></select></div>
+    <div id="oc_end_box"><select id="oc_end" class="campo" disabled><option value="">Escolha o bairro primeiro</option></select></div>
     <select id="oc_unid" class="campo" onchange="ocAtualizarLocal()"><option value="">Onde foi o problema…</option>${OC_UNIDADES.map(u => `<option>${u}</option>`).join("")}</select>
     <select id="oc_tipo" class="campo" onchange="ocAtualizarHorario()"><option value="">Tipo de ocorrência…</option>${OC_TIPOS.map(t => `<option>${t}</option>`).join("")}</select>
     <h3>Quem ficou sem água</h3>
@@ -2345,12 +2345,13 @@ function endSciMontar(g) {
   const lista = OC_LOGRADOUROS[loc.value];
   let bSel = document.getElementById("endsel_b_" + g), lSel = document.getElementById("endsel_l_" + g);
   if (!bSel) { bSel = document.createElement("select"); bSel.id = "endsel_b_" + g; bSel.className = "campo"; bIn.before(bSel);
-    bSel.onchange = () => { bIn.style.display = bSel.value === "__outro" ? "block" : "none"; bIn.value = bSel.value === "__outro" ? "" : bSel.value; lIn.value = ""; endSciRuas(g); }; }
+    bSel.onchange = () => { bIn.value = bSel.value; endSciRuas(g); }; }
   if (!lSel) { lSel = document.createElement("select"); lSel.id = "endsel_l_" + g; lSel.className = "campo"; lIn.before(lSel);
-    lSel.onchange = () => { lIn.style.display = lSel.value === "__outro" ? "block" : "none"; lIn.value = lSel.value === "__outro" ? "" : lSel.value; }; }
-  if (!lista) { bSel.style.display = "none"; lSel.style.display = "none"; bIn.style.display = "block"; lIn.style.display = "block"; return; }
-  bSel.style.display = "block"; bIn.style.display = "none"; bIn.value = "";
-  bSel.innerHTML = `<option value="">Bairro…</option>${Object.keys(lista).map(b => `<option>${b}</option>`).join("")}<option value="__outro">Outro (digitar)</option>`;
+    lSel.onchange = () => { lIn.value = lSel.value; }; }
+  bIn.style.display = "none"; lIn.style.display = "none"; bIn.value = ""; lIn.value = "";
+  if (!lista) { bSel.disabled = true; bSel.innerHTML = `<option value="">Escolha a localidade primeiro</option>`; endSciRuas(g); return; }
+  bSel.disabled = false;
+  bSel.innerHTML = `<option value="">Bairro…</option>${Object.keys(lista).map(b => `<option>${b}</option>`).join("")}`;
   endSciRuas(g);
 }
 function endSciRuas(g) {
@@ -2359,10 +2360,12 @@ function endSciRuas(g) {
   const lIn = document.querySelector(`[data-end-log="${g}"]`);
   const lSel = document.getElementById("endsel_l_" + g);
   const ruas = (OC_LOGRADOUROS[loc.value] || {})[bIn.value];
-  if (!ruas) { lSel.style.display = "none"; lIn.style.display = "block"; return; }
-  lSel.style.display = "block"; lIn.style.display = "none"; lIn.value = "";
-  lSel.innerHTML = `<option value="">Logradouro…</option>${ruas.map(r => `<option>${r}</option>`).join("")}<option value="__outro">Outro (digitar)</option>`;
+  lIn.style.display = "none"; lIn.value = "";
+  if (!ruas) { lSel.disabled = true; lSel.innerHTML = `<option value="">Escolha o bairro primeiro</option>`; return; }
+  lSel.disabled = false;
+  lSel.innerHTML = `<option value="">Logradouro…</option>${ruas.map(r => `<option>${r}</option>`).join("")}`;
 }
+new MutationObserver(() => { document.querySelectorAll("[data-end-loc]").forEach(el => { const g = el.dataset.endLoc; if (!document.getElementById("endsel_b_" + g)) endSciMontar(g); }); }).observe(document.documentElement, { childList: true, subtree: true });
 document.addEventListener("change", e => { const g = e.target && e.target.dataset && e.target.dataset.endLoc; if (g) endSciMontar(g); });
 function ocDataLocal(d) { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); }
 function ocAtualizarLocal() {
@@ -2373,7 +2376,7 @@ function ocAtualizarLocal() {
   if (bbox && bbox.dataset.loc !== loc) {
     bbox.dataset.loc = loc;
     if (lista) bbox.innerHTML = `<select id="oc_bairro" class="campo" onchange="ocAtualizarLogradouros()"><option value="">Bairro…</option>${Object.keys(lista).map(b => `<option>${b}</option>`).join("")}</select>`;
-    else bbox.innerHTML = `<input id="oc_bairro" class="campo" list="oc_bairros" placeholder="Bairro"><datalist id="oc_bairros">${(OC_BAIRROS[loc] || []).map(b => `<option value="${b}">`).join("")}</datalist>`;
+    else bbox.innerHTML = `<select id="oc_bairro" class="campo" disabled><option value="">Escolha a localidade primeiro</option></select>`;
     ocAtualizarLogradouros();
   }
   const naEta = unid === "ETA" || unid === "Captação";
@@ -2387,8 +2390,8 @@ function ocAtualizarLogradouros() {
   const ruas = (OC_LOGRADOUROS[loc] || {})[bairro];
   const ebox = document.getElementById("oc_end_box");
   if (!ebox) return;
-  if (ruas && ruas.length) ebox.innerHTML = `<select id="oc_end_sel" class="campo" onchange="document.getElementById('oc_end').style.display = this.value === '__outro' ? 'block' : 'none'; document.getElementById('oc_end').value = this.value === '__outro' ? '' : this.value;"><option value="">Logradouro…</option>${ruas.map(r => `<option>${r}</option>`).join("")}<option value="__outro">Outro (digitar)</option></select><input id="oc_end" class="campo" style="display:none" placeholder="Digite o logradouro">`;
-  else ebox.innerHTML = `<input id="oc_end" class="campo" placeholder="Logradouro (rua, travessa, avenida)">`;
+  if (ruas && ruas.length) ebox.innerHTML = `<select id="oc_end" class="campo"><option value="">Logradouro…</option>${ruas.map(r => `<option>${r}</option>`).join("")}</select>`;
+  else ebox.innerHTML = `<select id="oc_end" class="campo" disabled><option value="">Escolha o bairro primeiro</option></select>`;
 }
 function ocAtualizarHorario() {
   const ini = document.getElementById("oc_ini");
