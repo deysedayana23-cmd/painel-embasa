@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 15h05</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 15h20</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -3213,12 +3213,24 @@ async function carregarPendExecutar() {
     const linhas = res.dados.slice(1);
     const eu = nomesDoUsuario();
     const executadas = new Set(linhas.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1])));
-    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7) }))
+    const idxMat = cab.findIndex(h => /matr/i.test(String(h)));
+    const idxLocal = cab.findIndex((h, k) => k >= 7 && /localiza|coordenad|mapa|gps/i.test(String(h)));
+    const matDaSS = {};
+    linhas.forEach(l => { if (idxMat >= 0 && l[idxMat]) matDaSS[String(l[1])] = String(l[idxMat]).trim(); });
+    const gpsPorMat = {};
+    linhas.filter(l => String(l[5]).toLowerCase() === "executada").forEach(l => {
+      const g = String(l[6] || "").match(/GPS:\s*(-?\d+\.\d+),(-?\d+\.\d+)/);
+      const mat = matDaSS[String(l[1])];
+      if (g && mat) gpsPorMat[mat] = g[1] + "," + g[2];
+    });
+    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7),
+        gps: (idxMat >= 0 && !(idxLocal >= 0 && String(l[idxLocal] || "").trim())) ? gpsPorMat[String(l[idxMat] || "").trim()] : "" }))
       .filter(x => x.situacao === "pendente" && !executadas.has(x.ss) && String(x.resp).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n))));
     if (!minhas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
     box.innerHTML = `<div class="nota">${minhas.length} SS pendente(s)</div>` + minhas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
+      ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Localização registrada em campo</a></div>` : ""}
       <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
     </div>`).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
@@ -3237,8 +3249,10 @@ function campoExtraSS(nome, valor) {
 }
 async function marcarExecutada(ss, tipo, loc) {
   try {
+    const pos = await obterPosicao();
+    const confirmado = window.credenciais.usuario + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "");
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo",
-      linhas: [[new Date().toISOString(), "'" + ss, tipo, loc, nomesDoUsuario(), "executada", window.credenciais.usuario]] });
+      linhas: [[new Date().toISOString(), "'" + ss, tipo, loc, nomesDoUsuario(), "executada", confirmado]] });
     if (res.erro) { alert(res.erro); return; }
     carregarPendExecutar();
   } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
