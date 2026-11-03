@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 20h30</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 20h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2820,33 +2820,58 @@ function identidadeAtual() {
   if (emPrevia()) return normalizarNome(window.pessoaPrevia);
   return normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
 }
-// Operadores das ETAs (Mozondó: Alan, Genildo, Juvenson, Valdesandro; São Desidério: Igor, Oseias): mesma tela principal
-const GRUPO_MOZONDO = ["alan", "genildo", "juvenson", "valdesandro", "sandro"];
-const GRUPO_ETA_SD = ["igor", "oseias"];
-function menuOperadorETA(n, perfil, locais) {
-  const orig = achatarMenu(PERFIS[perfil] || []);
-  const niveis = orig.find(i => i.nome === "Níveis dos reservatórios");
+// ===== Perfil de OPERADOR DE ETA (próprio ou terceirizado): a mesma tela principal para todos; muda só o almoxarifado, os níveis e a escala de cada ETA =====
+const ETAS_OPERADORES = {
+  mozondo: { nomes: ["alan", "genildo", "juvenson", "valdesandro", "sandro"], perfil: "Operador Mozondó (Genildo)", almox: ["ETA Mozondó"] },
+  sd: { nomes: ["igor", "oseias", "acacio", "janiolima", "eduardo"], perfil: "Operador ETA São Desidério (exemplo: Igor)", perfilProprio: "Operador ETA São Desidério próprio (exemplo: Acácio)", almox: ["ETA São Desidério", "Escritório São Desidério"] },
+  angico: { nomes: ["ramon", "renato"], perfil: "Operador Angico (Ramon ou Renato)", almox: ["ETA Angico"] }
+};
+// Só quem tem computador: encerrar SS como executada
+const COM_COMPUTADOR = ["alan", "genildo", "oseias", "igor"];
+function etaDoOperador(n) {
+  for (const k of Object.keys(ETAS_OPERADORES)) if (ETAS_OPERADORES[k].nomes.some(x => n.includes(x))) return k;
+  if (!window.MODO_GERENTE) {
+    const p = String(perfilAtual);
+    if (p.startsWith("Operador Mozondó")) return "mozondo";
+    if (p.startsWith("Operador Angico")) return "angico";
+    if (p.startsWith("Operador ETA São Desidério")) return "sd";
+  }
+  return null;
+}
+function menuOperadorETA(n, eta) {
+  const cfg = ETAS_OPERADORES[eta];
+  const proprio = eta === "sd" && ["acacio", "janiolima", "eduardo"].some(x => n.includes(x));
+  const doPerfil = achatarMenu(PERFIS[proprio ? cfg.perfilProprio : cfg.perfil] || []);
+  const base = achatarMenu(PERFIS["Operador ETA São Desidério (exemplo: Igor)"] || []);
+  const doEta = achatarMenu(PERFIS[cfg.perfil] || []);
+  const achar = (lista, nomes) => lista.find(i => nomes.includes(i.nome));
+  const pegar = nomes => achar(doPerfil, nomes) || achar(doEta, nomes) || achar(base, nomes);
+  const niveis = achar(doEta, ["Níveis dos reservatórios", "Níveis e macro ETA"]);
+  const escala = achar(doEta, ["Escala de turno"]);
   const principal = [];
-  if (["alan", "genildo", "igor", "oseias"].some(x => n.includes(x))) principal.push({nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"});
-  if (["igor", "oseias"].some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
-  locais.forEach(l => principal.push({nome: "Almoxarifado – " + l, tela: "almoxarifadoCatalogo", local: l}));
+  if (COM_COMPUTADOR.some(x => n.includes(x))) principal.push({nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"});
+  principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
+  cfg.almox.forEach(l => principal.push({nome: "Almoxarifado – " + l, tela: "almoxarifadoCatalogo", local: l}));
   if (niveis) principal.push({nome: "Níveis e macros", sub: niveis.sub});
   principal.push({nome: "Ocorrência operacional", sub: [{nome: "Solicitar abertura", tela: "ocorAbrir"}, {nome: "Minhas ocorrências", tela: "ocorMinhas"}]});
   principal.push({nome: "Reclamação Coelba", tela: "coelba"});
   principal.push({nome: "EPI", tela: "epi"});
   principal.push({nome: "Urgências", tela: "urgencias"});
-  const usados = ["encerrarEscritorio", "ocorPedidos", "almoxarifadoCatalogo", "epi", "urgencias", "ocorAbrir", "ocorMinhas", "coelba"];
-  const resto = orig.filter(i => i !== niveis && !usados.includes(i.tela) && i.nome !== "Almoxarifado");
-  if (["igor", "oseias"].some(x => n.includes(x))) resto.push({nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"});
+  const quimico = achar(doEta, ["Estoque diário produto químico"]) || pegar(["Estoque diário produto químico"]);
+  if (quimico) principal.push(quimico);
+  if (escala) principal.push(escala);
+  ["Hora extra", "RILC (compra em loja)", "Reforma ou conserto de equipamento", "Demandas Agersa", "Rotina do dia 1"].forEach(nm => { const it = pegar([nm]); if (it) principal.push(it); });
+  const usadosTela = new Set(["encerrarEscritorio", "ocorPedidos", "almoxarifadoCatalogo", "ocorAbrir", "ocorMinhas", "coelba", "epi", "urgencias"]);
+  const usadosNome = new Set(principal.map(i => i.nome).concat(["Níveis dos reservatórios", "Níveis e macro ETA", "Almoxarifado", "SS para encerrar pelo escritório"]));
+  const resto = doPerfil.filter(i => !usadosTela.has(i.tela) && !usadosNome.has(i.nome));
+  if (COM_COMPUTADOR.some(x => n.includes(x))) resto.push({nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"});
   principal.push({nome: "Outros", sub: resto});
   return principal;
 }
-function menuMozondo(n) { return menuOperadorETA(n, "Operador Mozondó (Genildo)", ["ETA Mozondó"]); }
-function menuEtaSD(n) { return menuOperadorETA(n, "Operador ETA São Desidério (exemplo: Igor)", ["ETA São Desidério", "Escritório São Desidério"]); }
 function menuDoPerfil() {
   const n = identidadeAtual();
-  if (GRUPO_MOZONDO.some(x => n.includes(x)) || (!window.MODO_GERENTE && String(perfilAtual).startsWith("Operador Mozondó"))) return menuMozondo(n);
-  if (GRUPO_ETA_SD.some(x => n.includes(x))) return menuEtaSD(n);
+  const eta = etaDoOperador(n);
+  if (eta) return menuOperadorETA(n, eta);
   // Equipe de campo: pendência para executar, almoxarifado de cada localidade e Outros
   if (GRUPO_CAMPO.some(x => n.includes(x))) {
     const locais = Object.keys(QUEM_MOVIMENTA_ALMOX).filter(l => QUEM_MOVIMENTA_ALMOX[l].some(nm => normalizarNome(nm) && n.includes(normalizarNome(nm))));
