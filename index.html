@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 20h45</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 20h55</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2828,6 +2828,8 @@ const ETAS_OPERADORES = {
 };
 // Só quem tem computador: encerrar SS como executada
 const COM_COMPUTADOR = ["alan", "genildo", "oseias", "igor"];
+// Quem recebe e abre os pedidos de ocorrência operacional no SCI
+const QUEM_ABRE_OCORRENCIA = ["deyse", "thiago", "igor", "oseias"];
 function etaDoOperador(n) {
   for (const k of Object.keys(ETAS_OPERADORES)) if (ETAS_OPERADORES[k].nomes.some(x => n.includes(x))) return k;
   if (!window.MODO_GERENTE) {
@@ -2850,7 +2852,7 @@ function menuOperadorETA(n, eta) {
   const escala = achar(doEta, ["Escala de turno"]);
   const principal = [];
   if (COM_COMPUTADOR.some(x => n.includes(x))) principal.push({nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"});
-  principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
+  if (QUEM_ABRE_OCORRENCIA.some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
   cfg.almox.forEach(l => principal.push({nome: "Almoxarifado – " + l, tela: "almoxarifadoCatalogo", local: l}));
   if (niveis) principal.push({nome: "Níveis e macros", sub: niveis.sub});
   principal.push({nome: "Ocorrência operacional", sub: [{nome: "Solicitar abertura", tela: "ocorAbrir"}, {nome: "Minhas ocorrências", tela: "ocorMinhas"}]});
@@ -2885,7 +2887,7 @@ function menuDoPerfil() {
     const outros = [...resto, {nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}];
     if ((window.MODO_GERENTE && !emPrevia()) || n.includes("thiago")) outros.push({nome: "Matrículas sem localização", tela: "semLocalizacao"});
     const principal = [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}];
-    if ((window.MODO_GERENTE && !emPrevia()) || ["deyse", "thiago", "oseias", "igor"].some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
+    if ((window.MODO_GERENTE && !emPrevia()) || QUEM_ABRE_OCORRENCIA.some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
     return [...principal, {nome: "Almoxarifado", tela: "almoxarifadoCatalogo"}, {nome: "Outros", sub: outros.filter(i => i.tela !== "ocorPedidos")}];
   }
   // Demais perfis: como antes
