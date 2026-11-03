@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 19h35</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 19h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2326,8 +2326,11 @@ function telaOcorAbrir() {
     <label style="display:block;margin-top:8px"><input type="checkbox" id="oc_todosb" onchange="ocBairrosAfetados()"> Todos os bairros (problema na ETA ou na captação)</label>
     <div id="oc_bairrosaf" style="margin-top:6px"></div>
     <h3>Horário</h3>
-    <div class="nota">Início</div><input id="oc_ini" type="datetime-local" class="campo" onchange="ocAtualizarHorario()">
-    <div class="nota">Previsão de fim</div><input id="oc_fim" type="datetime-local" class="campo">
+    <div class="nota"><b>Início</b></div>
+    <div style="display:flex;gap:8px"><input id="oc_ini_d" type="date" class="campo" style="flex:1" onchange="ocAtualizarHorario()"><input id="oc_ini_h" type="time" class="campo" style="flex:1" onchange="ocAtualizarHorario()"></div>
+    <button class="acao" style="background:#0a6e8a" onclick="ocInicioAgora()">Começou agora</button>
+    <div class="nota"><b>Previsão de fim</b></div>
+    <div style="display:flex;gap:8px"><input id="oc_fim_d" type="date" class="campo" style="flex:1"><input id="oc_fim_h" type="time" class="campo" style="flex:1"></div>
     <div class="nota">Tempo de regularização (horas)</div><input id="oc_reg" type="number" min="1" class="campo" placeholder="Ex.: 12">
     <div class="nota">Vazamento: o fim fica 6 horas depois do início e a regularização em 12 horas (pode mudar).</div>
     <h3>Observação</h3>
@@ -2427,13 +2430,18 @@ function ocAtualizarLogradouros() {
   if (ruas && ruas.length) ebox.innerHTML = `<select id="oc_end" class="campo"><option value="">Logradouro…</option>${ruas.map(r => `<option>${r}</option>`).join("")}</select>`;
   else ebox.innerHTML = `<select id="oc_end" class="campo" disabled><option value="">Escolha o bairro primeiro</option></select>`;
 }
+function ocInicioAgora() {
+  const t = ocDataLocal(new Date()).split("T");
+  document.getElementById("oc_ini_d").value = t[0]; document.getElementById("oc_ini_h").value = t[1];
+  ocAtualizarHorario();
+}
 function ocAtualizarHorario() {
-  const ini = document.getElementById("oc_ini");
-  if (!ini.value) ini.value = ocDataLocal(new Date());
+  const d = document.getElementById("oc_ini_d").value, h = document.getElementById("oc_ini_h").value;
   const tipo = document.getElementById("oc_tipo").value;
-  if (/vazamento/i.test(tipo)) {
-    const d = new Date(ini.value); d.setHours(d.getHours() + 6);
-    document.getElementById("oc_fim").value = ocDataLocal(d);
+  if (/vazamento/i.test(tipo) && d && h) {
+    const f = new Date(d + "T" + h); f.setHours(f.getHours() + 6);
+    const t = ocDataLocal(f).split("T");
+    document.getElementById("oc_fim_d").value = t[0]; document.getElementById("oc_fim_h").value = t[1];
     document.getElementById("oc_reg").value = 12;
   }
 }
@@ -2446,7 +2454,7 @@ function ocFmt(v) { if (!v) return ""; const [d, h] = v.split("T"); const [a, m,
 async function enviarOcorrencia() {
   const v = id => (document.getElementById(id).value || "").trim();
   const loc = v("oc_loc"), bairro = v("oc_bairro"), lograd = v("oc_end"), gps = "", unid = v("oc_unid"), tipo = v("oc_tipo");
-  const ini = v("oc_ini"), fim = v("oc_fim"), reg = v("oc_reg"), outras = v("oc_desc");
+  const ini = v("oc_ini_d") && v("oc_ini_h") ? v("oc_ini_d") + "T" + v("oc_ini_h") : "", fim = v("oc_fim_d") && v("oc_fim_h") ? v("oc_fim_d") + "T" + v("oc_fim_h") : "", reg = v("oc_reg"), outras = v("oc_desc");
   const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
   const todosB = document.getElementById("oc_todosb").checked;
   const bairrosAf = ocTextoBairrosAfetados();
