@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 20h20</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 20h30</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2820,27 +2820,33 @@ function identidadeAtual() {
   if (emPrevia()) return normalizarNome(window.pessoaPrevia);
   return normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
 }
-// Operadores da ETA Mozondó: Pendências de SS (só Alan e Genildo), almoxarifado, níveis e macros, ocorrência, Coelba, EPI, urgências; o resto em Outros
+// Operadores das ETAs (Mozondó: Alan, Genildo, Juvenson, Valdesandro; São Desidério: Igor, Oseias): mesma tela principal
 const GRUPO_MOZONDO = ["alan", "genildo", "juvenson", "valdesandro", "sandro"];
-function menuMozondo(n) {
-  const orig = achatarMenu(PERFIS["Operador Mozondó (Genildo)"] || []);
+const GRUPO_ETA_SD = ["igor", "oseias"];
+function menuOperadorETA(n, perfil, locais) {
+  const orig = achatarMenu(PERFIS[perfil] || []);
   const niveis = orig.find(i => i.nome === "Níveis dos reservatórios");
   const principal = [];
-  if (["alan", "genildo"].some(x => n.includes(x))) principal.push({nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"});
-  principal.push({nome: "Almoxarifado – ETA Mozondó", tela: "almoxarifadoCatalogo", local: "ETA Mozondó"});
+  if (["alan", "genildo", "igor", "oseias"].some(x => n.includes(x))) principal.push({nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"});
+  if (["igor", "oseias"].some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
+  locais.forEach(l => principal.push({nome: "Almoxarifado – " + l, tela: "almoxarifadoCatalogo", local: l}));
   if (niveis) principal.push({nome: "Níveis e macros", sub: niveis.sub});
   principal.push({nome: "Ocorrência operacional", sub: [{nome: "Solicitar abertura", tela: "ocorAbrir"}, {nome: "Minhas ocorrências", tela: "ocorMinhas"}]});
   principal.push({nome: "Reclamação Coelba", tela: "coelba"});
   principal.push({nome: "EPI", tela: "epi"});
   principal.push({nome: "Urgências", tela: "urgencias"});
-  const usados = ["encerrarEscritorio", "almoxarifadoCatalogo", "epi", "urgencias", "ocorAbrir", "ocorMinhas", "coelba"];
+  const usados = ["encerrarEscritorio", "ocorPedidos", "almoxarifadoCatalogo", "epi", "urgencias", "ocorAbrir", "ocorMinhas", "coelba"];
   const resto = orig.filter(i => i !== niveis && !usados.includes(i.tela) && i.nome !== "Almoxarifado");
+  if (["igor", "oseias"].some(x => n.includes(x))) resto.push({nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"});
   principal.push({nome: "Outros", sub: resto});
   return principal;
 }
+function menuMozondo(n) { return menuOperadorETA(n, "Operador Mozondó (Genildo)", ["ETA Mozondó"]); }
+function menuEtaSD(n) { return menuOperadorETA(n, "Operador ETA São Desidério (exemplo: Igor)", ["ETA São Desidério", "Escritório São Desidério"]); }
 function menuDoPerfil() {
   const n = identidadeAtual();
   if (GRUPO_MOZONDO.some(x => n.includes(x)) || (!window.MODO_GERENTE && String(perfilAtual).startsWith("Operador Mozondó"))) return menuMozondo(n);
+  if (GRUPO_ETA_SD.some(x => n.includes(x))) return menuEtaSD(n);
   // Equipe de campo: pendência para executar, almoxarifado de cada localidade e Outros
   if (GRUPO_CAMPO.some(x => n.includes(x))) {
     const locais = Object.keys(QUEM_MOVIMENTA_ALMOX).filter(l => QUEM_MOVIMENTA_ALMOX[l].some(nm => normalizarNome(nm) && n.includes(normalizarNome(nm))));
