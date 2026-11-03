@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 16h00</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 16h25</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -1423,7 +1423,7 @@ function mostrarMenu(itens, titulo) {
 }
 
 // ===== Contadores nos botões de SS e pendência =====
-const NOME_EXIBIDO = { encerrarEscritorio: "Pendências de SS a digitar", pendExecutar: "SS pendente" };
+const NOME_EXIBIDO = { encerrarEscritorio: "Encerrar SS como executada", pendExecutar: "SS pendente" };
 const CONTAGEM_SS_TELAS = { todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
@@ -2453,7 +2453,7 @@ function podeVerEncerrarEscritorio() {
   return ["deyse", "thiago", "oseias", "igor", "alan", "genildo"].some(n => quem.includes(n));
 }
 function telaEncerrarEscritorio() {
-  return `<h2>SS para encerrar pelo escritório</h2>
+  return `<h2>Encerrar SS como executada</h2>
     <div class="nota">Informe a SS que foi executada e precisa ser encerrada pelo escritório.</div>
     <input id="ee_ss" class="campo" placeholder="Número da SS">
     <input id="ee_serv" class="campo" placeholder="Serviço executado">
