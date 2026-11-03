@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 16h45</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 16h50</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2489,6 +2489,7 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
       .filter(x => x.situacao === "pendente").reverse();
     box.innerHTML = itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
+      ${x.obs ? `<br><span style="font-size:14px;color:#b71c1c;font-weight:600">${x.obs}</span>` : ""}
       ${gerencia ? `<br><button class="acao" onclick="marcarEncerrada(${x.linha})">Concluída no sistema</button>` : ""}
     </div>`).join("") : "<p>Nenhuma SS pendente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
