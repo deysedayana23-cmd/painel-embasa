@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 20h55</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 21h05</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2503,12 +2503,18 @@ function ocObsValor(prefixo) {
   return txt ? sel + ". " + txt : sel;
 }
 // Funcionário: ocorrências que ele pediu e já foram abertas, para informar o término (aparece em Serviços urgentes)
+// Equipe da ETA de quem abriu a ocorrência: todos recebem em Serviços urgentes, porque podem restabelecer em outro plantão
+function ocMesmaEquipe(quemAbriu) {
+  const eta = etaDoOperador(identidadeAtual());
+  const etaDeQuem = (Object.keys(ETAS_OPERADORES).find(k => ETAS_OPERADORES[k].nomes.some(x => normalizarNome(quemAbriu).includes(x))) || null);
+  const eu = normalizarNome(window.credenciais.usuario);
+  return normalizarNome(quemAbriu) === eu || (!!eta && eta === etaDeQuem);
+}
 async function carregarOcorParaFinalizar(boxId) {
   const box = document.getElementById(boxId);
   if (!box) return 0;
   try {
-    const eu = String(window.credenciais.usuario).toLowerCase();
-    const itens = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && String(o.quem).toLowerCase() === eu);
+    const itens = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && ocMesmaEquipe(o.quem));
     box.innerHTML = itens.length ? `<h3>Ocorrência operacional: informe o término</h3>` + itens.map(o => { const k = "of" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
       <b>Ocorrência nº ${o.num}</b> · ${o.tipo} · ${o.loc}<br><span style="font-size:14px">${o.end}<br>${ocDescHtml(o.desc)}${o.alt ? "<br><b>Alterações:</b> " + ocDescHtml(o.alt) : ""}</span>
       <div class="nota"><b>Término do serviço</b></div>
@@ -2913,7 +2919,7 @@ async function carregarQtdUrgentes() {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
     if (res.erro) { window.qtdUrgentes = 0; return; }
     let qOc = 0;
-    try { const eu = String(window.credenciais.usuario).toLowerCase(); qOc = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && String(o.quem).toLowerCase() === eu).length; } catch (e) {}
+    try { qOc = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && ocMesmaEquipe(o.quem)).length; } catch (e) {}
     window.qtdUrgentes = res.dados.slice(1).filter(l => l[4] !== "feito" && servicoParaMim(l[2])).length + qOc;
   } catch (e) { window.qtdUrgentes = 0; }
 }
