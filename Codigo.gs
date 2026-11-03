@@ -2,7 +2,8 @@
  * PAINEL EMBASA — backend (Google Apps Script) ligado à planilha "Painel EMBASA".
  * Cole este arquivo INTEIRO no Codigo.gs (apague o que estiver lá antes) e faça uma nova implantação.
  * Ações desta versão: login, listar, gravarVarias, gravar, trocarSenha, pedirNovaSenha,
- * responderSS, marcarEncerrada, concluirServicoUrgente, salvarFoto.
+ * responderSS, marcarEncerrada, concluirServicoUrgente, salvarFoto,
+ * responderOcorrencia, finalizarOcorrencia, encerrarOcorrencia, editarOcorrencia.
  * As outras ações do painel (níveis, medição, EPI, acessos, RILC, ocorrências, Agersa) entram depois.
  */
 
@@ -102,6 +103,13 @@ function doPost(e) {
           MailApp.sendEmail(EMAIL_GERENCIA, "Painel EMBASA: novo pedido " + req.aba + " de " + quem.usuario,
             "Pedido " + req.aba + " enviado por " + quem.usuario + ":\n" + texto);
         }
+        if (req.aba === "Ocorrencia") {
+          linhas.forEach(function (l) {
+            MailApp.sendEmail(EMAIL_GERENCIA, "Painel EMBASA: pedido de ocorrência operacional – " + l[4] + " – " + l[2],
+              "Pedido enviado por " + quem.usuario + "\n\nLocalidade: " + l[2] + "\n" + l[3] + "\nTipo: " + l[4] + "\n\n" + l[5] +
+              "\n\nAbra no SCI e devolva o número em Pedidos de ocorrência operacional no painel.");
+          });
+        }
         registrarHistorico(quem.usuario, "gravou " + linhas.length + " linha(s) em " + req.aba, "");
         return resposta({ ok: true });
       }
@@ -159,6 +167,54 @@ function doPost(e) {
         urg.getRange(linha, 6).setValue(quem.usuario);
         urg.getRange(linha, 7).setValue(new Date());
         registrarHistorico(quem.usuario, "marcou serviço urgente como feito", "linha " + linha);
+        return resposta({ ok: true });
+      }
+
+      // Ocorrencia: situacao(7) numero(8) aberta_por(9) termino(10) obs_termino(11) encerrada_por(12) data_encerramento(13) alteracoes(14)
+      case "responderOcorrencia": {
+        const oc = aba("Ocorrencia");
+        const linha = Number(req.linha);
+        if (!linha || linha < 2) return resposta({ erro: "Ocorrência não encontrada" });
+        oc.getRange(linha, 7).setValue("aberta");
+        oc.getRange(linha, 8).setValue("'" + String(req.numero || ""));
+        oc.getRange(linha, 9).setValue(quem.usuario);
+        registrarHistorico(quem.usuario, "abriu ocorrência " + req.numero, "linha " + linha);
+        return resposta({ ok: true });
+      }
+      case "finalizarOcorrencia": {
+        const oc = aba("Ocorrencia");
+        const linha = Number(req.linha);
+        if (!linha || linha < 2) return resposta({ erro: "Ocorrência não encontrada" });
+        oc.getRange(linha, 7).setValue("finalizada");
+        oc.getRange(linha, 10).setValue("'" + String(req.termino || Utilities.formatDate(new Date(), "America/Bahia", "dd/MM/yyyy HH:mm")));
+        oc.getRange(linha, 11).setValue(req.obs || "");
+        const d = oc.getRange(linha, 1, 1, 8).getValues()[0];
+        MailApp.sendEmail(EMAIL_GERENCIA, "Painel EMBASA: encerrar ocorrência nº " + d[7],
+          quem.usuario + " informou o término do serviço.\n\nOcorrência nº " + d[7] + " – " + d[4] + " – " + d[2] +
+          "\nTérmino: " + req.termino + "\nObservação: " + req.obs + "\n\nEncerre no SCI e marque como encerrada no painel.");
+        registrarHistorico(quem.usuario, "informou término da ocorrência", "linha " + linha);
+        return resposta({ ok: true });
+      }
+      case "encerrarOcorrencia": {
+        const oc = aba("Ocorrencia");
+        const linha = Number(req.linha);
+        if (!linha || linha < 2) return resposta({ erro: "Ocorrência não encontrada" });
+        oc.getRange(linha, 7).setValue("encerrada");
+        oc.getRange(linha, 12).setValue(quem.usuario);
+        oc.getRange(linha, 13).setValue(new Date());
+        registrarHistorico(quem.usuario, "encerrou ocorrência no SCI", "linha " + linha);
+        return resposta({ ok: true });
+      }
+      case "editarOcorrencia": {
+        if (!req.obs) return resposta({ erro: "A observação é obrigatória" });
+        const oc = aba("Ocorrencia");
+        const linha = Number(req.linha);
+        if (!linha || linha < 2) return resposta({ erro: "Ocorrência não encontrada" });
+        const atual = String(oc.getRange(linha, 14).getValue() || "");
+        const quando = Utilities.formatDate(new Date(), "America/Bahia", "dd/MM/yyyy HH:mm");
+        const nova = quando + " – " + quem.usuario + ": novo término " + req.novoFim + ". " + req.obs;
+        oc.getRange(linha, 14).setValue(atual ? atual + "\n" + nova : nova);
+        registrarHistorico(quem.usuario, "editou ocorrência", "linha " + linha);
         return resposta({ ok: true });
       }
 

@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 19h45</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 20h10</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -516,6 +516,7 @@ const TELAS = {
   pedidosSS: () => telaPedidosSS(),
   semLocalizacao: () => `<h2>Matrículas sem localização</h2><div class="nota">Matrículas das SS pendentes que ainda não têm coordenada (nem na tabela, nem na BaseLocalizacao, nem no GPS de campo).</div><div id="sl2_lista">Carregando...</div>`,
   pendExecutar: () => `<h2>SS pendente</h2><div class="nota">Quando executar a SS em campo, toque em "OK, executada". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
+  ocorPedidos: () => `<h2>Pedidos de ocorrência operacional</h2><div class="nota">Abra a ocorrência no SCI e devolva o número para a equipe. O pedido sai da lista.</div><div id="oc_ger">Carregando...</div>`,
   pendAbrirEncerrar: () => `<h2>Pendências de abrir e encerrar SS</h2><div class="nota">Quando a SS for gerada, digite o número e marque como concluída. Ela sai da lista.</div><div id="pae_lista">Carregando...</div>`,
   meusAcessos: () => `<h2>Meus acessos</h2><div id="ma_lista">Carregando...</div>`,
 
@@ -1424,7 +1425,7 @@ function mostrarMenu(itens, titulo) {
 
 // ===== Contadores nos botões de SS e pendência =====
 const NOME_EXIBIDO = { encerrarEscritorio: "Encerrar SS como executada", pendExecutar: "SS pendente" };
-const CONTAGEM_SS_TELAS = { todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
+const CONTAGEM_SS_TELAS = { ocorPedidos: "ocorrencias", todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
   window.contagemSSCarregando = true;
@@ -1436,12 +1437,13 @@ async function atualizarContagemSS() {
       return res.dados.slice(1).filter(filtro).length;
     } catch (e) { return 0; }
   };
-  const [todas, encerrar, pedidos] = await Promise.all([
+  const [todas, encerrar, pedidos, ocorrencias] = await Promise.all([
     contar("SSAbertas", l => l[0] && !/encerrad|cancelad|conclu/i.test(l[5] || "")),
     contar("EncerrarSS", l => (l[6] || "pendente") === "pendente"),
-    contar("PedidoSS", l => (l[10] || "pendente") === "pendente")
+    contar("PedidoSS", l => (l[10] || "pendente") === "pendente"),
+    contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada"))
   ]);
-  window.contagemSS = { todas, encerrar, pedidos };
+  window.contagemSS = { todas, encerrar, pedidos, ocorrencias };
   window.contagemSSCarregando = false;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
     const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
@@ -1478,6 +1480,7 @@ function abrir(i) {
     if (it.tela === "meusAcessos") carregarMeusAcessos();
     if (it.tela === "pedidosSS") carregarPedidosSS();
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
+    if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
     if (it.tela === "semLocalizacao") carregarSemLocalizacao();
     if (it.local) window.almoxLocalPreset = it.local;
@@ -2477,57 +2480,124 @@ async function enviarOcorrencia() {
     renderAtual();
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
 }
+// Aba Ocorrencia: 1 data_hora | 2 usuario | 3 localidade | 4 endereco | 5 tipo | 6 descricao | 7 situacao (solicitada, aberta, finalizada, encerrada)
+// 8 numero | 9 aberta_por | 10 termino_servico | 11 obs_termino | 12 encerrada_por | 13 data_encerramento | 14 alteracoes
+const OC_OBS_FIM = ["Serviço concluído, abastecimento normalizado", "Energia restabelecida pela Coelba", "Vazamento eliminado", "Manutenção concluída", "Reservatórios recuperando o nível"];
+const OC_OBS_EDITAR = ["Serviço mais demorado que o previsto", "Aguardando a Coelba", "Aguardando material", "Aguardando a UNBM", "Novo vazamento no mesmo local", "Reservatórios ainda recuperando o nível"];
+async function listarOcorrencias() {
+  const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia" });
+  if (res.erro) throw new Error(res.erro);
+  return res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], desc: l[5],
+    situacao: l[6] || "solicitada", num: l[7] || "", abertaPor: l[8] || "", fim: l[9] || "", obsFim: l[10] || "", encPor: l[11] || "", alt: l[13] || "" })).filter(o => o.quando);
+}
+function ocDescHtml(t) { return String(t || "").replace(/\n/g, "<br>"); }
+function ocObsCampos(prefixo, opcoes) {
+  return `<select id="${prefixo}_obs" class="campo"><option value="">Observação…</option>${opcoes.map(o => `<option>${o}</option>`).join("")}<option>Outra (escrever abaixo)</option></select>
+    <textarea id="${prefixo}_txt" class="campo" rows="2" placeholder="Complemento da observação (opcional)"></textarea>`;
+}
+function ocObsValor(prefixo) {
+  const sel = (document.getElementById(prefixo + "_obs") || {}).value || "";
+  const txt = ((document.getElementById(prefixo + "_txt") || {}).value || "").trim();
+  if (!sel) return "";
+  if (sel.startsWith("Outra")) return txt;
+  return txt ? sel + ". " + txt : sel;
+}
+// Funcionário: ocorrências que ele pediu e já foram abertas, para informar o término (aparece em Serviços urgentes)
+async function carregarOcorParaFinalizar(boxId) {
+  const box = document.getElementById(boxId);
+  if (!box) return 0;
+  try {
+    const eu = String(window.credenciais.usuario).toLowerCase();
+    const itens = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && String(o.quem).toLowerCase() === eu);
+    box.innerHTML = itens.length ? `<h3>Ocorrência operacional: informe o término</h3>` + itens.map(o => { const k = "of" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
+      <b>Ocorrência nº ${o.num}</b> · ${o.tipo} · ${o.loc}<br><span style="font-size:14px">${o.end}<br>${ocDescHtml(o.desc)}${o.alt ? "<br><b>Alterações:</b> " + ocDescHtml(o.alt) : ""}</span>
+      <div class="nota"><b>Término do serviço</b></div>
+      <div style="display:flex;gap:8px"><input id="${k}_d" type="date" class="campo" style="flex:1"><input id="${k}_h" type="time" class="campo" style="flex:1"></div>
+      <button class="acao" style="background:#0a6e8a" onclick="(()=>{const t=ocDataLocal(new Date()).split('T');document.getElementById('${k}_d').value=t[0];document.getElementById('${k}_h').value=t[1];})()">Terminou agora</button>
+      ${ocObsCampos(k, OC_OBS_FIM)}
+      <button class="acao" onclick="finalizarOcorrencia(${o.linha})">Informar término do serviço</button></div>`; }).join("") : "";
+    return itens.length;
+  } catch (e) { box.textContent = ""; return 0; }
+}
+async function finalizarOcorrencia(linha) {
+  const k = "of" + linha;
+  const d = document.getElementById(k + "_d").value, h = document.getElementById(k + "_h").value;
+  const obs = ocObsValor(k);
+  if (!d || !h || !obs) { alert("Informe a data, o horário de término e a observação."); return; }
+  try {
+    const res = await chamarApi({ acao: "finalizarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, termino: ocFmt(d + "T" + h), obs: obs });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Término informado. O escritório vai encerrar a ocorrência no sistema.");
+    renderAtual();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
 async function carregarOcorMinhas() {
   const box = document.getElementById("om_lista");
   if (!box) return;
   box.textContent = "Carregando...";
   try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia" });
-    if (res.erro) { box.textContent = res.erro; return; }
     const eu = String(window.credenciais.usuario).toLowerCase();
-    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], situacao: l[6] || "solicitada", num: l[7] || "", fin: l[9] || "" }))
-      .filter(o => String(o.quem).toLowerCase() === eu).reverse();
-    if (!itens.length) { box.innerHTML = "<p>Nenhuma ocorrência.</p>"; return; }
-    box.innerHTML = itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${o.situacao === "finalizada" ? "#2e7d32" : "#c62828"}">
-      <b>${o.tipo}</b> · ${o.loc}<br><span style="font-size:14px">${o.end} · pedido em ${formatarQuando(o.quando)}</span><br>
-      <span style="font-size:14px">${o.num ? "Ocorrência nº <b>" + o.num + "</b>" : "Aguardando o escritório abrir"}${o.situacao === "finalizada" ? " · serviço finalizado em " + formatarQuando(o.fin) : ""}</span>
-      ${o.num && o.situacao !== "finalizada" ? `<br><button class="acao" onclick="finalizarOcorrencia(${o.linha})">Serviço finalizado</button>` : ""}
-    </div>`).join("");
+    const itens = (await listarOcorrencias()).filter(o => String(o.quem).toLowerCase() === eu).reverse();
+    const nomeSit = { solicitada: "Aguardando o escritório abrir", aberta: "Aberta – informe o término em Serviços urgentes", finalizada: "Término informado – aguardando encerrar no sistema", encerrada: "Encerrada no sistema" };
+    box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${o.situacao === "encerrada" ? "#2e7d32" : "#c62828"}">
+      <b>${o.tipo}</b> · ${o.loc}${o.num ? " · nº <b>" + o.num + "</b>" : ""}<br><span style="font-size:14px">${o.end} · pedido em ${formatarQuando(o.quando)}<br>${nomeSit[o.situacao] || o.situacao}${o.fim ? " · término " + o.fim : ""}</span></div>`).join("") : "<p>Nenhuma ocorrência.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
-async function finalizarOcorrencia(linha) {
-  try {
-    const res = await chamarApi({ acao: "finalizarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
-    if (res.erro) { alert(res.erro); return; }
-    carregarOcorMinhas();
-  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
-}
-// Gerência e atendente: pedidos de ocorrência para abrir no sistema
+// Gestão (Deyse, Thiago, Oseias, Igor): abrir, editar e encerrar
 async function carregarOcorrenciasGerente(boxId = "oc_ger") {
   const box = document.getElementById(boxId);
   if (!box) return;
   box.textContent = "Carregando...";
   try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia" });
-    if (res.erro) { box.textContent = res.erro; return; }
-    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], desc: l[5], situacao: l[6] || "solicitada", num: l[7] || "" }))
-      .filter(o => o.situacao === "solicitada").reverse();
-    box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
-      <b>${o.tipo}</b> · ${o.loc} · pedido por ${o.quem}<br><span style="font-size:14px">${o.end}<br>${String(o.desc || "").replace(/\n/g, "<br>")}</span>
-      <input id="oc_n_${o.linha}" class="campo" placeholder="Número da ocorrência aberta">
-      <button class="acao" onclick="responderOcorrencia(${o.linha})">Devolver número para a equipe</button>
-    </div>`).join("") : "<p>Nenhuma ocorrência pendente.</p>";
+    const todas = await listarOcorrencias();
+    const abrir = todas.filter(o => o.situacao === "solicitada").reverse();
+    const encerrar = todas.filter(o => o.situacao === "finalizada").reverse();
+    const abertas = todas.filter(o => o.situacao === "aberta").reverse();
+    const cab = o => `<b>${o.tipo}</b> · ${o.loc} · pedido por ${o.quem} em ${formatarQuando(o.quando)}${o.num ? "<br>Ocorrência nº <b>" + o.num + "</b>" : ""}<br><span style="font-size:14px">${o.end}<br>${ocDescHtml(o.desc)}${o.alt ? "<br><b>Alterações:</b> " + ocDescHtml(o.alt) : ""}</span>`;
+    box.innerHTML =
+      `<h3>Para abrir no SCI (${abrir.length})</h3>` + (abrir.length ? abrir.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">${cab(o)}
+        <input id="oc_n_${o.linha}" class="campo" placeholder="Número da ocorrência aberta">
+        <button class="acao" onclick="responderOcorrencia(${o.linha}, '${boxId}')">Devolver número para a equipe</button></div>`).join("") : "<p>Nenhuma.</p>") +
+      `<h3>Para encerrar no SCI (${encerrar.length})</h3>` + (encerrar.length ? encerrar.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #f9a825">${cab(o)}
+        <br><b>Término do serviço:</b> ${o.fim}<br><b>Observação:</b> ${o.obsFim}
+        <button class="acao" onclick="encerrarOcorrencia(${o.linha}, '${boxId}')">Encerrada no SCI</button></div>`).join("") : "<p>Nenhuma.</p>") +
+      `<h3>Abertas, aguardando o término (${abertas.length})</h3>` + (abertas.length ? abertas.map(o => { const k = "oe" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0a6e8a">${cab(o)}
+        <details style="margin-top:6px"><summary><b>Editar ocorrência (prazo passou)</b></summary>
+          <div class="nota"><b>Nova previsão de término</b></div>
+          <div style="display:flex;gap:8px"><input id="${k}_d" type="date" class="campo" style="flex:1"><input id="${k}_h" type="time" class="campo" style="flex:1"></div>
+          ${ocObsCampos(k, OC_OBS_EDITAR)}
+          <button class="acao" onclick="editarOcorrencia(${o.linha}, '${boxId}')">Salvar alteração</button></details></div>`; }).join("") : "<p>Nenhuma.</p>");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
-async function responderOcorrencia(linha) {
+async function responderOcorrencia(linha, boxId = "oc_ger") {
   const numero = (document.getElementById("oc_n_" + linha) || {}).value || "";
   if (!numero.trim()) { alert("Digite o número da ocorrência."); return; }
   try {
     const res = await chamarApi({ acao: "responderOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim() });
     if (res.erro) { alert(res.erro); return; }
     alert("Número devolvido para a equipe.");
-    carregarOcorrenciasGerente();
+    carregarOcorrenciasGerente(boxId);
   } catch (e) { alert("Não consegui responder. Verifique a internet."); }
+}
+async function encerrarOcorrencia(linha, boxId = "oc_ger") {
+  try {
+    const res = await chamarApi({ acao: "encerrarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
+    if (res.erro) { alert(res.erro); return; }
+    carregarOcorrenciasGerente(boxId);
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
+async function editarOcorrencia(linha, boxId = "oc_ger") {
+  const k = "oe" + linha;
+  const d = document.getElementById(k + "_d").value, h = document.getElementById(k + "_h").value;
+  const obs = ocObsValor(k);
+  if (!d || !h) { alert("Informe a nova data e o horário de término."); return; }
+  if (!obs) { alert("A observação é obrigatória."); return; }
+  try {
+    const res = await chamarApi({ acao: "editarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, novoFim: ocFmt(d + "T" + h), obs: obs });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Alteração salva. Lembre de alterar também no SCI.");
+    carregarOcorrenciasGerente(boxId);
+  } catch (e) { alert("Não consegui salvar. Verifique a internet."); }
 }
 
 // ===== SS PARA ACOMPANHAR: SS que vencem em 24 horas e SS abertas nos últimos 3 meses. A equipe escolhe e diz se manda ao Digiteam =====
@@ -2770,7 +2840,7 @@ function menuMozondo(n) {
 }
 function menuDoPerfil() {
   const n = identidadeAtual();
-  if (GRUPO_MOZONDO.some(x => n.includes(x)) || (!(window.MODO_GERENTE && !emPrevia()) && String(perfilAtual).startsWith("Operador Mozondó"))) return menuMozondo(n);
+  if (GRUPO_MOZONDO.some(x => n.includes(x)) || (!window.MODO_GERENTE && String(perfilAtual).startsWith("Operador Mozondó"))) return menuMozondo(n);
   // Equipe de campo: pendência para executar, almoxarifado de cada localidade e Outros
   if (GRUPO_CAMPO.some(x => n.includes(x))) {
     const locais = Object.keys(QUEM_MOVIMENTA_ALMOX).filter(l => QUEM_MOVIMENTA_ALMOX[l].some(nm => normalizarNome(nm) && n.includes(normalizarNome(nm))));
@@ -2783,7 +2853,9 @@ function menuDoPerfil() {
     const resto = achatarMenu(menuBaseDoPerfil(n)).filter(i => !["almoxarifadoCatalogo", "encerrarEscritorio"].includes(i.tela) && i.nome !== "Almoxarifado");
     const outros = [...resto, {nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}];
     if ((window.MODO_GERENTE && !emPrevia()) || n.includes("thiago")) outros.push({nome: "Matrículas sem localização", tela: "semLocalizacao"});
-    return [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}, {nome: "Almoxarifado", tela: "almoxarifadoCatalogo"}, {nome: "Outros", sub: outros}];
+    const principal = [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}];
+    if ((window.MODO_GERENTE && !emPrevia()) || ["deyse", "thiago", "oseias", "igor"].some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
+    return [...principal, {nome: "Almoxarifado", tela: "almoxarifadoCatalogo"}, {nome: "Outros", sub: outros.filter(i => i.tela !== "ocorPedidos")}];
   }
   // Demais perfis: como antes
   let menu = menuBaseDoPerfil(n);
@@ -2807,7 +2879,9 @@ async function carregarQtdUrgentes() {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
     if (res.erro) { window.qtdUrgentes = 0; return; }
-    window.qtdUrgentes = res.dados.slice(1).filter(l => l[4] !== "feito" && servicoParaMim(l[2])).length;
+    let qOc = 0;
+    try { const eu = String(window.credenciais.usuario).toLowerCase(); qOc = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && String(o.quem).toLowerCase() === eu).length; } catch (e) {}
+    window.qtdUrgentes = res.dados.slice(1).filter(l => l[4] !== "feito" && servicoParaMim(l[2])).length + qOc;
   } catch (e) { window.qtdUrgentes = 0; }
 }
 function telaServicosUrgentes() {
@@ -2819,7 +2893,7 @@ function telaServicosUrgentes() {
     ${PESSOAS.filter(p => p[0] !== "Deyse").map(p => `<label style="display:block"><input type="checkbox" class="su_p" value="${p[0]}"> ${p[0]}</label>`).join("")}
     <button class="acao" onclick="adicionarServicoUrgente()">Adicionar serviço urgente</button>
     <h3>Lista</h3>` : "";
-  return `<h2>Serviços urgentes</h2>${form}<div id="su_lista">Carregando...</div>`;
+  return `<h2>Serviços urgentes</h2><div id="su_ocor"></div>${form}<div id="su_lista">Carregando...</div>`;
 }
 async function adicionarServicoUrgente() {
   const desc = document.getElementById("su_desc").value.trim();
@@ -2843,7 +2917,8 @@ async function carregarServicosUrgentes() {
     if (res.erro) { box.textContent = res.erro; return; }
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], para: l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "" }))
       .filter(x => (window.MODO_GERENTE && !emPrevia()) || servicoParaMim(x.para)).reverse();
-    window.qtdUrgentes = itens.filter(x => x.situacao !== "feito" && servicoParaMim(x.para)).length;
+    const qOc = await carregarOcorParaFinalizar("su_ocor");
+    window.qtdUrgentes = itens.filter(x => x.situacao !== "feito" && servicoParaMim(x.para)).length + qOc;
     box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${x.situacao === "feito" ? "#2e7d32" : "#c62828"}">
       <b>${x.desc}</b><br><span style="font-size:14px">Para: ${x.para} · adicionado por ${x.quem} em ${formatarQuando(x.quando)}</span>
       ${x.situacao === "feito" ? `<br><span style="font-size:14px">Feito por ${x.feito}</span>` : (!(window.MODO_GERENTE && !emPrevia()) && servicoParaMim(x.para) ? `<br><button class="acao" onclick="concluirServicoUrgente(${x.linha})">Marcar como feito</button>` : "")}
