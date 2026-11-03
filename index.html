@@ -1268,10 +1268,14 @@ const QUEM_MOVIMENTA_ALMOX = {
   "ETA Mozondó": ["Genildo", "Alan", "Juvenson", "Valdesandro", "Valdesandro Goncalves De Souza"]
 };
 function podeMovimentarAlmox(local) {
-  if (window.MODO_GERENTE) return true;
-  const norm = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  const eu = norm(window.nomeUsuario);
-  return (QUEM_MOVIMENTA_ALMOX[local] || []).some(n => norm(n) && eu.includes(norm(n)));
+  if (window.MODO_GERENTE && !emPrevia()) return true;
+  const eu = identidadeAtual();
+  return (QUEM_MOVIMENTA_ALMOX[local] || []).some(n => normalizarNome(n) && eu.includes(normalizarNome(n)));
+}
+// Locais que aparecem para a pessoa: só os dela (a gerência vê todos)
+function locaisAlmoxDaPessoa() {
+  const meus = LOCAIS_ALMOX.filter(l => podeMovimentarAlmox(l));
+  return meus.length ? meus : LOCAIS_ALMOX;
 }
 const ROTINA_ITENS = [
   "Relatório de água bruta enviado no grupo",
@@ -3309,7 +3313,7 @@ async function responderSS(linha, mandarDigiteam) {
 // ===== ALMOXARIFADO: menu com as operações; cada uma abre na área abaixo =====
 function telaAlmoxarifado() {
   return `<h2>Almoxarifado – São Desidério</h2>
-    <select id="ac_local" class="campo" onchange="abrirAlmox(window.almoxAtual || 'saldo')"><option value="">Local do almoxarifado…</option>${LOCAIS_ALMOX.map(l => `<option ${window.almoxLocalPreset === l ? "selected" : ""}>${l}</option>`).join("")}</select>
+    <select id="ac_local" class="campo" onchange="abrirAlmox(window.almoxAtual || 'saldo')">${(() => { const ls = locaisAlmoxDaPessoa(); const pre = ls.includes(window.almoxLocalPreset) ? window.almoxLocalPreset : (ls.length === 1 ? ls[0] : ""); return `<option value="">Local do almoxarifado…</option>` + ls.map(l => `<option ${pre === l ? "selected" : ""}>${l}</option>`).join(""); })()}</select>
     <div class="nota">Qualquer pessoa consulta o saldo e faz pedido. Retirar e adicionar só para a equipe do local.</div>
     <button class="acao" onclick="abrirAlmox('saldo')">Consultar saldo por item</button>
     <button class="acao" onclick="abrirAlmox('geral')">Verificar estoque geral</button>
