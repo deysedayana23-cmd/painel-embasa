@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 16h50</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 17h25</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -3436,10 +3436,19 @@ function abrirAlmox(op) {
       <input id="ac_obs" class="campo" placeholder="Observação">
       <button class="acao" onclick="movimentarCatalogo()">Registrar</button>`;
   } else if (op === "pedido") {
-    area.innerHTML = `<h3>Solicitar material</h3>
-      <select id="ac_mat" class="campo">${opcoesMat}</select>
-      <input id="ac_pqtd" class="campo" type="number" min="1" placeholder="Quantidade a pedir">
-      <button class="acao" onclick="pedirCatalogo()">Gerar pedido</button>`;
+    window.pedidoCarrinho = {};
+    area.innerHTML = `<h3>Solicitar material (vários itens de uma vez)</h3>
+      <div class="nota">Digite a quantidade nos itens que precisa. Pode marcar quantos quiser e enviar tudo junto num pedido só.</div>
+      <input id="pm_busca" class="campo" placeholder="Buscar item pelo nome ou código" oninput="filtrarPedidoMaterial()">
+      <div id="pm_resumo" class="nota" style="font-weight:600">Nenhum item escolhido</div>
+      <div id="pm_lista" style="max-height:420px;overflow-y:auto;border:1px solid #ddd;border-radius:8px;padding:4px">
+        ${CATALOGO_ALMOX.map(([c, d]) => `<div class="pm_item" data-busca="${normalizarNome(c + " " + d)}" style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid #eee">
+          <span style="flex:1;font-size:14px">${c} – ${d}</span>
+          <input type="number" min="0" inputmode="numeric" placeholder="Qtd" style="width:72px;padding:6px" oninput="marcarPedidoMaterial('${c}', this.value)">
+        </div>`).join("")}
+      </div>
+      <textarea id="pm_obs" class="campo" rows="2" placeholder="Observação do pedido (opcional)"></textarea>
+      <button class="acao" onclick="enviarPedidoMaterialVarios()">Enviar pedido</button>`;
   }
 }
 // Saldo a partir da planilha: a última contagem é o ponto de partida; retiradas e entradas depois dela ajustam.
@@ -3518,6 +3527,36 @@ async function movimentarCatalogo() {
   } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 
+function filtrarPedidoMaterial() {
+  const q = normalizarNome(document.getElementById("pm_busca").value);
+  document.querySelectorAll("#pm_lista .pm_item").forEach(el => { el.style.display = !q || el.dataset.busca.includes(q) ? "" : "none"; });
+}
+function marcarPedidoMaterial(cod, valor) {
+  const q = parseFloat(valor);
+  if (q > 0) window.pedidoCarrinho[cod] = q; else delete window.pedidoCarrinho[cod];
+  const n = Object.keys(window.pedidoCarrinho).length;
+  const r = document.getElementById("pm_resumo");
+  if (r) r.textContent = n ? n + " item(ns) no pedido" : "Nenhum item escolhido";
+}
+async function enviarPedidoMaterialVarios() {
+  const local = document.getElementById("ac_local").value;
+  const itens = Object.entries(window.pedidoCarrinho || {});
+  if (!local) { alert("Escolha o local do almoxarifado no topo da tela."); return; }
+  if (!itens.length) { alert("Digite a quantidade de pelo menos um item."); return; }
+  const obs = (document.getElementById("pm_obs") || {}).value || "";
+  const agora = new Date().toISOString();
+  const linhas = itens.map(([cod, qtd]) => {
+    const item = itemCatalogo(cod);
+    return [agora, window.credenciais.usuario, local, cod + " – " + item[1] + (obs ? " (obs: " + obs + ")" : ""), qtd, "pendente"];
+  });
+  if (!confirm("Enviar pedido com " + linhas.length + " item(ns) para " + local + "?")) return;
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoMaterial", linhas });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Pedido enviado com " + linhas.length + " item(ns). A gerência recebe tudo num e-mail só.");
+    abrirAlmox("pedido");
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); }
+}
 async function pedirCatalogo() {
   const cod = document.getElementById("ac_mat").value;
   const qtd = document.getElementById("ac_pqtd").value;
