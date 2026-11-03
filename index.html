@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 20h10</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 20h20</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -4672,12 +4672,39 @@ const NIVEL_HIST = {
   angico: { titulo: "ETA Angico", reservatorios: ["RAD Angico"], inicio: 5, fim: 17 },
   mozondo: { titulo: "ETA Mozondó", reservatorios: ["Reservatórios ETA Mozondó (um nível, vale para os dois)"], inicio: 0, fim: 22 }
 };
+// Macros de cada ETA no histórico: [nome gravado na aba Leituras, nome mostrado]
+const MACRO_HIST = {
+  sd: [["SD – Macro saída da ETA", "Saída da ETA São Desidério"]],
+  angico: [["ANG – Saída da ETA", "Saída da ETA Angico"]],
+  mozondo: [["Macro saída da ETA", "Mozondó (saída da ETA)"], ["Macro Buriti Cortado", "Buriti Cortado"]]
+};
+async function carregarMacrosHist(chave, data) {
+  const box = document.getElementById("nh_macros");
+  if (!box) return;
+  box.textContent = "Carregando...";
+  const fmtData = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" });
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Leituras" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const doDia = {};
+    res.dados.slice(1).forEach(l => {
+      const q = new Date(l[0]);
+      const dia = isNaN(q) ? String(l[0]).slice(0, 10) : fmtData.format(q);
+      if (dia === data) doDia[l[2]] = { leitura: l[3], consumo: l[4], operador: l[1] };
+    });
+    box.innerHTML = `<table><tr><th>Macro</th><th>Leitura 7h (m³)</th><th>Consumo 24h (m³)</th><th>Operador</th></tr>` +
+      MACRO_HIST[chave].map(([k, nome]) => { const v = doDia[k]; return `<tr><td>${nome}</td><td>${v && v.leitura !== "" ? v.leitura : "—"}</td><td>${v && v.consumo !== "" ? v.consumo : "—"}</td><td>${v ? v.operador : ""}</td></tr>`; }).join("") + `</table>`;
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
 function hojeISO() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 function telaNivelHist(chave) {
-  return `<h2>Histórico de níveis – ${NIVEL_HIST[chave].titulo}</h2>
+  return `<h2>Histórico de níveis e macros – ${NIVEL_HIST[chave].titulo}</h2>
     <input type="date" id="nh_data" class="campo" value="${hojeISO()}" onchange="carregarNiveis('${chave}')">
+    <h3>Macros (leitura e consumo das últimas 24 horas)</h3>
+    <div id="nh_macros">Carregando...</div>
+    <h3>Níveis dos reservatórios</h3>
     <div id="nh_lista">Carregando...</div>`;
 }
 async function carregarNiveis(chave) {
@@ -4686,6 +4713,7 @@ async function carregarNiveis(chave) {
   const box = document.getElementById("nh_lista");
   if (!box) return;
   box.textContent = "Carregando...";
+  if (MACRO_HIST[chave]) carregarMacrosHist(chave, data);
   const fmtData = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" });
   const fmtHora = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false });
   try {

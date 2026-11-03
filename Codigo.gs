@@ -3,7 +3,7 @@
  * Cole este arquivo INTEIRO no Codigo.gs (apague o que estiver lá antes) e faça uma nova implantação.
  * Ações desta versão: login, listar, gravarVarias, gravar, trocarSenha, pedirNovaSenha,
  * responderSS, marcarEncerrada, concluirServicoUrgente, salvarFoto,
- * responderOcorrencia, finalizarOcorrencia, encerrarOcorrencia, editarOcorrencia.
+ * responderOcorrencia, finalizarOcorrencia, encerrarOcorrencia, editarOcorrencia, editarNivel.
  * As outras ações do painel (níveis, medição, EPI, acessos, RILC, ocorrências, Agersa) entram depois.
  */
 
@@ -215,6 +215,20 @@ function doPost(e) {
         const nova = quando + " – " + quem.usuario + ": novo término " + req.novoFim + ". " + req.obs;
         oc.getRange(linha, 14).setValue(atual ? atual + "\n" + nova : nova);
         registrarHistorico(quem.usuario, "editou ocorrência", "linha " + linha);
+        return resposta({ ok: true });
+      }
+
+      // Niveis: data_hora | usuario | reservatorio | hora | nivel_mca — só quem lançou ou a gerência edita
+      case "editarNivel": {
+        const niv = aba("Niveis");
+        const linha = Number(req.linha);
+        if (!linha || linha < 2) return resposta({ erro: "Leitura não encontrada" });
+        const dono = String(niv.getRange(linha, 2).getValue()).toLowerCase();
+        const gerencia = GERENCIA_USUARIOS.indexOf(String(quem.usuario).toLowerCase()) >= 0;
+        if (dono !== String(quem.usuario).toLowerCase() && !gerencia) return resposta({ erro: "Só quem lançou pode editar este nível" });
+        const antes = niv.getRange(linha, 5).getValue();
+        niv.getRange(linha, 5).setValue(Number(req.valor));
+        registrarHistorico(quem.usuario, "editou nível", "linha " + linha + ": " + antes + " → " + req.valor);
         return resposta({ ok: true });
       }
 
