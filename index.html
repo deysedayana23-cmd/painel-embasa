@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 17h25</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 18h05</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -2644,7 +2644,7 @@ async function carregarQtdUrgentes() {
   } catch (e) { window.qtdUrgentes = 0; }
 }
 function telaServicosUrgentes() {
-  const form = window.MODO_GERENTE ? `
+  const form = (window.MODO_GERENTE && !emPrevia()) ? `
     <h3>Adicionar serviço urgente</h3>
     <textarea id="su_desc" class="campo" rows="2" placeholder="O que precisa ser feito"></textarea>
     <div class="nota">Para quem (marque um ou mais, ou marque Todos):</div>
@@ -2675,11 +2675,11 @@ async function carregarServicosUrgentes() {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
     if (res.erro) { box.textContent = res.erro; return; }
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], para: l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "" }))
-      .filter(x => window.MODO_GERENTE || servicoParaMim(x.para)).reverse();
+      .filter(x => (window.MODO_GERENTE && !emPrevia()) || servicoParaMim(x.para)).reverse();
     window.qtdUrgentes = itens.filter(x => x.situacao !== "feito" && servicoParaMim(x.para)).length;
     box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${x.situacao === "feito" ? "#2e7d32" : "#c62828"}">
       <b>${x.desc}</b><br><span style="font-size:14px">Para: ${x.para} · adicionado por ${x.quem} em ${formatarQuando(x.quando)}</span>
-      ${x.situacao === "feito" ? `<br><span style="font-size:14px">Feito por ${x.feito}</span>` : (!window.MODO_GERENTE && servicoParaMim(x.para) ? `<br><button class="acao" onclick="concluirServicoUrgente(${x.linha})">Marcar como feito</button>` : "")}
+      ${x.situacao === "feito" ? `<br><span style="font-size:14px">Feito por ${x.feito}</span>` : (!(window.MODO_GERENTE && !emPrevia()) && servicoParaMim(x.para) ? `<br><button class="acao" onclick="concluirServicoUrgente(${x.linha})">Marcar como feito</button>` : "")}
     </div>`).join("") : "<p>Nenhum serviço urgente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
