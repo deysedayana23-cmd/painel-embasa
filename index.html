@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 12h45</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 15h05</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -514,7 +514,7 @@ const TELAS = {
   ssRede: () => telaPedidoSS(true),
   ssRamal: () => telaPedidoSS(true),
   pedidosSS: () => telaPedidosSS(),
-  pendExecutar: () => `<h2>Pendência de SS para executar</h2><div class="nota">Quando executar a SS em campo, toque em "Executada em campo". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
+  pendExecutar: () => `<h2>SS pendente</h2><div class="nota">Quando executar a SS em campo, toque em "OK, executada". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
   pendAbrirEncerrar: () => `<h2>Pendências de abrir e encerrar SS</h2><div class="nota">Quando a SS for gerada, digite o número e marque como concluída. Ela sai da lista.</div><div id="pae_lista">Carregando...</div>`,
   meusAcessos: () => `<h2>Meus acessos</h2><div id="ma_lista">Carregando...</div>`,
 
@@ -1422,7 +1422,7 @@ function mostrarMenu(itens, titulo) {
 }
 
 // ===== Contadores nos botões de SS e pendência =====
-const NOME_EXIBIDO = { encerrarEscritorio: "Pendências de SS a digitar", pendExecutar: "Pendência de SS para executar" };
+const NOME_EXIBIDO = { encerrarEscritorio: "Pendências de SS a digitar", pendExecutar: "SS pendente" };
 const CONTAGEM_SS_TELAS = { todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
@@ -3209,17 +3209,31 @@ async function carregarPendExecutar() {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo" });
     if (res.erro) { box.textContent = res.erro; return; }
+    const cab = res.dados[0] || [];
     const linhas = res.dados.slice(1);
     const eu = nomesDoUsuario();
     const executadas = new Set(linhas.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1])));
-    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase() }))
+    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7) }))
       .filter(x => x.situacao === "pendente" && !executadas.has(x.ss) && String(x.resp).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n))));
     if (!minhas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
-    box.innerHTML = minhas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
+    box.innerHTML = `<div class="nota">${minhas.length} SS pendente(s)</div>` + minhas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}
-      <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">Executada em campo</button>
+      ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
+      <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
     </div>`).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+// Mostra uma coluna extra da aba ExecucaoCampo; localização vira link para o mapa
+function campoExtraSS(nome, valor) {
+  const v = String(valor == null ? "" : valor).trim();
+  if (!v || !nome) return "";
+  const rotulo = String(nome).replace(/_/g, " ");
+  if (/localiza|coordenad|mapa|gps/i.test(nome)) {
+    const c = v.match(/(-?\d+[.,]\d+)\s*[,; ]\s*(-?\d+[.,]\d+)/);
+    const url = /^https?:/i.test(v) ? v : (c ? "https://www.google.com/maps?q=" + c[1].replace(",", ".") + "," + c[2].replace(",", ".") : "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(v));
+    return `<div style="font-size:14px;margin-top:4px"><a href="${url}" target="_blank">📍 Abrir localização no mapa</a></div>`;
+  }
+  return `<div style="font-size:14px">${rotulo}: ${v}</div>`;
 }
 async function marcarExecutada(ss, tipo, loc) {
   try {
