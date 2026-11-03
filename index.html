@@ -1409,7 +1409,7 @@ function mostrarMenu(itens, titulo) {
 }
 
 // ===== Contadores nos botões de SS e pendência =====
-const CONTAGEM_SS_TELAS = { todasSS: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
+const CONTAGEM_SS_TELAS = { todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
   window.contagemSSCarregando = true;
@@ -2522,25 +2522,29 @@ async function enviarSSLista() {
 }
 
 // Menu enxuto para quem está na rua (Luzenildo, Francisco, Carlito, Joaquim, Igor, Ivo e Janio Gualberto)
-const SS_NOMES_MENU = ["Vazamento de rede", "Vazamento de ramal", "Pedir abertura de SS", "Abrir e encerrar SS", "SS para acompanhar",
-  "Vencimentos (24h e 48h)", "Todas as SS abertas (90 dias)", "SCI", "SS para encerrar pelo escritório", "Pedido de SS"];
+// Principal: vazamentos, abrir SS e mandar no Digitim, SS vencendo em 24h/48h, SS em aberto (3 meses). O resto em Outros.
+const SS_NOMES_MENU = ["Vazamento de rede", "Vazamento de ramal", "Vencimentos (24h e 48h)", "Todas as SS abertas (90 dias)"];
 function menuSimplesDe(perfil) {
   const orig = PERFIS[perfil] || [];
   const outros = orig.find(i => i.nome === "Outros");
-  const manter = orig.filter(i => i.nome !== "Outros" && !SS_NOMES_MENU.includes(i.nome));
+  const todos = [...orig.filter(i => i.nome !== "Outros"), ...(outros ? outros.sub : [])];
+  const vistos = new Set();
+  const resto = todos.filter(i => {
+    if (SS_NOMES_MENU.includes(i.nome)) return false;
+    const chave = i.nome + "|" + (i.tela || "");
+    if (vistos.has(chave)) return false;
+    vistos.add(chave);
+    return true;
+  });
   return [
-    {nome: "Vazamento", sub: [
-      {nome: "Vazamento de rede", tela: "ssVazRede"},
-      {nome: "Vazamento de ramal", tela: "ssVazRamal"},
-      {nome: "Vazamento de hidrômetro", tela: "ssVazHid"}
-    ]},
-    {nome: "Abrir SS", tela: "pedidoSS"},
-    {nome: "Abrir e encerrar SS", tela: "pedidoSSEncerrar"},
-    {nome: "SS a vencer em até 24 horas", tela: "ssVenc24"},
-    {nome: "SS a vencer em até 48 horas", tela: "ssVenc48"},
-    {nome: "Todas as SS em aberto", tela: "ssTodas"},
-    {nome: "SS para encerrar pelo escritório", tela: "encerrarEscritorio"},
-    {nome: "Outros", sub: [...manter, ...(outros ? outros.sub : [])]}
+    {nome: "Abrir SS de vazamento de rede", tela: "ssVazRede"},
+    {nome: "Abrir SS de vazamento de ramal", tela: "ssVazRamal"},
+    {nome: "Abrir SS de vazamento de hidrômetro", tela: "ssVazHid"},
+    {nome: "Abrir SS e mandar no Digitim", tela: "solicitarSS"},
+    {nome: "SS vencendo em até 24 horas", tela: "ssVenc24"},
+    {nome: "SS vencendo em até 48 horas", tela: "ssVenc48"},
+    {nome: "SS em aberto no ciclo de 3 meses", tela: "ssTodas"},
+    {nome: "Outros", sub: resto}
   ];
 }
 // Operadores de Mozondó e Angico: níveis do macro, ocorrência, reclamação Coelba; o resto em Outros
