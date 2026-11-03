@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 11h45</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 11h55</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -1400,6 +1400,7 @@ function trocarPerfil() {
 function mostrarMenu(itens, titulo) {
   if (!pilha.length) itens = [{nome: "Serviços urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
   itens = itens.filter(i => (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
+  window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
   if (pilha.length) html += `<button class="voltar" onclick="voltar()">← Voltar</button>`;
@@ -1448,8 +1449,9 @@ async function atualizarContagemSS() {
 }
 
 function abrir(i) {
-  const menu = pilha.length ? pilha[pilha.length-1].itens : menuDoPerfil();
+  const menu = window.menuNaTela || (pilha.length ? pilha[pilha.length-1].itens : menuDoPerfil());
   const it = menu[i];
+  if (!it) return;
   if (it.sub) {
     pilha.push({itens: it.sub, titulo: it.nome});
     mostrarMenu(it.sub, it.nome);
