@@ -3,7 +3,8 @@
  * Cole este arquivo INTEIRO no Codigo.gs (apague o que estiver lá antes) e faça uma nova implantação.
  * Ações desta versão: login, listar, gravarVarias, gravar, trocarSenha, pedirNovaSenha,
  * responderSS, marcarEncerrada, concluirServicoUrgente, salvarFoto,
- * responderOcorrencia, finalizarOcorrencia, encerrarOcorrencia, editarOcorrencia, editarNivel.
+ * responderOcorrencia, finalizarOcorrencia, encerrarOcorrencia, editarOcorrencia, editarNivel, atualizarEpi.
+ * EPI: pedidos vão só para a gerência (sem e-mail automático); destino Consórcio ou EMBASA conforme o funcionário.
  * As outras ações do painel (níveis, medição, EPI, acessos, RILC, ocorrências, Agersa) entram depois.
  */
 
@@ -58,6 +59,11 @@ function podeMovimentarAlmox(quem, local) {
   if (GERENCIA_USUARIOS.some(g => eu.includes(g))) return true;
   return (PERMISSAO_ALMOX[local] || []).some(n => normalizarTexto(n) && eu.includes(normalizarTexto(n)));
 }
+// Próprios da EMBASA recebem EPI pela EMBASA; os demais, pelo consórcio
+const EPI_PROPRIOS = ["acacio", "eduardo", "janiogualberto", "janiolima", "ivo"];
+function destinoEpi(usuario) {
+  return EPI_PROPRIOS.indexOf(normalizarTexto(usuario)) >= 0 ? "EMBASA" : "Consórcio";
+}
 function obterPastaFotos() {
   const it = DriveApp.getFoldersByName(PASTA_FOTOS);
   return it.hasNext() ? it.next() : DriveApp.createFolder(PASTA_FOTOS);
@@ -95,6 +101,9 @@ function doPost(e) {
         if (req.aba === "Almoxarifado") {
           const bloqueada = linhas.some(l => !podeMovimentarAlmox(quem, l[2]));
           if (bloqueada) return resposta({ erro: "Você não pode retirar ou adicionar neste almoxarifado. Só a equipe do local (ou a gerência)." });
+        }
+        if (req.aba === "EPI") {
+          linhas.forEach(l => { l[5] = "pendente"; l[9] = destinoEpi(quem.usuario); });
         }
         const destino = aba(req.aba);
         linhas.forEach(l => destino.appendRow(l));
@@ -229,6 +238,37 @@ function doPost(e) {
         const antes = niv.getRange(linha, 5).getValue();
         niv.getRange(linha, 5).setValue(Number(req.valor));
         registrarHistorico(quem.usuario, "editou nível", "linha " + linha + ": " + antes + " → " + req.valor);
+        return resposta({ ok: true });
+      }
+
+      // EPI: situacao(6) enviado_por(7) data_envio(8) data_assinatura(9) destino(10) encerrado_por(11) data_encerramento(12)
+      // Um pedido = todas as linhas com o mesmo usuário e data_hora. Etapas: enviado (gerência), assinado (funcionário), encerrado (gerência)
+      case "atualizarEpi": {
+        const epi = aba("EPI");
+        const linha = Number(req.linha);
+        const dados = epi.getDataRange().getValues();
+        if (!linha || linha < 2 || !dados[linha - 1]) return resposta({ erro: "Pedido não encontrado" });
+        const alvo = dados[linha - 1];
+        const dono = String(alvo[1]).toLowerCase();
+        const gerencia = GERENCIA_USUARIOS.indexOf(String(quem.usuario).toLowerCase()) >= 0;
+        const grupo = [];
+        for (let i = 1; i < dados.length; i++) {
+          if (String(dados[i][1]).toLowerCase() === dono && String(dados[i][0]) === String(alvo[0])) grupo.push(i + 1);
+        }
+        const agora = new Date();
+        if (req.etapa === "enviado") {
+          if (!gerencia) return resposta({ erro: "Só a gerência marca o envio do EPI" });
+          grupo.forEach(r => { epi.getRange(r, 6).setValue("enviado"); epi.getRange(r, 7).setValue(quem.usuario); epi.getRange(r, 8).setValue(agora); });
+        } else if (req.etapa === "assinado") {
+          if (String(quem.usuario).toLowerCase() !== dono) return resposta({ erro: "Só quem recebeu confirma a assinatura da ficha" });
+          grupo.forEach(r => { epi.getRange(r, 6).setValue("assinado"); epi.getRange(r, 9).setValue(agora); });
+        } else if (req.etapa === "encerrado") {
+          if (!gerencia) return resposta({ erro: "Só a gerência encerra o chamado" });
+          grupo.forEach(r => { epi.getRange(r, 6).setValue("encerrado"); epi.getRange(r, 11).setValue(quem.usuario); epi.getRange(r, 12).setValue(agora); });
+        } else {
+          return resposta({ erro: "Etapa inválida" });
+        }
+        registrarHistorico(quem.usuario, "EPI " + req.etapa + " (" + dono + ")", "linhas " + grupo.join(","));
         return resposta({ ok: true });
       }
 

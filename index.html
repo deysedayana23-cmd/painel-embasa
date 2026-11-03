@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 21h05</div>
+  <div style="font-size:12px;opacity:.85">Versão 03/11 21h30</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
 </header>
@@ -463,14 +463,17 @@ const TELAS = {
         <select id="fer_m_${i}" class="campo">${MOTIVOS_FERRAMENTA.map(m => `<option>${m}</option>`).join("")}</select>
         <input id="fer_q_${i}" class="campo" type="number" min="0" value="0" placeholder="Quantidade">
       </div>`).join("")}
-    <button class="acao" onclick="enviarTudoEpi()">Enviar pedido de EPI e ferramentas</button>`,
+    <button class="acao" onclick="enviarTudoEpi()">Enviar pedido de EPI e ferramentas</button>
+    <h3>Meus pedidos de EPI</h3>
+    <div id="epi_meus">Carregando...</div>`,
 
   episHistorico: () => `<h2>Pedidos de EPI</h2>
-    <div class="nota">Marque os pedidos que quer juntar num e-mail só.</div>
+    <div class="nota">Os pedidos chegam aqui. Você marca quando o EPI foi enviado e quando a ficha chegou assinada. O funcionário confirma que recebeu e assinou.</div>
     <div id="epi_lista">Carregando...</div>
-    <h3>E-mail com os pedidos marcados</h3>
+    <h3>E-mail único com os pedidos em aberto</h3>
+    <select id="epi_destino" class="campo"><option>Todos</option><option>Consórcio</option><option>EMBASA</option></select>
     <input id="epi_para" class="campo" placeholder="Para (e-mail do destinatário)">
-    <button class="acao" onclick="gerarEmailEpi()">Gerar e-mail com os marcados</button>
+    <button class="acao" onclick="gerarEmailEpi()">Gerar e-mail com os pedidos em aberto</button>
     <textarea id="epi_email" class="campo" rows="10" placeholder="O e-mail aparece aqui"></textarea>
     <button class="acao" style="background:#555" onclick="copiarEmailEpi()">Copiar e-mail</button>
     <a id="epi_mailto" class="acao" style="display:none;padding:10px 14px;text-decoration:none" href="#">Abrir no meu e-mail</a>`,
@@ -1473,6 +1476,7 @@ function abrir(i) {
       mostrarEscalaMes(Number(ano), Number(mesNum) - 1);
     }
     if (it.tela === "episHistorico") carregarEpiGerente();
+    if (it.tela === "epi") carregarEpiMeus("epi_meus");
     if (it.tela === "meusPedidos") carregarMeusPedidos();
     if (it.tela === "ferrHistorico") verHistorico("Ferramentas");
     if (it.tela === "horaExtraHist") carregarHoraExtraHist();
@@ -4224,29 +4228,64 @@ async function enviarTudoEpi() {
   }
 }
 
-// ===== PEDIDOS DE EPI: o funcionário vê só os seus; a gerência vê todos =====
-// colunas da aba EPI: data_hora, usuario, item, tamanho, quantidade, situacao, entregue_por, data_entrega, data_recebimento
+// ===== PEDIDOS DE EPI =====
+// Aba EPI: data_hora | usuario | item | tamanho | quantidade | situacao | enviado_por | data_envio | data_assinatura | destino | encerrado_por | data_encerramento
+// situacao: pendente (pedido) -> enviado (gerência enviou ao funcionário) -> assinado (funcionário recebeu e assinou a ficha) -> encerrado (gerência recebeu a ficha)
+const EPI_ETAPAS = {
+  pendente: "Pedido recebido, aguardando envio",
+  enviado: "Enviado a você: receba, assine a ficha e confirme",
+  assinado: "Ficha assinada, aguardando a gerência receber a ficha",
+  encerrado: "Encerrado"
+};
+const EPI_COR = { pendente: "#c62828", enviado: "#f9a825", assinado: "#0a6e8a", encerrado: "#2e7d32" };
+// Um pedido = todas as linhas com mesmo usuário e mesma data_hora (vários itens)
+async function listarEpiGrupos() {
+  const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EPI" });
+  if (res.erro) throw new Error(res.erro);
+  const grupos = {};
+  res.dados.forEach((l, i) => {
+    if (i === 0 || !l[1]) return;
+    const chave = String(l[1]).toLowerCase() + "|" + String(l[0]);
+    if (!grupos[chave]) grupos[chave] = { chave, data: l[0], quem: l[1], destino: l[9] || "", situacao: l[5] || "pendente", linhas: [], itens: [], enviadoPor: l[6] || "", fim: l[11] || "" };
+    grupos[chave].linhas.push(i + 1);
+    grupos[chave].itens.push(`${l[2]} · tamanho ${l[3]} · qtd ${l[4]}`);
+    if (l[5]) grupos[chave].situacao = l[5];
+  });
+  return Object.values(grupos).sort((x, y) => String(y.data) < String(x.data) ? -1 : 1);
+}
+function epiCard(g, papel) {
+  const cor = EPI_COR[g.situacao] || "#c62828";
+  let botao = "";
+  if (papel === "gestao") {
+    if (g.situacao === "pendente") botao = `<button class="acao" onclick="atualizarEpi(${g.linhas[0]}, 'enviado')">Marcar como enviado ao funcionário</button>`;
+    if (g.situacao === "assinado") botao = `<button class="acao" onclick="atualizarEpi(${g.linhas[0]}, 'encerrado')">Ficha recebida: encerrar chamado</button>`;
+  } else if (g.situacao === "enviado") {
+    botao = `<button class="acao" onclick="atualizarEpi(${g.linhas[0]}, 'assinado')">Recebi e assinei a ficha</button>`;
+  }
+  const quem = papel === "gestao" ? `<b>${g.quem}</b> · ` : "";
+  return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${cor}">${quem}<b>${g.destino || "—"}</b><br>` +
+    `<span style="font-size:14px">${g.itens.join("<br>")}</span><br>` +
+    `<span style="font-size:14px">Pedido em ${formatarQuando(g.data)} · <b>${EPI_ETAPAS[g.situacao] || g.situacao}</b></span>${botao}</div>`;
+}
+// Funcionário: histórico dos próprios pedidos (dentro do botão EPI)
+async function carregarEpiMeus(boxId = "epi_meus") {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const eu = String(window.credenciais.usuario).toLowerCase();
+    const grupos = (await listarEpiGrupos()).filter(g => g.quem.toLowerCase() === eu);
+    box.innerHTML = grupos.length ? grupos.map(g => epiCard(g, "eu")).join("") : "<p>Nenhum pedido de EPI.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
 async function carregarMeusPedidos() {
   const box = document.getElementById("mp_lista");
   if (!box) return;
   box.textContent = "Carregando...";
   try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EPI" });
-    if (res.erro) { box.textContent = res.erro; return; }
     const eu = String(window.credenciais.usuario).toLowerCase();
-    const itens = [];
-    res.dados.forEach((l, i) => {
-      if (i === 0 || String(l[1]).toLowerCase() !== eu) return;
-      itens.push({ linha: i + 1, data: l[0], item: l[2], tam: l[3], qtd: l[4], situacao: l[5] || "pendente" });
-    });
-    let html = itens.length ? itens.reverse().map(p => {
-      const tag = p.situacao === "recebido" ? '<span class="tag t-ok">Recebido</span>'
-        : p.situacao === "entregue" ? '<span class="tag t-alerta">Entregue: confirme o recebimento</span>'
-        : '<span class="tag t-alerta">Pendente</span>';
-      const botao = p.situacao === "entregue" ? `<button class="acao" onclick="atualizarEpi(${p.linha}, 'recebido')">Confirmar recebido</button>` : "";
-      return `<div class="card" style="margin-bottom:8px"><b>${p.item}</b> · tamanho ${p.tam} · qtd ${p.qtd}<br>` +
-        `<span style="font-size:14px">Pedido em ${formatarQuando(p.data)} · ${tag}</span>${botao}</div>`;
-    }).join("") : "<p>Nenhum pedido de EPI.</p>";
+    const grupos = (await listarEpiGrupos()).filter(g => g.quem.toLowerCase() === eu);
+    let html = "<h3>Pedidos de EPI</h3>" + (grupos.length ? grupos.map(g => epiCard(g, "eu")).join("") : "<p>Nenhum pedido de EPI.</p>");
     const rs = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
     html += "<h3>Pedidos de SS</h3>";
     const ssMinhas = rs.erro ? [] : rs.dados.slice(1).filter(l => String(l[1]).toLowerCase() === eu);
@@ -4254,7 +4293,6 @@ async function carregarMeusPedidos() {
       const resp = l[10] === "respondida" && l[11];
       return `<div class="card" style="margin-bottom:8px"><b>${l[2]}</b> · ${l[4]}<br><span style="font-size:14px">Pedido em ${formatarQuando(l[0])} · ${resp ? "SS nº <b>" + l[11] + "</b>" + (l[14] ? " · enviada ao Digiteam de " + l[14] : "") + (l[16] ? " · concluída: " + l[16] : "") + (l[17] ? " · foto anexada: " + l[17] : "") : '<span class="tag t-alerta">Nas pendências do SCI, aguardando oportunidade</span>'}</span></div>`;
     }).join("") : "<p>Nenhum pedido de SS.</p>";
-    // RILC: resposta da gerência para quem pediu
     const rr = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "RILC" });
     html += "<h3>Compras em loja (RILC)</h3>";
     const rilcMinhas = rr.erro ? [] : rr.dados.slice(1).filter(l => String(l[1]).toLowerCase() === eu);
@@ -4265,41 +4303,33 @@ async function carregarMeusPedidos() {
     box.innerHTML = html;
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
+// Gestão: todos os pedidos, com o botão da próxima etapa
 async function carregarEpiGerente(boxId = "epi_lista") {
   const box = document.getElementById(boxId);
   if (!box) return;
   box.textContent = "Carregando...";
   try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EPI" });
-    if (res.erro) { box.textContent = res.erro; return; }
-    const itens = [];
-    res.dados.forEach((l, i) => {
-      if (i === 0) return;
-      itens.push({ linha: i + 1, data: l[0], quem: l[1], item: l[2], tam: l[3], qtd: l[4], situacao: l[5] || "pendente", por: l[6] });
-    });
-    if (!itens.length) { box.innerHTML = "<p>Nenhum pedido de EPI.</p>"; return; }
-    itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
-    window.episItens = itens;
-    box.innerHTML = itens.reverse().map(p => {
-      const pendente = p.situacao === "pendente";
-      const tag = p.situacao === "recebido" ? `<span class="tag t-ok">Recebido</span>`
-        : p.situacao === "entregue" ? `<span class="tag t-alerta">Entregue por ${p.por || "—"}, aguardando recebimento</span>`
-        : `<span class="tag t-alerta">Pendente</span>`;
-      const botao = pendente ? `<button class="acao" onclick="atualizarEpi(${p.linha}, 'entregue')">Marcar como entregue</button>` : "";
-      return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${pendente ? "#c62828" : "#2e7d32"}"><input type="checkbox" class="epi_sel" value="${p.linha}"> <b>${p.quem}</b> · ${p.item} · tamanho ${p.tam} · qtd ${p.qtd}<br>` +
-        `<span style="font-size:14px">Pedido em ${formatarQuando(p.data)} · ${tag}</span>${botao}</div>`;
-    }).join("");
+    const grupos = await listarEpiGrupos();
+    window.episGrupos = grupos;
+    const abertos = grupos.filter(g => g.situacao !== "encerrado");
+    const fechados = grupos.filter(g => g.situacao === "encerrado");
+    box.innerHTML = `<h3>Em aberto (${abertos.length})</h3>` + (abertos.length ? abertos.map(g => epiCard(g, "gestao")).join("") : "<p>Nenhum.</p>") +
+      `<h3>Encerrados (${fechados.length})</h3>` + (fechados.length ? fechados.map(g => epiCard(g, "gestao")).join("") : "<p>Nenhum.</p>");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
-// E-mail com os pedidos de EPI marcados (copiar ou abrir no e-mail)
+// E-mail único com os pedidos em aberto, separados por destino (consórcio ou EMBASA)
 function gerarEmailEpi() {
-  const marcados = [...document.querySelectorAll(".epi_sel:checked")].map(c => Number(c.value));
-  const itens = (window.episItens || []).filter(p => marcados.includes(p.linha));
-  if (!itens.length) { alert("Marque pelo menos um pedido."); return; }
+  const filtro = (document.getElementById("epi_destino") || {}).value || "Todos";
+  const abertos = (window.episGrupos || []).filter(g => g.situacao !== "encerrado" && (filtro === "Todos" || g.destino === filtro));
+  if (!abertos.length) { alert("Não há pedidos em aberto para esse destino."); return; }
   const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  const assunto = "Pedidos de EPI – " + hoje;
-  const linhas = itens.map(p => `• ${p.quem}: ${p.item} – tamanho ${p.tam} – quantidade ${p.qtd} (pedido em ${formatarQuando(p.data)})`);
-  const corpo = "Segue a relação de pedidos de EPI:\n\n" + linhas.join("\n") + "\n\nAtt.,\n" + (window.nomeUsuario || "");
+  const assunto = "Pedidos de EPI em aberto – " + hoje;
+  const blocos = [...new Set(abertos.map(g => g.destino || "Sem destino"))].map(d => {
+    const linhas = abertos.filter(g => (g.destino || "Sem destino") === d).map(g =>
+      `• ${g.quem} (pedido em ${formatarQuando(g.data)}):\n` + g.itens.map(i => "    - " + i).join("\n"));
+    return d.toUpperCase() + ":\n" + linhas.join("\n");
+  });
+  const corpo = "Segue a relação de pedidos de EPI em aberto:\n\n" + blocos.join("\n\n") + "\n\nAtt.,\n" + (window.nomeUsuario || "");
   document.getElementById("epi_email").value = "Assunto: " + assunto + "\n\n" + corpo;
   const link = document.getElementById("epi_mailto");
   link.href = "mailto:" + encodeURIComponent(document.getElementById("epi_para").value.trim()) + "?subject=" + encodeURIComponent(assunto) + "&body=" + encodeURIComponent(corpo);
@@ -4314,7 +4344,8 @@ async function atualizarEpi(linha, etapa) {
   try {
     const res = await chamarApi({ acao: "atualizarEpi", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, etapa: etapa });
     if (res.erro) { alert(res.erro); return; }
-    if (etapa === "entregue") carregarEpiGerente(); else carregarMeusPedidos();
+    if (etapa === "assinado") carregarEpiMeus(); else carregarEpiGerente();
+    if (etapa === "assinado" && typeof carregarMeusPedidos === "function") carregarMeusPedidos();
   } catch (e) { alert("Não consegui atualizar. Verifique a internet."); }
 }
 
