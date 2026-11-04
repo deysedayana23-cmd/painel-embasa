@@ -1530,6 +1530,14 @@ function visivelBotao(nome, tela) {
   if (r === "operadores") return GRUPOS_BOTAO.operadores.some(tem);
   return r.some(k => k === "agentes" ? GRUPOS_BOTAO.agentes.some(tem) : k === "operadores" ? GRUPOS_BOTAO.operadores.some(tem) : tem(k));
 }
+// Puxa para o menu principal os itens que estão dentro de "Outros" e devolve [principal, novoOutros]
+function promoverDoOutros(itens, pred) {
+  const outros = itens.find(i => i.nome === "Outros" && i.sub);
+  const pool = [...itens.filter(i => i !== outros && i.nome !== "Outros"), ...(outros ? outros.sub : [])];
+  const principal = []; const resto = [];
+  pool.forEach(i => { if (pred(i)) { if (!principal.some(p => p.nome === i.nome && p.tela === i.tela)) principal.push(i); } else resto.push(i); });
+  return [principal, resto];
+}
 function mostrarMenu(itens, titulo) {
   if (!pilha.length) itens = [{nome: "Serviços urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
   // Demandas Agersa aparece para todos; cada um vê só a(s) localidade(s) que atende
@@ -1542,16 +1550,14 @@ function mostrarMenu(itens, titulo) {
   if (!pilha.length && /^Agente/.test(String(perfilAtual || ""))) {
     const principalCampo = ["Pendência de SS para executar", "Solicitação no SCI", "Vazamento de rede", "Vazamento de ramal",
       "Abrir e encerrar SS", "Solicitação ao Digiteam", "Demandas Agersa"];
-    const fixos = itens.filter(i => principalCampo.includes(i.nome) || i.tela === "pendExecutar");
+    let [fixos, restoCampo] = promoverDoOutros(itens, i => principalCampo.includes(i.nome) || ["pendExecutar", "ssRede", "ssRamal", "ssVazRede", "ssVazRamal", "ssVazHid", "solicitarSS"].includes(i.tela));
     // Histórico dos níveis dos reservatórios e macro, para todos os agentes (só consulta)
     fixos.push({nome: "Histórico de níveis dos reservatórios", sub: [
       {nome: "ETA São Desidério", tela: "nivelHistSD"},
       {nome: "ETA Angico", tela: "nivelHistAngico"},
       {nome: "ETA Mozondó", tela: "nivelHistMozondo"}
     ]});
-    const outrosAtuais = itens.find(i => i.nome === "Outros" && i.sub);
-    const mover = itens.filter(i => !fixos.includes(i) && i !== outrosAtuais && i.nome !== "Outros" && i.tela !== "nivelHistorico");
-    const outrosSub = [...(outrosAtuais ? outrosAtuais.sub : []), ...mover];
+    const outrosSub = restoCampo;
     itens = [...fixos];
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
@@ -1563,7 +1569,7 @@ function mostrarMenu(itens, titulo) {
       {nome: "Ocorrência operacional", tela: "ocorPedidos"},
       {nome: "Contas, SCI e Digiteam", tela: "pedidosSS"}
     ]};
-    const fixosGer = itens.filter(i => ["pedidosSS", "encerrarEscritorio"].includes(i.tela));
+    const [fixosGer] = promoverDoOutros(itens, i => ["pedidosSS", "encerrarEscritorio"].includes(i.tela));
     itens = [demandas, ...fixosGer];
   }
   if (!pilha.length && /^Operador/.test(String(perfilAtual || ""))) {
