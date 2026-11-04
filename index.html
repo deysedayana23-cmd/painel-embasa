@@ -592,6 +592,13 @@ const TELAS = {
   ssRamal: () => telaPedidoSS(true),
   pedidosSS: () => telaPedidosSS(),
   semLocalizacao: () => `<h2>Matrículas sem localização</h2><div class="nota">Matrículas das SS pendentes que ainda não têm coordenada (nem na tabela, nem na BaseLocalizacao, nem no GPS de campo).</div><div id="sl2_lista">Carregando...</div>`,
+  ssDigiteam: () => telaSSLista("Solicitação ao Digiteam"),
+  analiseConsumo: () => `<h2>Análise de consumo</h2><div class="nota">Esta tela ainda não está no painel.</div>`,
+  buscarMatricula: () => `<h2>Buscar por matrícula, HD ou nome</h2><div class="nota">Esta tela ainda não está no painel.</div>`,
+  pedidoUNBA: () => `<h2>Pedido à UNBA</h2>
+    <div class="nota">Pedido de tubos ou serviços diversos. Chega no painel da Deyse.</div>
+    <select id="un_tipo" class="campo" onchange="mostrarCamposUNBA()"><option value="">Escolha o tipo…</option><option value="tubos">Pedido de tubos</option><option value="diversos">Serviços diversos</option></select>
+    <div id="un_campos"></div>`,
   pendExecutar: () => `<h2>SS pendente</h2><div class="nota">Quando executar a SS em campo, toque em "OK, executada". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
   ocorPedidos: () => `<h2>Pedidos de ocorrência operacional</h2><div class="nota">Abra a ocorrência no SCI e devolva o número para a equipe. O pedido sai da lista.</div><div id="oc_ger">Carregando...</div>`,
   pendAbrirEncerrar: () => `<h2>Pendências de abrir e encerrar SS</h2><div class="nota">Quando a SS for gerada, digite o número e marque como concluída. Ela sai da lista.</div><div id="pae_lista">Carregando...</div>`,
@@ -702,7 +709,9 @@ const TELAS = {
 const PERFIS = {
   "Agente de campo (exemplo: Luzenildo)": [
     {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true},
-    {nome:"SCI", sub:[
+    {nome:"Solicitação no SCI", sub:[
+      {nome:"Análise de consumo", tela:"analiseConsumo"},
+      {nome:"Buscar por matrícula, HD ou nome", tela:"buscarMatricula"},
       {nome:"Gerar SS e mandar para o Digiteam", tela:"solicitarSS"},
       {nome:"Segunda via", tela:"segundaVia"},
       {nome:"Débitos em atraso", tela:"debitos"},
@@ -1408,6 +1417,8 @@ const CONTRATOS_COELBA = [
 // Reclamação Coelba aparece para todos os perfis
 Object.entries(PERFIS).forEach(([chave, lista]) => {
   lista.push({ nome: "Reclamação Coelba", tela: "coelba" });
+  lista.push({ nome: "Solicitação ao Digiteam", tela: "ssDigiteam" });
+  lista.push({ nome: "Pedido à UNBA", tela: "pedidoUNBA" });
   if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "aquisicao")) lista.push({ nome: "RILC (compra em loja)", tela: "aquisicao" });
   if (!chave.startsWith("Gerente")) lista.push({ nome: "Reforma ou conserto de equipamento", tela: "conserto" });
   if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "gersa")) lista.push({ nome: "Demandas Agersa", tela: "gersa" });
@@ -1434,7 +1445,7 @@ PERFIS["Operador Angico (Ramon ou Renato)"] = [
 ];
 // Menu enxuto: o principal fica com o que é de uso diário; o resto vai para "Outros"
 const PRINCIPAL_CAMPO = ["Vazamento de rede", "Vazamento de ramal", "SS para encerrar pelo escritório", "Pedir abertura de SS", "Abrir e encerrar SS",
-  "Ocorrência operacional", "SCI", "Urgências",
+  "Ocorrência operacional", "Solicitação no SCI", "Urgências",
   "Níveis e macro ETA", "Níveis dos reservatórios", "Estoque diário produto químico"];
 const PRINCIPAL_GERENTE = ["SS para encerrar pelo escritório", "Adicionar informações", "Pendências de aprovação", "Urgências (criar e acompanhar)", "Pedidos de SS (gerar e responder)",
   "Pedidos de SS da equipe", "Relatório de hora extra", "Pedidos de EPI", "Pedidos RILC", "Solicitações de aquisição",
@@ -1499,14 +1510,15 @@ const REGRA_BOTAO = {
   "EPI": "menos_deyse",
   "SS para encerrar pelo escritório": ["deyse", "thiago", "oseias", "igor", "alan", "genildo"],
   "SS pendente": ["luzenildo", "joaquim", "carlito", "francisco"],
+  "pendExecutar": ["luzenildo", "joaquim", "carlito", "francisco"],
   "Níveis e macro ETA": "operadores",
   "Estoque diário produto químico": ["operadores", "deyse"],
   "Abastecimento (cartões)": ["deyse", "thiago", "tiago"],
   "Entrega de contas da prefeitura": ["agentes", "deyse", "thiago", "tiago"],
   "Pedido à UNBA": ["agentes", "thiago", "tiago", "deyse"]
 };
-function visivelBotao(nome) {
-  const r = REGRA_BOTAO[nome];
+function visivelBotao(nome, tela) {
+  const r = REGRA_BOTAO[nome] || REGRA_BOTAO[tela];
   if (!r) return true;
   const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
   const tem = k => quem.includes(k);
@@ -1518,7 +1530,7 @@ function mostrarMenu(itens, titulo) {
   if (!pilha.length) itens = [{nome: "Serviços urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
   // Demandas Agersa aparece para todos; cada um vê só a(s) localidade(s) que atende
   if (!pilha.length && !window.MODO_GERENTE && !perfilAtual.startsWith("Gerente") && !itens.some(i => i.tela === "gersa")) itens = [...itens, {nome: "Demandas Agersa", tela: "gersa"}];
-  itens = itens.filter(i => (pilha.length || visivelBotao(i.nome)) && (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
+  itens = itens.filter(i => (pilha.length || visivelBotao(i.nome, i.tela)) && (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
@@ -1627,6 +1639,7 @@ function abrir(i) {
     if (it.tela === "ssVenc24") carregarSSLista("24");
     if (it.tela === "ssVenc48") carregarSSLista("48");
     if (it.tela === "ssTodas") carregarSSLista("todas");
+    if (it.tela === "ssDigiteam") carregarSSLista("todas");
     if (it.tela === "medicao") carregarMedicao();
     if (it.tela === "mapaAquisicoes") carregarSolicitacoesAquisicao();
     if (it.tela === "mapaPedidos") carregarPedidosSS();
@@ -2872,6 +2885,38 @@ async function marcarEncerrada(linha) {
 
 // ===== LISTA DE SS PARA A EQUIPE: vencendo em 24 ou 48 horas e todas em aberto. Quem está na rua marca e escolhe a ação =====
 // Aba SSAbertas (exportada do SCI pela gerência): ss | tipo | localidade | abertura | vencimento | situacao | nome | matricula
+function mostrarCamposUNBA() {
+  const t = document.getElementById("un_tipo").value;
+  const loc = `<label>Localidade <input id="un_loc" class="campo"></label><label>Bairro <input id="un_bairro" class="campo"></label><label>Logradouro <input id="un_log" class="campo"></label>`;
+  if (t === "tubos") {
+    document.getElementById("un_campos").innerHTML = loc + `<label>Quantos metros precisa <input id="un_metros" type="number" class="campo"></label><label>Quantas ligações foram solicitadas <input id="un_ligacoes" type="number" class="campo"></label><button class="acao" onclick="enviarPedidoUNBA()">Enviar pedido</button>`;
+  } else if (t === "diversos") {
+    document.getElementById("un_campos").innerHTML = loc + `<label>Escreva o pedido <textarea id="un_texto" class="campo" rows="3"></textarea></label><label>É urgente? <select id="un_urg" class="campo"><option value="nao">Não</option><option value="sim">Sim</option></select></label><label>Se for urgente, explique o motivo <textarea id="un_motivo" class="campo" rows="2"></textarea></label><button class="acao" onclick="enviarPedidoUNBA()">Enviar pedido</button>`;
+  } else document.getElementById("un_campos").innerHTML = "";
+}
+async function enviarPedidoUNBA() {
+  const t = document.getElementById("un_tipo").value;
+  const loc = document.getElementById("un_loc").value.trim(), bairro = document.getElementById("un_bairro").value.trim(), log = document.getElementById("un_log").value.trim();
+  if (!loc || !bairro || !log) { alert("Informe localidade, bairro e logradouro."); return; }
+  let tipo, detalhe, obs = "";
+  if (t === "tubos") {
+    const m = document.getElementById("un_metros").value, l = document.getElementById("un_ligacoes").value;
+    if (!m || !l) { alert("Informe os metros e a quantidade de ligações."); return; }
+    tipo = "Pedido à UNBA – tubos"; detalhe = `Metros: ${m} · Ligações solicitadas: ${l}`;
+  } else {
+    const txt = document.getElementById("un_texto").value.trim(), urg = document.getElementById("un_urg").value, mot = document.getElementById("un_motivo").value.trim();
+    if (!txt) { alert("Escreva o pedido."); return; }
+    if (urg === "sim" && !mot) { alert("Explique o motivo da urgência."); return; }
+    tipo = "Pedido à UNBA – serviço diverso"; detalhe = txt; obs = `Urgente: ${urg === "sim" ? "sim – " + mot : "não"}`;
+  }
+  const linha = [new Date().toISOString(), window.credenciais.usuario, tipo, detalhe, loc, bairro, log, "", "", obs, "pendente", "", "", "", "", ""];
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS", linhas: [linha] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Pedido enviado para a Deyse.");
+    renderAtual();
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
+}
 function telaSSLista(titulo) {
   return `<h2>${titulo}</h2>
     <select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option><option>Só gerar</option></select>
