@@ -1537,6 +1537,18 @@ function mostrarMenu(itens, titulo) {
   itens = itens.filter(i => (pilha.length || visivelBotao(i.nome, i.tela)) && (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
   // Operadores: no menu principal só Ocorrência operacional, Reclamação Coelba e Consumo de produto químico
   // (Igor e Oseias também veem SS para encerrar pelo escritório). O resto vai para Outros.
+  // Agentes de campo: no menu principal só Pendência de SS, Solicitação no SCI, SS de vazamento, Abrir e encerrar SS,
+  // Solicitação ao Digiteam e Demandas Agersa. O resto vai para Outros.
+  if (!pilha.length && /^Agente/.test(String(perfilAtual || ""))) {
+    const principalCampo = ["Pendência de SS para executar", "Solicitação no SCI", "Vazamento de rede", "Vazamento de ramal",
+      "Abrir e encerrar SS", "Solicitação ao Digiteam", "Demandas Agersa"];
+    const fixos = itens.filter(i => principalCampo.includes(i.nome) || i.tela === "pendExecutar");
+    const outrosAtuais = itens.find(i => i.nome === "Outros" && i.sub);
+    const mover = itens.filter(i => !fixos.includes(i) && i !== outrosAtuais && i.nome !== "Outros");
+    const outrosSub = [...(outrosAtuais ? outrosAtuais.sub : []), ...mover];
+    itens = [...fixos];
+    if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
+  }
   if (!pilha.length && /^Operador/.test(String(perfilAtual || ""))) {
     const quem = normalizarNome(window.credenciais && window.credenciais.usuario);
     const principalOp = ["Ocorrência operacional", "Reclamação Coelba", "Estoque diário produto químico"];
