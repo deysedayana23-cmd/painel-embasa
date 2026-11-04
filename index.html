@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 10h41</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 10h52</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -2964,6 +2964,8 @@ function telaEncerrarEscritorio() {
     <select id="ee_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
     <textarea id="ee_obs" class="campo" rows="2" placeholder="Observação (o que foi feito)"></textarea>
     <button class="acao" onclick="enviarEncerrarEscritorio()">Enviar para o escritório encerrar</button>
+    <button id="ee_btn_anexar" class="acao" style="background:#6a1b9a" onclick="carregarAnexarDocumento()">Anexar documento à SS já encerrada</button>
+    <div id="ee_anexar"></div>
     <h3>Pendentes</h3><div id="ee_lista">Carregando...</div>`;
 }
 async function enviarEncerrarEscritorio() {
@@ -2989,8 +2991,10 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EncerrarSS" });
     if (res.erro) { box.textContent = res.erro; return; }
-    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], ss: l[2], serv: l[3], loc: l[4], obs: l[5], situacao: l[6] || "pendente", por: l[7] || "" }))
-      .filter(x => x.situacao === "pendente").reverse();
+    const todasEE = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], ss: l[2], serv: l[3], loc: l[4], obs: l[5], situacao: l[6] || "pendente", por: l[7] || "", fotos: l[9] || "" }));
+    const qAnexar = todasEE.filter(x => x.situacao === "anexar").length;
+    const bAn = document.getElementById("ee_btn_anexar"); if (bAn) bAn.textContent = "Anexar documento à SS já encerrada (" + qAnexar + ")";
+    const itens = todasEE.filter(x => x.situacao === "pendente").reverse();
     box.innerHTML = itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
       ${x.obs ? `<br><span style="font-size:14px;color:#b71c1c;font-weight:600">${x.obs}</span>` : ""}
@@ -3911,9 +3915,51 @@ async function carregarPendExecutar() {
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
       ${(() => { const k = cab.findIndex(h => /hidrom/i.test(String(h))); return String(x.loc).trim() === "São Desidério" && !(k >= 0 && String(x.extras[k - 7] || "").trim()) ? `<div style="font-size:14px;color:#b71c1c">Sem número do HD</div>` : ""; })()}
       ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
-      <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
+      <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço (opcional)</b><br>
+        <button onclick="document.getElementById('pexcam_${x.ss}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:600">📷 Tirar foto</button>
+        <button onclick="document.getElementById('pexgal_${x.ss}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#fff;color:#555;font-weight:600">Anexar do celular</button>
+        <input type="file" id="pexcam_${x.ss}" accept="image/*" capture="environment" style="display:none" onchange="addFotoPex('${x.ss}', this)">
+        <input type="file" id="pexgal_${x.ss}" accept="image/*" multiple style="display:none" onchange="addFotoPex('${x.ss}', this)">
+        <div id="pexfotos_${x.ss}" class="nota">${((window.fotosPex || {})[x.ss] || []).length} foto(s)</div></div>
+      <button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
     </div>`).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+// Fotos do serviço executado (SS pendente): ficam guardadas por SS até o OK
+function addFotoPex(ss, input) {
+  window.fotosPex = window.fotosPex || {};
+  const lista = window.fotosPex[ss] = window.fotosPex[ss] || [];
+  Array.from(input.files || []).forEach(a => { if (lista.length < 10) lista.push(a); });
+  input.value = "";
+  const el = document.getElementById("pexfotos_" + ss);
+  if (el) el.textContent = lista.length + " foto(s): " + lista.map(f => f.name).join(", ");
+}
+// Encerrar SS > Anexar documento à SS já encerrada: SS executadas com foto (EncerrarSS com situacao "anexar", fotos na coluna 10)
+async function carregarAnexarDocumento() {
+  const box = document.getElementById("ee_anexar");
+  if (!box) return;
+  if (box.dataset.aberto === "1") { box.dataset.aberto = ""; box.innerHTML = ""; return; }
+  box.dataset.aberto = "1"; box.textContent = "Carregando...";
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EncerrarSS" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], ss: String(l[2]).replace(/^'/, ""), serv: l[3], loc: l[4], situacao: l[6] || "", fotos: String(l[9] || "") }))
+      .filter(x => x.situacao === "anexar").reverse();
+    box.innerHTML = `<h3>Anexar documento à SS já encerrada</h3>` + (itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #6a1b9a">
+      <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv} · ${x.loc}</span><br>
+      <span style="font-size:14px">Executada por ${x.quem} em ${formatarQuando(x.quando)}</span><br>
+      <div style="font-size:14px">Fotos: ${x.fotos.split(" ").filter(Boolean).map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>
+      <button class="acao" onclick="marcarAnexado(${x.linha})">Documento anexado no sistema</button>
+    </div>`).join("") : "<p>Nenhuma SS com foto para anexar.</p>");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function marcarAnexado(linha) {
+  try {
+    const res = await chamarApi({ acao: "marcarEncerrada", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
+    if (res.erro) { alert(res.erro); return; }
+    const box = document.getElementById("ee_anexar"); if (box) box.dataset.aberto = "";
+    carregarAnexarDocumento(); carregarEncerrarEscritorio();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 // Localidades em que o funcionário não precisa de mapa (não mostra "Sem localização")
 const LOCALIDADES_SEM_MAPA = ["Catolândia"];
@@ -3983,10 +4029,26 @@ function campoExtraSS(nome, valor) {
 async function marcarExecutada(ss, tipo, loc) {
   try {
     const pos = await obterPosicao();
-    const confirmado = window.credenciais.usuario + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "");
-    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo",
+    const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+    // fotos do serviço (opcionais): carimbadas com a localização e enviadas antes do OK
+    const fotos = (window.fotosPex || {})[ss] || [];
+    const links = [];
+    for (const arq of fotos) {
+      const base64 = await carimbarFoto(arq, pos);
+      const r = await chamarApi({ acao: "salvarFoto", ...cred, base64: base64, tipo: arq.type, nome: arq.name });
+      if (r.erro) { alert("Não consegui enviar a foto: " + r.erro); return; }
+      links.push(r.url);
+    }
+    const confirmado = window.credenciais.usuario + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "") + (links.length ? " | Fotos: " + links.join(" ") : "");
+    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo",
       linhas: [[new Date().toISOString(), "'" + ss, tipo, loc, nomesDoUsuario(), "executada", confirmado]] });
     if (res.erro) { alert(res.erro); return; }
+    if (links.length) {
+      // com foto: vai para Encerrar SS > Anexar documento à SS já encerrada
+      await chamarApi({ acao: "gravarVarias", ...cred, aba: "EncerrarSS",
+        linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + ss, tipo, loc, "[ANEXAR DOCUMENTO] fotos do serviço executado", "anexar", "", "", links.join(" ")]] });
+      delete window.fotosPex[ss];
+    }
     // recarrega a tela que estiver aberta (SS pendente ou listas de SS em aberto)
     if (document.getElementById("sl_lista")) carregarSSLista(window.ssListaFiltro || null); else carregarPendExecutar();
   } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
@@ -5369,7 +5431,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 10h41";
+const VERSAO_PAINEL = "04/11 10h52";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
