@@ -601,7 +601,6 @@ const TELAS = {
   alertaPrefeitura: () => telaAlertaPrefeitura(),
   pendenciasAprovacao: () => telaPendenciasAprovacao(),
   backup: () => telaBackup(),
-  ssPrazo: () => telaSSPrazo(),
   adicionarInfo: () => `<h2>Adicionar informações</h2><div class="nota">Escolha o que quer atualizar.</div><button class="btn" style="width:100%" onclick="abrir(0)">Metas</button>`,
   metasAdmin: () => telaMetasAdmin(),
   servicosUrgentes: () => telaServicosUrgentes(),
@@ -626,7 +625,7 @@ const TELAS = {
    ============================================================ */
 const PERFIS = {
   "Agente de campo (exemplo: Luzenildo)": [
-    {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true}, {nome:"SS para acompanhar", tela:"ssPrazo"},
+    {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true},
     {nome:"SCI", sub:[
       {nome:"Gerar SS e mandar para o Digiteam", tela:"solicitarSS"},
       {nome:"Segunda via", tela:"segundaVia"},
@@ -1359,7 +1358,7 @@ PERFIS["Operador Angico (Ramon ou Renato)"] = [
   {nome:"Metas", tela:"metasAngico"}
 ];
 // Menu enxuto: o principal fica com o que é de uso diário; o resto vai para "Outros"
-const PRINCIPAL_CAMPO = ["Vazamento de rede", "Vazamento de ramal", "SS para acompanhar", "SS para encerrar pelo escritório", "Pedir abertura de SS", "Abrir e encerrar SS",
+const PRINCIPAL_CAMPO = ["Vazamento de rede", "Vazamento de ramal", "SS para encerrar pelo escritório", "Pedir abertura de SS", "Abrir e encerrar SS",
   "Ocorrência operacional", "SCI", "Urgências",
   "Níveis e macro ETA", "Níveis dos reservatórios", "Estoque diário produto químico"];
 const PRINCIPAL_GERENTE = ["SS para encerrar pelo escritório", "Adicionar informações", "Pendências de aprovação", "Urgências (criar e acompanhar)", "Pedidos de SS (gerar e responder)",
@@ -1487,7 +1486,6 @@ function abrir(i) {
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
     if (it.tela === "pendenciasEstado") carregarEstadoSS();
     if (it.tela === "ocorMinhas") carregarOcorMinhas();
-    if (it.tela === "ssPrazo") carregarSSPrazo();
     if (it.tela === "servicosUrgentes") carregarServicosUrgentes();
     if (it.tela === "metasAdmin") carregarMetasAdmin();
     if (it.tela === "encerrarEscritorio") carregarEncerrarEscritorio();
