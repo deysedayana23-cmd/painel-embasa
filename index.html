@@ -594,7 +594,7 @@ const TELAS = {
   semLocalizacao: () => `<h2>Matrículas sem localização</h2><div class="nota">Matrículas das SS pendentes que ainda não têm coordenada (nem na tabela, nem na BaseLocalizacao, nem no GPS de campo).</div><div id="sl2_lista">Carregando...</div>`,
   ssDigiteam: () => telaSSLista("Solicitação ao Digiteam"),
   analiseConsumo: () => `<h2>Análise de consumo</h2>
-    <div class="nota">Informe a matrícula ou o número do HD. O pedido vai para a Deyse ou para o Tiago, que mandam a tela da leitura dos últimos meses.</div>
+    <div class="nota">Informe a matrícula ou o número do HD. O pedido vai para a Deyse, que manda a tela da leitura dos últimos meses.</div>
     <select id="ac_tipo" class="campo" onchange="document.getElementById('ac_campo').placeholder = this.value === 'hd' ? 'Número do HD' : 'Matrícula'"><option value="matricula">Matrícula</option><option value="hd">Número do HD</option></select>
     <input id="ac_campo" class="campo" placeholder="Matrícula">
     <button class="acao" onclick="enviarAnaliseConsumo()">Enviar pedido</button>`,
@@ -2898,7 +2898,7 @@ async function enviarAnaliseConsumo() {
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS", linhas: [linha] });
     if (res.erro) { alert(res.erro); return; }
-    alert("Pedido enviado para a Deyse ou o Tiago.");
+    alert("Pedido enviado para a Deyse.");
     document.getElementById("ac_campo").value = "";
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
 }
