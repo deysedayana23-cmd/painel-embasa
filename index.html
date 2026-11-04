@@ -45,7 +45,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 17h12</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 17h17</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -4262,8 +4262,8 @@ async function carregarPedidosSS(boxId = "pss_lista") {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
     if (res.erro) { box.textContent = res.erro; return; }
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "", concl: l[16] || "", fotoAnex: l[17] || "" }))
-      // Some da tela quando a SS é respondida com o número. Abrir e encerrar só some quando estiver concluída e com a foto anexada.
-      .filter(p => p.situacao === "pendente" || (/ENCERRAR/.test(p.obs || "") && p.situacao === "respondida" && !(p.concl && p.fotoAnex)))
+      // Some da tela quando a SS é respondida com o número. Abrir e encerrar com foto só some depois de marcar a foto anexada.
+      .filter(p => p.situacao === "pendente" || (/ENCERRAR/.test(p.obs || "") && p.situacao === "respondida" && !!String(p.fotos || "").trim() && !p.fotoAnex))
       .map(p => p.situacao === "respondida" ? Object.assign(p, { situacao: "pendente", jaTemSS: p.ss }) : p)
       .filter(p => !sspPedidoNaTelaLocal(p.loc, p.obs)); // "Só gerar" e "Mandar no Digiteam" ficam em SS pendentes da localidade
     // Pedido à UNBA e Análise de consumo: só a Deyse vê
@@ -4288,8 +4288,8 @@ async function carregarPedidosSS(boxId = "pss_lista") {
         ${pend ? `${p.jaTemSS ? `<div class="nota">SS nº <b>${String(p.jaTemSS).replace(/^'/, "")}</b> já informada. Falta concluir e anexar a foto.</div>` : ""}<input id="pss_n_${p.linha}" class="campo" placeholder="Número da SS gerada" value="${p.jaTemSS ? String(p.jaTemSS).replace(/^'/, "") : ""}">
           ${selectDigiteam("pss_d_" + p.linha)}
           ${/ENCERRAR/.test(p.obs) ? `<label style="display:block;margin:6px 0"><input type="checkbox" id="pss_e_${p.linha}"> Ainda não foi encerrada: mandar para encerrar pelo escritório</label>` : ""}
-          ${/ENCERRAR/.test(p.obs) ? `<label>Concluída? <select id="pss_c_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
-          <label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>` : `<div class="nota">Pedido só para gerar: basta o número da SS (sem foto).</div>`}
+          ${/ENCERRAR/.test(p.obs) ? (String(p.fotos || "").trim() ? `<label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
+          <div class="nota">Abrir e encerrar com foto: sai da lista quando você responder com o número e marcar "Foto anexada: Sim".</div>` : `<div class="nota">Abrir e encerrar sem foto: ao responder com o número, o pedido é concluído e sai da lista.</div>`) : `<div class="nota">Pedido só para gerar: basta o número da SS (sem foto).</div>`}
           <button class="acao" onclick="responderSS(${p.linha}, false)">Responder com a SS (sem Digiteam)</button>
           <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>
           ${window.MODO_GERENTE && !emPrevia() ? `<button class="acao" style="background:#c62828" onclick="cancelarPedidoSS(${p.linha})">Cancelar pedido (duplicado ou errado)</button>` : ""}`
@@ -4313,8 +4313,14 @@ async function responderSS(linha, mandarDigiteam) {
   if (!numero.trim()) { alert("Digite o número da SS."); return; }
   if (mandarDigiteam && !dg) { alert("Escolha quem recebe no Digiteam."); return; }
   try {
-    const concluida = (document.getElementById("pss_c_" + linha) || {}).value || "";
-    const foto = (document.getElementById("pss_f_" + linha) || {}).value || "";
+    let concluida = (document.getElementById("pss_c_" + linha) || {}).value || "";
+    let foto = (document.getElementById("pss_f_" + linha) || {}).value || "";
+    // Abrir e encerrar: o campo já executou; com o número digitado o pedido está concluído (com foto, só depois de anexar)
+    const infoP = (window.pssCache || {})[linha] || {};
+    if (/ENCERRAR/.test(infoP.obs || "") && !(document.getElementById("pss_e_" + linha) || {}).checked) {
+      if (!String(infoP.fotos || "").trim()) { concluida = "Sim"; foto = "Sim"; }
+      else if (foto === "Sim") concluida = "Sim";
+    }
     const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: mandarDigiteam ? dg : "", concluida: concluida, foto: "", fotoAnexada: foto === "Sim" ? "Sim" : "" });
     if (res.erro) { alert(res.erro); return; }
     const pendente = (document.getElementById("pss_e_" + linha) || {}).checked;
@@ -6035,7 +6041,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 17h12";
+const VERSAO_PAINEL = "04/11 17h17";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
