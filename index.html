@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 08h17</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 09h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -3893,6 +3893,7 @@ async function carregarPendExecutar() {
     box.innerHTML = `<div class="nota">${ordenadas.length} SS pendente(s)</div>` + ordenadas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.nova ? ` <span style="background:#2e7d32;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:bold">NOVA HOJE</span>` : ""}${x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
+      ${(() => { const k = cab.findIndex(h => /hidrom/i.test(String(h))); return String(x.loc).trim() === "São Desidério" && !(k >= 0 && String(x.extras[k - 7] || "").trim()) ? `<div style="font-size:14px;color:#b71c1c">Sem número do HD</div>` : ""; })()}
       ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
       <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
     </div>`).join("");
@@ -3951,7 +3952,7 @@ async function carregarSemLocalizacao() {
 function campoExtraSS(nome, valor) {
   const v = String(valor == null ? "" : valor).trim();
   if (!v || !nome) return "";
-  const rotulo = String(nome).replace(/_/g, " ");
+  const rotulo = /hidrom/i.test(nome) ? "Nº do HD" : String(nome).replace(/_/g, " ");
   if (/localiza|coordenad|mapa|gps/i.test(nome)) {
     const c = v.match(/(-?\d+[.,]\d+)\s*[,; ]\s*(-?\d+[.,]\d+)/);
     const url = /^https?:/i.test(v) ? v : (c ? "https://www.google.com/maps?q=" + c[1].replace(",", ".") + "," + c[2].replace(",", ".") : "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(v));
@@ -5340,7 +5341,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 08h17";
+const VERSAO_PAINEL = "04/11 09h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";

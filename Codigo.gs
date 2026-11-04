@@ -160,6 +160,30 @@ function doPost(e) {
         return resposta({ ok: true });
       }
 
+      // ExecucaoCampo: gerência preenche um campo (ex.: hidrometro) nas linhas de uma SS.
+      // Se a coluna ainda não existe, ela é criada no fim do cabeçalho. Nada é apagado.
+      case "definirCampoExecucao": {
+        if (quem.perfil !== "gerente") return resposta({ erro: "Só a gerência pode alterar as SS pendentes" });
+        const CAMPOS_PERMITIDOS = ["hidrometro"];
+        if (CAMPOS_PERMITIDOS.indexOf(req.campo) < 0) return resposta({ erro: "Campo não permitido" });
+        const ex = aba("ExecucaoCampo");
+        const ultimaCol = ex.getLastColumn();
+        const cab = ex.getRange(1, 1, 1, ultimaCol).getValues()[0].map(String);
+        let col = cab.indexOf(req.campo) + 1;
+        if (!col) { col = ultimaCol + 1; ex.getRange(1, col).setValue(req.campo); }
+        const ss = String(req.ss || "").replace(/^'/, "").trim();
+        if (!ss) return resposta({ erro: "Informe a SS" });
+        const nLinhas = ex.getLastRow();
+        const colSS = nLinhas > 1 ? ex.getRange(2, 2, nLinhas - 1, 1).getValues() : [];
+        let alteradas = 0;
+        colSS.forEach(function (l, i) {
+          if (String(l[0]).replace(/^'/, "").trim() === ss) { ex.getRange(i + 2, col).setValue("'" + String(req.valor || "")); alteradas++; }
+        });
+        if (!alteradas) return resposta({ erro: "SS " + ss + " não encontrada" });
+        registrarHistorico(quem.usuario, "preencheu " + req.campo + " da SS " + ss, String(req.valor || ""));
+        return resposta({ ok: true, alteradas: alteradas });
+      }
+
       // Agersa: só a gerência cancela uma demanda lançada errado (situacao(6) = "cancelada"; a linha não é apagada)
       case "cancelarAgersa": {
         if (quem.perfil !== "gerente") return resposta({ erro: "Só a gerência pode cancelar demanda Agersa" });
