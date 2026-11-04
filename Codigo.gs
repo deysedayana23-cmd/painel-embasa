@@ -179,7 +179,7 @@ function doPost(e) {
       // Se a coluna ainda não existe, ela é criada no fim do cabeçalho. Nada é apagado.
       case "definirCampoExecucao": {
         if (quem.perfil !== "gerente") return resposta({ erro: "Só a gerência pode alterar as SS pendentes" });
-        const CAMPOS_PERMITIDOS = ["hidrometro"];
+        const CAMPOS_PERMITIDOS = ["hidrometro", "abertura"];
         if (CAMPOS_PERMITIDOS.indexOf(req.campo) < 0) return resposta({ erro: "Campo não permitido" });
         const ex = aba("ExecucaoCampo");
         const ultimaCol = ex.getLastColumn();

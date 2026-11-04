@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 11h32</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 11h50</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -1740,7 +1740,7 @@ function abrir(i) {
     if (it.tela === "horaExtraHist") carregarHoraExtraHist();
     if (it.tela === "horaExtraGerente") carregarHoraExtraRelatorio();
     if (it.tela === "meusAcessos") carregarMeusAcessos();
-    if (it.tela === "pedidosSS") carregarPedidosSS();
+    if (it.tela === "pedidosSS") { carregarPedidosSS(); carregarPedidosDigiteam(); }
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
@@ -3080,23 +3080,32 @@ async function carregarSSLista(filtro) {
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
     lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
     const fmt = d => d ? d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
-    box.innerHTML = lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
-        <label><input type="checkbox" class="sl_sel" value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
+    // Botões por tipo de serviço, com a quantidade em aberto; ao escolher um tipo, todas daquele tipo já vêm marcadas
+    const nomeT = t => String(t || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
+    const contT = {}; lista.forEach(x => { const t = nomeT(x.tipo); contT[t] = (contT[t] || 0) + 1; });
+    const tipoSel = window.slTipo || "";
+    const bt = (rot, val) => `<button onclick="window.slTipo='${val}';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid #0b5394;background:${tipoSel === val ? "#0b5394" : "#fff"};color:${tipoSel === val ? "#fff" : "#0b5394"}">${rot}</button>`;
+    const barraT = lista.length ? `<div style="margin-bottom:8px">${bt("Todas (" + lista.length + ")", "")}${Object.entries(contT).sort((a, b) => b[1] - a[1]).map(([t, q]) => bt(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}</div>` : "";
+    if (tipoSel) lista = lista.filter(x => nomeT(x.tipo) === tipoSel);
+    const marcarTodas = tipoSel ? `<label style="display:block;margin:6px 0;font-weight:600"><input type="checkbox" checked onchange="document.querySelectorAll('.sl_sel').forEach(c => c.checked = this.checked)"> Marcar todas as ${lista.length} de ${tipoSel}</label>` : "";
+    box.innerHTML = barraT + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
+        <label><input type="checkbox" class="sl_sel" ${tipoSel ? "checked" : ""} value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
         <span style="font-size:14px">${x.nome} · matrícula ${x.mat} · ${x.loc}<br>Aberta em ${fmt(x.abertura)} · vence em ${fmt(x.vencimento)}</span>
         <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
-      </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>";
+      </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 async function enviarSSLista() {
   const marcadas = [...document.querySelectorAll(".sl_sel:checked")];
   if (!marcadas.length) { alert("Marque pelo menos uma SS."); return; }
   const acao = document.getElementById("sl_acao").value;
-  const linhas = marcadas.map(c => [new Date().toISOString(), window.credenciais.usuario, c.value, c.dataset.tipo, c.dataset.loc, "", acao, "pendente"]);
+  const lote = new Date().toISOString();
+  const linhas = marcadas.map(c => [lote, window.credenciais.usuario, c.value, c.dataset.tipo, c.dataset.loc, "", acao, "pendente"]);
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS", linhas: linhas });
     if (res.erro) { alert(res.erro); return; }
     alert(linhas.length + " SS enviada(s) para a gerência: " + acao + ".");
-    carregarSSLista(null);
+    carregarSSLista(window.ssListaFiltro || null);
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
 }
 
@@ -4014,7 +4023,7 @@ async function carregarSemLocalizacao() {
 function campoExtraSS(nome, valor) {
   const v = String(valor == null ? "" : valor).trim();
   if (!v || !nome) return "";
-  const rotulo = /hidrom/i.test(nome) ? "Nº do HD" : String(nome).replace(/_/g, " ");
+  const rotulo = /hidrom/i.test(nome) ? "Nº do HD" : /^abertura$/i.test(nome) ? "Aberta em" : String(nome).replace(/_/g, " ");
   if (/localiza|coordenad|mapa|gps/i.test(nome)) {
     const c = v.match(/(-?\d+[.,]\d+)\s*[,; ]\s*(-?\d+[.,]\d+)/);
     const url = /^https?:/i.test(v) ? v : (c ? "https://www.google.com/maps?q=" + c[1].replace(",", ".") + "," + c[2].replace(",", ".") : "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(v));
@@ -4085,7 +4094,42 @@ async function concluirAbrirEncerrar(linha) {
   } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
 }
 function telaPedidosSS() {
-  return `<h2>Pedidos de SS</h2><div id="pss_lista">Carregando...</div>`;
+  return `<h2>Pedidos de SS</h2><div id="pss_digi"></div><div id="pss_lista">Carregando...</div>`;
+}
+// Pedidos de SS para o Digiteam (aba AcaoSS), agrupados por pedido: quem pediu, tipo, localidade e quantidade.
+// Ao marcar "Mandado no Digiteam", grava uma linha "feito" com o mesmo pedido (nada é apagado).
+async function carregarPedidosDigiteam() {
+  const box = document.getElementById("pss_digi");
+  if (!box) return;
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const linhas = res.dados.slice(1);
+    const feitos = new Set(linhas.filter(l => l[7] === "feito").map(l => String(l[6]).replace(/^feito:/, "")));
+    const grupos = {};
+    linhas.filter(l => l[7] === "pendente" && /Digiteam/i.test(String(l[6])) && !/Não mandar/i.test(String(l[6]))).forEach(l => {
+      const tipo = String(l[3] || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
+      const id = String(l[0]) + "|" + l[1] + "|" + tipo + "|" + l[4];
+      if (feitos.has(id)) return;
+      (grupos[id] = grupos[id] || { quando: l[0], quem: l[1], tipo, loc: l[4], ss: [] }).ss.push(String(l[2]).replace(/^'/, ""));
+    });
+    const lista = Object.entries(grupos).reverse();
+    window.digiGrupos = Object.fromEntries(lista);
+    box.innerHTML = lista.length ? `<h3>Pedidos para o Digiteam (${lista.length})</h3>` + lista.map(([id, g], k) => `<div class="card" style="margin-bottom:10px;border-left:6px solid #ef6c00">
+      <b>${g.quem} pediu ${g.ss.length} SS de ${g.tipo}</b><br><span style="font-size:14px">${g.loc} · em ${formatarQuando(g.quando)}</span>
+      <div style="font-size:13px;margin-top:4px">SS: ${g.ss.join(", ")}</div>
+      <button class="acao" onclick="marcarDigiteamFeito(${k})">Mandado no Digiteam</button></div>`).join("") : "";
+  } catch (e) { box.textContent = ""; }
+}
+async function marcarDigiteamFeito(k) {
+  const [id, g] = Object.entries(window.digiGrupos || {})[k] || [];
+  if (!id || !confirm("Confirmar que as " + g.ss.length + " SS de " + g.tipo + " foram mandadas no Digiteam de " + g.quem + "?")) return;
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "", g.tipo, g.loc, "", "feito:" + id, "feito"]] });
+    if (res.erro) { alert(res.erro); return; }
+    carregarPedidosDigiteam();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 async function carregarPedidosSS(boxId = "pss_lista") {
   const box = document.getElementById(boxId);
@@ -5433,7 +5477,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 11h32";
+const VERSAO_PAINEL = "04/11 11h50";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
