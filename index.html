@@ -41,7 +41,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 16h30</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 16h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -3784,7 +3784,7 @@ function blocoEncerramento(chave) {
 }
 function telaPedidoSS(encerrar = false) {
   window.fotosEnc = [];
-  const fotos = encerrar ? `<div class="card"><b>Horário do serviço</b><br>
+  const fotos = encerrar ? `<div class="card" id="ps_horas" style="display:none"><b>Horário do serviço</b><br>
       Início: <input type="time" id="enc_ini" class="campo"><br>
       Fim: <input type="time" id="enc_fim" class="campo"></div>
     <div class="card"><b>Fotos do local (até 10)</b> – a coordenada GPS entra na foto automaticamente<br>
@@ -3796,7 +3796,7 @@ function telaPedidoSS(encerrar = false) {
   return `<h2>${encerrar ? "Abrir e encerrar SS" : "Pedir abertura de SS"}</h2>
     ${fotos}
     <div class="nota"><b>Ao pedir, a SS entra nas pendências do SCI e aguarda oportunidade para ser executada.</b> Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos.</div>
-    <select id="ps_acao" class="campo"><option>Só gerar</option><option>Mandar no Digiteam</option><option>Digitar e encerrar</option></select>
+    <select id="ps_acao" class="campo" onchange="psAcaoMudou()"><option>Só gerar</option><option>Mandar no Digiteam</option><option>Digitar e encerrar</option></select>
     <button class="acao" style="background:#0a6e8a" onclick="usarGPSSS()">Usar minha localização (GPS)</button>
     <select id="ps_tipo" class="campo" onchange="encherEspSS()"><option value="">Tipo de serviço…</option>${Object.keys(TIPOS_SS).map(c => `<option value="${c}">${c} – ${TIPOS_SS[c][0]}</option>`).join("")}</select>
     <select id="ps_esp" class="campo" disabled onchange="mostrarEncerramento()"><option value="">Escolha o tipo primeiro</option></select>
@@ -3806,8 +3806,14 @@ function telaPedidoSS(encerrar = false) {
     <input id="ps_mat" class="campo" placeholder="Matrícula (se souber)">
     <input id="ps_hd" class="campo" placeholder="Nº do hidrômetro (se souber)">
     <textarea id="ps_obs" class="campo" rows="3" placeholder="Observação (o que foi observado no local)"></textarea>
-    <div id="ps_enc"></div>
+    <div id="ps_enc" style="display:none"></div>
     <button class="acao" onclick="enviarPedidoSS(${encerrar})">${encerrar ? "Enviar pedido de abertura e encerramento" : "Enviar pedido de SS"}</button>`;
+}
+// Dados de encerramento e horário só aparecem (e só são exigidos) em "Digitar e encerrar"
+function psAcaoMudou() {
+  const enc = ((document.getElementById("ps_acao") || {}).value || "") === "Digitar e encerrar";
+  const h = document.getElementById("ps_horas"); if (h) h.style.display = enc ? "" : "none";
+  const e = document.getElementById("ps_enc"); if (e) e.style.display = enc && h ? "" : "none";
 }
 function addFotoEnc(input) {
   window.fotosEnc = window.fotosEnc || [];
@@ -3891,6 +3897,22 @@ async function enviarPedidoSS(encerrar = false) {
   let obsFinal = obs;
   let urls = "";
   const acaoEscolhida = (document.getElementById("ps_acao") || {}).value || "Só gerar";
+  const fotosSoAbrir = encerrar && acaoEscolhida !== "Digitar e encerrar" ? (window.fotosEnc || []) : [];
+  encerrar = encerrar && acaoEscolhida === "Digitar e encerrar"; // só exige os dados de encerramento quando for encerrar
+  if (fotosSoAbrir.length) {
+    const pos = (await obterPosicao()) || window.ssGps;
+    if (!pos) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e tente de novo."); return; }
+    try {
+      const links = [];
+      for (const arq of fotosSoAbrir) {
+        const base64 = await carimbarFoto(arq, pos);
+        const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha, base64: base64, tipo: "image/jpeg", nome: arq.name });
+        if (r.erro) { alert(r.erro); return; }
+        links.push(r.url);
+      }
+      urls = links.join(" ");
+    } catch (e) { alert("Não consegui enviar as fotos: " + (e && e.message ? e.message : "erro desconhecido") + ". Tente de novo."); return; }
+  }
   if (encerrar) {
     const c = CAMPOS_ENCERRAMENTO[tipo + "-" + esp];
     if (c) {
@@ -5826,7 +5848,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 16h30";
+const VERSAO_PAINEL = "04/11 16h45";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
