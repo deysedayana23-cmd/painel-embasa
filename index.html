@@ -1486,11 +1486,39 @@ function trocarPerfil() {
   if (window.credenciais) carregarQtdUrgentes().then(() => { if (!pilha.length) renderAtual(); });
 }
 
+// ===== QUEM VÊ CADA BOTÃO (menu principal). Botão sem regra aqui = todos =====
+const GRUPOS_BOTAO = {
+  agentes: ["luzenildo", "joaquim", "carlito", "francisco", "isaque", "isaac", "ivocarlos", "janiogualberto"],
+  operadores: ["igor", "oseias", "acacio", "janiolima", "eduardo", "genildo", "alan", "juvenson", "valdesandro", "sandro", "ramon", "renato"]
+};
+const REGRA_BOTAO = {
+  "Serviços urgentes": "menos_deyse",
+  "Vazamento de rede": "menos_deyse",
+  "Vazamento de ramal": "menos_deyse",
+  "Abrir e encerrar SS": "menos_deyse",
+  "EPI": "menos_deyse",
+  "SS para encerrar pelo escritório": ["deyse", "thiago", "oseias", "igor", "alan", "genildo"],
+  "SS pendente": ["luzenildo", "joaquim", "carlito", "francisco"],
+  "Níveis e macro ETA": "operadores",
+  "Estoque diário produto químico": ["operadores", "deyse"],
+  "Abastecimento (cartões)": ["deyse", "thiago", "tiago"],
+  "Entrega de contas da prefeitura": ["agentes", "deyse", "thiago", "tiago"],
+  "Pedido à UNBA": ["agentes", "thiago", "tiago", "deyse"]
+};
+function visivelBotao(nome) {
+  const r = REGRA_BOTAO[nome];
+  if (!r) return true;
+  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  const tem = k => quem.includes(k);
+  if (r === "menos_deyse") return !tem("deyse");
+  if (r === "operadores") return GRUPOS_BOTAO.operadores.some(tem);
+  return r.some(k => k === "agentes" ? GRUPOS_BOTAO.agentes.some(tem) : k === "operadores" ? GRUPOS_BOTAO.operadores.some(tem) : tem(k));
+}
 function mostrarMenu(itens, titulo) {
   if (!pilha.length) itens = [{nome: "Serviços urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
   // Demandas Agersa aparece para todos; cada um vê só a(s) localidade(s) que atende
   if (!pilha.length && !window.MODO_GERENTE && !perfilAtual.startsWith("Gerente") && !itens.some(i => i.tela === "gersa")) itens = [...itens, {nome: "Demandas Agersa", tela: "gersa"}];
-  itens = itens.filter(i => (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
+  itens = itens.filter(i => (pilha.length || visivelBotao(i.nome)) && (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
