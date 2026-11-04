@@ -3842,6 +3842,11 @@ async function carregarPedidosSS(boxId = "pss_lista") {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
     if (res.erro) { box.textContent = res.erro; return; }
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "" }));
+    // Pedido à UNBA e Análise de consumo: só a Deyse vê
+    const ehDeyse = normalizarNome(window.credenciais.usuario).includes("deyse");
+    const restritos = /^Pedido à UNBA|^Análise de consumo/;
+    const visiveis = itens.filter(p => ehDeyse || !restritos.test(p.tipo || ""));
+    itens.length = 0; itens.push(...visiveis);
     itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
     window.pssCache = {};
     itens.forEach(p => { window.pssCache[p.linha] = p; });
