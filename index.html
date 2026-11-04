@@ -3824,8 +3824,24 @@ async function carregarPendExecutar() {
     const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7), vencida: !!diaDe(l[0]) && diaDe(l[0]) < hojeBA,
         gps: (idxMat >= 0 && !(idxLocal >= 0 && String(l[idxLocal] || "").trim())) ? gpsPorMat[String(l[idxMat] || "").trim()] : "" }))
       .filter(x => x.situacao === "pendente" && !executadas.has(x.ss) && String(x.resp).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n))));
-    if (!minhas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
-    box.innerHTML = `<div class="nota">${minhas.length} SS pendente(s)</div>` + minhas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
+    // Ordem de visita: SS de São Desidério partindo do escritório, sempre a mais próxima da última parada.
+    // SS sem coordenada vão para o fim do grupo. Demais localidades mantêm a ordem atual.
+    const OFICINA_SD = [-12.3654726, -44.9743524];
+    const distKm = (a, b) => { const R = 6371, t = x => x * Math.PI / 180; const dLa = t(b[0] - a[0]), dLo = t(b[1] - a[1]);
+      const h = Math.sin(dLa / 2) ** 2 + Math.cos(t(a[0])) * Math.cos(t(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+    const ehSD = x => String(x.loc).trim() === "São Desidério";
+    const coordDe = x => { const p = String(x.gps || "").split(",").map(Number); return p.length === 2 && p.every(n => isFinite(n)) ? p : null; };
+    const sd = minhas.filter(ehSD), outras = minhas.filter(x => !ehSD(x));
+    const comCoord = sd.filter(x => coordDe(x)), semCoord = sd.filter(x => !coordDe(x));
+    const rota = []; let atual = OFICINA_SD, restantes = comCoord.slice();
+    while (restantes.length) {
+      let melhor = 0, dm = Infinity;
+      restantes.forEach((x, k) => { const d = distKm(atual, coordDe(x)); if (d < dm) { dm = d; melhor = k; } });
+      const esc = restantes.splice(melhor, 1)[0]; rota.push(esc); atual = coordDe(esc);
+    }
+    const ordenadas = [...rota, ...semCoord, ...outras];
+    if (!ordenadas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
+    box.innerHTML = `<div class="nota">${ordenadas.length} SS pendente(s)</div>` + ordenadas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
       ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
