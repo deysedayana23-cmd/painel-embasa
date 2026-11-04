@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 10h14</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 10h41</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -3890,7 +3890,23 @@ async function carregarPendExecutar() {
     });
     ordenadas.push(...minhas.filter(x => !ORIGENS_ESCRITORIO[String(x.loc).trim()]));
     if (!ordenadas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
-    box.innerHTML = `<div class="nota">${ordenadas.length} SS pendente(s)</div>` + ordenadas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
+    // Filtros por tipo de serviço, com a quantidade entre parênteses. "Vazamento no Porto Rico" fica à parte, em vermelho
+    // (vazamento no bairro Porto Rico, por causa da obra de asfalto), para os agentes de São Desidério.
+    const nomeTipo = t => String(t || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
+    const ehPortoRico = x => /vazament/i.test(String(x.tipo)) && /porto\s*rico/i.test([x.extras.join(" ")].join(" "));
+    const agenteSD = ["luzenildo", "joaquim", "carlito", "francisco"].some(n => eu.includes(n)) || (window.MODO_GERENTE && !emPrevia());
+    const tiposCont = {};
+    ordenadas.forEach(x => { const t = nomeTipo(x.tipo); tiposCont[t] = (tiposCont[t] || 0) + 1; });
+    const qtdPR = ordenadas.filter(ehPortoRico).length;
+    const filtro = window.pexFiltro || "";
+    const visiveis = filtro === "__PR__" ? ordenadas.filter(ehPortoRico) : filtro ? ordenadas.filter(x => nomeTipo(x.tipo) === filtro) : ordenadas;
+    const btn = (rotulo, valor, cor) => `<button onclick="window.pexFiltro='${valor}';carregarPendExecutar()" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid ${cor || "#0b5394"};background:${filtro === valor ? (cor || "#0b5394") : "#fff"};color:${filtro === valor ? "#fff" : (cor || "#0b5394")}">${rotulo}</button>`;
+    const barra = `<div style="margin-bottom:8px">
+      ${agenteSD ? `<button onclick="window.pexFiltro='__PR__';carregarPendExecutar()" style="display:block;width:100%;margin:3px 0 8px;padding:12px;border-radius:10px;font-size:16px;font-weight:bold;border:none;background:#c62828;color:#fff;${filtro === "__PR__" ? "outline:3px solid #7f0000" : ""}">Vazamento no Porto Rico (${qtdPR})</button>` : ""}
+      ${btn("Todas as SS (" + ordenadas.length + ")", "")}
+      ${Object.entries(tiposCont).sort((a, b) => b[1] - a[1]).map(([t, q]) => btn(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}
+    </div>`;
+    box.innerHTML = barra + `<div class="nota">${visiveis.length} SS ${filtro === "__PR__" ? "de vazamento no Porto Rico" : filtro ? "de " + filtro : "pendente(s)"}</div>` + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.nova ? ` <span style="background:#2e7d32;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:bold">NOVA HOJE</span>` : ""}${x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
       ${(() => { const k = cab.findIndex(h => /hidrom/i.test(String(h))); return String(x.loc).trim() === "São Desidério" && !(k >= 0 && String(x.extras[k - 7] || "").trim()) ? `<div style="font-size:14px;color:#b71c1c">Sem número do HD</div>` : ""; })()}
@@ -5353,7 +5369,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 10h14";
+const VERSAO_PAINEL = "04/11 10h41";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
