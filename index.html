@@ -603,7 +603,7 @@ const TELAS = {
     <div class="nota">Pedido de tubos ou serviços diversos. Chega no painel da Deyse.</div>
     <select id="un_tipo" class="campo" onchange="mostrarCamposUNBA()"><option value="">Escolha o tipo…</option><option value="tubos">Pedido de tubos</option><option value="diversos">Serviços diversos</option></select>
     <div id="un_campos"></div>`,
-  pendExecutar: () => `<h2>SS pendente</h2><div class="nota">Quando executar a SS em campo, toque em "OK, executada". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
+  pendExecutar: () => `<h2>SS pendente</h2><div id="pex_prior">${telaPrioridades()}</div><div class="nota">Quando executar a SS em campo, toque em "OK, executada". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
   ocorPedidos: () => `<h2>Pedidos de ocorrência operacional</h2><div class="nota">Abra a ocorrência no SCI e devolva o número para a equipe. O pedido sai da lista.</div><div id="oc_ger">Carregando...</div>`,
   pendAbrirEncerrar: () => `<h2>Pendências de abrir e encerrar SS</h2><div class="nota">Quando a SS for gerada, digite o número e marque como concluída. Ela sai da lista.</div><div id="pae_lista">Carregando...</div>`,
   meusAcessos: () => `<h2>Meus acessos</h2><div id="ma_lista">Carregando...</div>`,
@@ -1531,9 +1531,9 @@ function prioridadesDoUsuario() {
 function telaPrioridades() {
   const hoje = hojeISO();
   const itens = prioridadesDoUsuario().sort((a, b) => a.dia.localeCompare(b.dia));
-  if (!itens.length) return `<h2>Prioridades</h2><p>Nenhuma prioridade para você.</p>`;
+  if (!itens.length) return "";
   const data = d => d.split("-").reverse().join("/");
-  return `<h2>Prioridades do dia</h2>` + itens.map(p => {
+  return `<h3 style="color:#c62828">Prioridades de hoje e amanhã</h3>` + itens.map(p => {
     const vencida = p.dia < hoje;
     const cor = vencida || p.urgente ? "#c62828" : "#f9a825";
     const tag = vencida ? "VENCIDA" : p.dia === hoje ? "HOJE" : p.dia === somarDiasISO(hoje, 1) ? "AMANHÃ" : "";
@@ -1601,8 +1601,7 @@ function mostrarMenu(itens, titulo) {
     const principalCampo = ["Pendência de SS para executar", "Solicitação no SCI", "Vazamento de rede", "Vazamento de ramal",
       "Abrir e encerrar SS", "Solicitação ao Digiteam", "Demandas Agersa"];
     let [fixos, restoCampo] = promoverDoOutros(itens, i => principalCampo.includes(i.nome) || ["pendExecutar", "ssRede", "ssRamal", "ssVazRede", "ssVazRamal", "ssVazHid", "solicitarSS"].includes(i.tela));
-    const nPrior = prioridadesDoUsuario().length ? contarPrioridadesHoje() : 0;
-    if (prioridadesDoUsuario().length) fixos.unshift({nome: "PRIORIDADES DE HOJE E AMANHÃ", tela: "prioridades", prioridade: true, qtd: nPrior});
+
     // Histórico dos níveis dos reservatórios e macro, para todos os agentes (só consulta)
     fixos.push({nome: "Histórico de níveis dos reservatórios", sub: [
       {nome: "ETA São Desidério", tela: "nivelHistSD"},
