@@ -3223,8 +3223,8 @@ async function carregarAgersaGerente() {
         <b>${f.demanda}</b> · ${f.local}<br>
         <span style="font-size:14px">Enviada por ${f.quem} em ${formatarQuando(f.quando)} · ${f.situacao}${f.por ? " por " + f.por : ""}</span><br>
         <a href="${f.url}" target="_blank">Ver foto</a>
-        <button class="acao" style="margin:6px 0 0 0;padding:6px" onclick="validarFotoAgersa(${f.linha}, 'validada')">Validar</button>
-        <button class="acao" style="margin:6px 0 0 6px;padding:6px;background:#555" onclick="validarFotoAgersa(${f.linha}, 'não validada')">Não validar</button>
+        <button class="acao" style="margin:6px 0 0 0;padding:6px" onclick="validarFotoAgersa(${f.linha}, 'validada')">Validado</button>
+        <button class="acao" style="margin:6px 0 0 6px;padding:6px;background:#555" onclick="validarFotoAgersa(${f.linha}, 'não validada')">Recusado</button>
       </div>`;
     }).join("") : "<p>Nenhuma foto enviada.</p>";
     box.innerHTML = `<h3>Demandas</h3>${demHTML}<h3>Fotos de evidência</h3>${fotosHTML}`;
@@ -3268,7 +3268,7 @@ async function carregarAgersa() {
         const val = dos.filter(f => f[5] === "validada").length;
         const nao = dos.filter(f => f[5] === "não validada").length;
         const el = document.getElementById("ag_status_" + i);
-        if (el) el.textContent = "Fotos enviadas: " + dos.length + " · validadas: " + val + " · não validadas: " + nao + " · aguardando: " + (dos.length - val - nao);
+        if (el) el.textContent = "Fotos enviadas: " + dos.length + " · validadas: " + val + " · recusadas: " + nao + " · aguardando: " + (dos.length - val - nao);
       });
     }
   } catch (e) { box.innerHTML = '<div class="nota">Não consegui carregar. Verifique a internet.</div>'; }
@@ -3277,6 +3277,7 @@ async function carregarAgersa() {
 async function enviarEvidenciaAgersa(indice, local, demanda) {
   const arquivos = document.getElementById("ag_foto_" + indice).files;
   if (!arquivos.length) { alert("Escolha as fotos."); return; }
+  if (arquivos.length < 5) { alert("Envie pelo menos 5 fotos evidenciando o serviço. Você escolheu " + arquivos.length + "."); return; }
   try {
     for (const arquivo of arquivos) {
       const base64 = await lerArquivoBase64(arquivo);
