@@ -1626,7 +1626,8 @@ function mostrarMenu(itens, titulo) {
   if (!pilha.length && /^Operador/.test(String(perfilAtual || ""))) {
     const quem = normalizarNome(window.credenciais && window.credenciais.usuario);
     const principalOp = ["Ocorrência operacional", "Reclamação Coelba", "Estoque diário produto químico"];
-    if (quem.includes("igor") || quem.includes("oseias")) principalOp.push("SS para encerrar pelo escritório");
+    const quemId = identidadeAtual();
+    if (quemId.includes("igor") || quemId.includes("oseias")) principalOp.push("SS para encerrar pelo escritório");
     const ehAngico = quem.includes("ramon") || quem.includes("renato");
     if (ehAngico) principalOp.push("Níveis e macro ETA", "Níveis dos reservatórios", "Pendência de SS para executar");
     let fixos = itens.filter(i => principalOp.includes(i.nome));
