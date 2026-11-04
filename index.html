@@ -40,9 +40,12 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div style="font-size:12px;opacity:.85">Versão 03/11 21h30</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 07h13</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
+  <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
+  <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
+  <div id="versaoMsg" style="font-size:13px;margin-top:6px"></div>
 </header>
 <div class="aviso-proto">PROTÓTIPO: dados de exemplo. Endereços, matrículas e valores são fictícios.</div>
 
@@ -691,6 +694,7 @@ const TELAS = {
   adicionarInfo: () => `<h2>Adicionar informações</h2><div class="nota">Escolha o que quer atualizar.</div><button class="btn" style="width:100%" onclick="abrir(0)">Metas</button>`,
   metasAdmin: () => telaMetasAdmin(),
   servicosUrgentes: () => telaServicosUrgentes(),
+  ssAbertoLocal: () => `<h2>SS em aberto por localidade</h2><div class="nota">Para planejar o Digiteam. Junta as SS pendentes lançadas para os agentes e as SS em aberto exportadas do SCI.</div><div id="sal_lista">Carregando...</div>`,
   ssVazRede: () => telaPedidoSS(true),
   ssVazRamal: () => telaPedidoSS(true),
   ssVazHid: () => telaPedidoSS(true),
@@ -846,10 +850,14 @@ const PERFIS = {
     {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Cronograma de leitura e contas retidas", tela:"cronograma"},
     {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
+    {nome:"EPI", tela:"epi"},
+    {nome:"Análise de consumo", tela:"analiseConsumo"},
+    {nome:"SS em aberto por localidade", tela:"ssAbertoLocal"},
   ],
   "Gerente (você)": [
     {nome:"Adicionar informações", sub:[{nome:"Metas", tela:"metasAdmin"}]},
     {nome:"SS para encerrar pelo escritório", tela:"encerrarEscritorio"},
+    {nome:"SS em aberto por localidade", tela:"ssAbertoLocal"},
     {nome:"Pendências de aprovação", tela:"pendenciasAprovacao"},
     {nome:"Gerar relatório (backup)", tela:"backup"},
     {nome:"Urgências (criar e acompanhar)", tela:"urgencias"},
@@ -1620,8 +1628,11 @@ function mostrarMenu(itens, titulo) {
       {nome: "Ocorrência operacional", tela: "ocorPedidos"},
       {nome: "Contas, SCI e Digiteam", tela: "pedidosSS"}
     ]};
-    const [fixosGer] = promoverDoOutros(itens, i => ["pedidosSS", "encerrarEscritorio"].includes(i.tela));
+    // Serviços urgentes, Pedidos de SS e Encerrar SS no principal; o resto continua acessível em Outros
+    const [fixosGer, restoGer] = promoverDoOutros(itens, i => ["servicosUrgentes", "pedidosSS", "encerrarEscritorio", "ssAbertoLocal"].includes(i.tela));
+    const restoUnico = restoGer.filter((i, k) => restoGer.findIndex(j => j.nome === i.nome && j.tela === i.tela) === k);
     itens = [demandas, ...fixosGer];
+    if (restoUnico.length) itens.push({nome: "Outros", sub: restoUnico});
   }
   if (!pilha.length && /^Operador/.test(String(perfilAtual || ""))) {
     const quem = normalizarNome(window.credenciais && window.credenciais.usuario);
@@ -1630,10 +1641,13 @@ function mostrarMenu(itens, titulo) {
     if (quemId.includes("igor") || quemId.includes("oseias")) principalOp.push("SS para encerrar pelo escritório");
     const ehAngico = quem.includes("ramon") || quem.includes("renato");
     if (ehAngico) principalOp.push("Níveis e macro ETA", "Níveis dos reservatórios", "Pendência de SS para executar");
-    let fixos = itens.filter(i => principalOp.includes(i.nome));
+    // Igor e Oseias: encerrar SS pelo escritório e pedidos de ocorrência no principal (o botão vem com outro nome do menu do operador)
+    const telasOp = (quemId.includes("igor") || quemId.includes("oseias")) ? ["encerrarEscritorio", "ocorPedidos"] : [];
+    const noPrincipal = i => principalOp.includes(i.nome) || telasOp.includes(i.tela);
+    let fixos = itens.filter(noPrincipal);
     if (ehAngico && !fixos.some(i => i.tela === "pendExecutar")) fixos.push({nome: "Pendência de SS para executar", tela: "pendExecutar"});
     const outrosAtuais = itens.find(i => i.nome === "Outros" && i.sub);
-    const mover = itens.filter(i => !principalOp.includes(i.nome) && i !== outrosAtuais && i.nome !== "Outros" && i.tela !== "pendExecutar");
+    const mover = itens.filter(i => !noPrincipal(i) && i !== outrosAtuais && i.nome !== "Outros" && i.tela !== "pendExecutar");
     const outrosSub = [...(outrosAtuais ? outrosAtuais.sub : []), ...mover];
     itens = [...fixos];
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
@@ -1736,6 +1750,7 @@ function abrir(i) {
     if (it.tela === "pendenciasEstado") carregarEstadoSS();
     if (it.tela === "ocorMinhas") carregarOcorMinhas();
     if (it.tela === "servicosUrgentes") carregarServicosUrgentes();
+    if (it.tela === "ssAbertoLocal") carregarSSAbertoLocal();
     if (it.tela === "metasAdmin") carregarMetasAdmin();
     if (it.tela === "encerrarEscritorio") carregarEncerrarEscritorio();
     if (it.tela === "ssRede") presetSS("43", "1");
@@ -3611,7 +3626,7 @@ const CAMPOS_ENCERRAMENTO = {
     ["Ponto de referência", "texto"], ["Usuário presente", ["Sim", "Não"]]]},
   "43-1": {titulo: "Vazamento na rede", campos: [
     ["Material da rede", ["PVC", "PEAD", "Ferro fundido", "Amianto", "De FoFo", "PBA", "Corrugado", "Cerâmica"]],
-    ["Diâmetro", "texto"], ["Profundidade", "texto"], ["Localização do vazamento", ["Rua", "Passeio", "Quintal", "Fundo", "Lateral"]],
+    ["Diâmetro (mm)", "numero"], ["Profundidade (cm)", "numero"], ["Localização do vazamento", ["Rua", "Passeio", "Quintal", "Fundo", "Lateral"]],
     ["Ponto de referência", "texto"], ["Pavimento da rua", ["Asfalto", "Concreto", "Paralelepípedo", "Intertravado", "Terra", "Sem pavimento"]],
     ["Pavimento da calçada", ["Corrente", "Cimentado", "Concreto", "Grama", "Jardim", "Paralelepípedo", "Pedra portuguesa", "Piso cerâmico", "Intertravado", "Terra", "Sem pavimento"]],
     ["Vazamento causado por obras?", ["Sim", "Não"], "pergunta_obra"],
@@ -3635,6 +3650,8 @@ function blocoEncerramento(chave) {
     ${c.campos.map(([nome, tipo, condicao, padrao], i) => {
       const campo = Array.isArray(tipo)
         ? `<select id="enc_${i}" class="campo"${condicao === "pergunta_obra" ? ` onchange="marcaOrigemObra(this)"` : ""}><option value="">${nome}…</option>${tipo.map(o => `<option${o === padrao ? " selected" : ""}>${o}</option>`).join("")}</select>`
+        : tipo === "numero"
+        ? `<input id="enc_${i}" class="campo" type="number" inputmode="decimal" min="0" step="any" placeholder="${nome}">`
         : `<input id="enc_${i}" class="campo" placeholder="${nome}">`;
       if (condicao === "obra") return `<div id="enc_origem_wrap" style="display:none">${campo}</div>`;
       return campo;
@@ -3835,8 +3852,13 @@ async function carregarPendExecutar() {
     Object.keys(base).forEach(m => { if (!gpsPorMat[m]) gpsPorMat[m] = base[m]; });
     const diaDe = v => { const d = new Date(v); return isNaN(d) ? "" : d.toLocaleDateString("en-CA", { timeZone: "America/Bahia" }); };
     const hojeBA = diaDe(new Date());
-    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7), vencida: !!diaDe(l[0]) && diaDe(l[0]) < hojeBA,
+    // Coordenada escrita na coluna de localização ("lat,lon") também vale para a ordem de visita
+    const coordTexto = v => { const m = String(v || "").replace(/\s/g, "").match(/^(-?\d+[.,]\d+);?,?(-?\d+[.,]\d+)$/); return m ? m[1].replace(",", ".") + "," + m[2].replace(",", ".") : ""; };
+    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7),
+        vencida: !!diaDe(l[0]) && diaDe(l[0]) < hojeBA, nova: diaDe(l[0]) === hojeBA,
+        gpsCol: idxLocal >= 0 ? coordTexto(l[idxLocal]) : "",
         gps: (idxMat >= 0 && !(idxLocal >= 0 && String(l[idxLocal] || "").trim())) ? gpsPorMat[String(l[idxMat] || "").trim()] : "" }))
+      .map(x => (x.gps || !x.gpsCol) ? x : Object.assign(x, { gps: x.gpsCol }))
       .filter(x => x.situacao === "pendente" && !executadas.has(x.ss) && String(x.resp).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n))));
     // Ordem de visita: SS de São Desidério partindo do escritório, sempre a mais próxima da última parada.
     // SS sem coordenada vão para o fim do grupo. Demais localidades mantêm a ordem atual.
@@ -3861,7 +3883,7 @@ async function carregarPendExecutar() {
     ordenadas.push(...minhas.filter(x => !ORIGENS_ESCRITORIO[String(x.loc).trim()]));
     if (!ordenadas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
     box.innerHTML = `<div class="nota">${ordenadas.length} SS pendente(s)</div>` + ordenadas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
-      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""}
+      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.nova ? ` <span style="background:#2e7d32;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:bold">NOVA HOJE</span>` : ""}${x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
       ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
       <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
@@ -5261,6 +5283,61 @@ async function chamarApi(corpo) {
   return r.json();
 }
 
+// SS em aberto por localidade, com contagem por tipo de serviço (planejamento do Digiteam)
+// Fontes: ExecucaoCampo (situacao "pendente") e SSAbertas (ss | tipo | localidade | abertura | vencimento | situacao)
+async function carregarSSAbertoLocal() {
+  const box = document.getElementById("sal_lista");
+  if (!box) return;
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  try {
+    const [ex, sa] = await Promise.all([
+      chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }),
+      chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] }))
+    ]);
+    if (ex.erro) { box.textContent = ex.erro; return; }
+    const exec = (ex.dados || []).slice(1);
+    const executadas = new Set(exec.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
+    const porSS = {};
+    exec.filter(l => String(l[5]).toLowerCase() === "pendente").forEach(l => {
+      const ss = String(l[1]).replace(/^'/, "");
+      if (ss && !executadas.has(ss)) porSS[ss] = { tipo: String(l[2] || "Sem tipo"), loc: String(l[3] || "Sem localidade").trim() };
+    });
+    (sa.dados || []).slice(1).forEach(l => {
+      const ss = String(l[0] || "").replace(/^'/, "");
+      if (!ss || !/^\d{6,}$/.test(ss) || executadas.has(ss) || /encerrad|cancelad|conclu/i.test(String(l[5] || ""))) return;
+      if (!porSS[ss]) porSS[ss] = { tipo: String(l[1] || "Sem tipo"), loc: String(l[2] || "Sem localidade").trim() };
+    });
+    const grupos = {};
+    Object.values(porSS).forEach(x => { (grupos[x.loc] = grupos[x.loc] || {}); grupos[x.loc][x.tipo] = (grupos[x.loc][x.tipo] || 0) + 1; });
+    const locs = Object.keys(grupos).sort();
+    if (!locs.length) { box.innerHTML = "<p>Nenhuma SS em aberto.</p>"; return; }
+    box.innerHTML = locs.map(loc => {
+      const tipos = Object.entries(grupos[loc]).sort((a, b) => b[1] - a[1]);
+      const total = tipos.reduce((s, t) => s + t[1], 0);
+      return `<div class="card" style="margin-bottom:10px"><b>${loc}</b> – ${total} SS
+        <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:14px"><tr><th style="text-align:left">Tipo de serviço</th><th style="text-align:right">Qtd</th></tr>
+        ${tipos.map(([t, q]) => `<tr><td style="border-top:1px solid #eee;padding:4px 0">${t}</td><td style="border-top:1px solid #eee;text-align:right">${q}</td></tr>`).join("")}</table></div>`;
+    }).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+// Versão do painel: mude junto com o texto do topo a cada publicação
+const VERSAO_PAINEL = "04/11 07h13";
+async function verificarVersao() {
+  const msg = document.getElementById("versaoMsg");
+  msg.textContent = "Verificando...";
+  try {
+    const t = await (await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" })).text();
+    const m = t.match(/const VERSAO_PAINEL = "([^"]+)"/);
+    if (m && m[1] !== VERSAO_PAINEL) {
+      msg.innerHTML = `Nova versão ${m[1]} disponível. <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:600">Atualizar agora</button>`;
+    } else msg.textContent = "Você já está na versão mais recente (" + VERSAO_PAINEL + ").";
+  } catch (e) { msg.textContent = "Não consegui verificar. Veja a internet."; }
+}
+function sairPainel() {
+  if (!confirm("Sair do painel?")) return;
+  window.credenciais = null;
+  location.replace(location.pathname + "?v=" + Date.now());
+}
 async function entrar() {
   const usuario = document.getElementById("lg_usuario").value.trim();
   const senha = document.getElementById("lg_senha").value;
