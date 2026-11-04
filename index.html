@@ -3616,7 +3616,7 @@ const CAMPOS_ENCERRAMENTO = {
     ["Vazamento causado por obras?", ["Sim", "Não"], "pergunta_obra"],
     ["Origem do vazamento", ["Obra da prefeitura", "Obra da Embasa", "Obra particular", "Coelba", "Bahiagás", "Outros"], "obra"]]},
   "43-2": {titulo: "Vazamento no ramal", campos: [
-    ["Material do ramal", ["PEAD", "PVC"]], ["Diâmetro (mm)", "texto"], ["Localização do vazamento", ["Passeio (calçada)", "Rua"]],
+    ["Material do ramal", ["PEAD", "PVC"]], ["Diâmetro (mm)", "texto"], ["Localização do vazamento", ["Passeio (calçada)", "Rua"], null, "Passeio (calçada)"],
     ["Ponto de referência", "texto"], ["Usuário presente", ["Sim", "Não"]]]}
 };
 // Origem do vazamento só aparece quando "Causado por obras?" = Sim
@@ -3631,9 +3631,9 @@ function blocoEncerramento(chave) {
   const c = CAMPOS_ENCERRAMENTO[chave];
   if (!c) return "";
   return `<div class="card" style="border-left:6px solid #0a6e8a"><b>Dados obrigatórios para encerrar: ${c.titulo}</b>
-    ${c.campos.map(([nome, tipo, condicao], i) => {
+    ${c.campos.map(([nome, tipo, condicao, padrao], i) => {
       const campo = Array.isArray(tipo)
-        ? `<select id="enc_${i}" class="campo"${condicao === "pergunta_obra" ? ` onchange="marcaOrigemObra(this)"` : ""}><option value="">${nome}…</option>${tipo.map(o => `<option>${o}</option>`).join("")}</select>`
+        ? `<select id="enc_${i}" class="campo"${condicao === "pergunta_obra" ? ` onchange="marcaOrigemObra(this)"` : ""}><option value="">${nome}…</option>${tipo.map(o => `<option${o === padrao ? " selected" : ""}>${o}</option>`).join("")}</select>`
         : `<input id="enc_${i}" class="campo" placeholder="${nome}">`;
       if (condicao === "obra") return `<div id="enc_origem_wrap" style="display:none">${campo}</div>`;
       return campo;
