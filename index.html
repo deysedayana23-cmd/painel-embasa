@@ -41,7 +41,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 16h46</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 17h01</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -4656,11 +4656,23 @@ async function sspResponder(id, digiteam, btn) {
 }
 // ===== PEDIR SS: um botão só para o campo (vazamento, Digiteam e abrir e encerrar ficam dentro) =====
 function telaPedirSSUnico() {
-  const atalho = (rot, t, e) => `<button onclick="presetSS('${t}', '${e}')" style="flex:1 1 30%;margin:3px;padding:10px 6px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">${rot}</button>`;
+  const atalho = (rot, t, e) => `<button class="ssp-atalho" onclick="sspAtalho(this, '${t}', '${e}')" style="flex:1 1 30%;margin:3px;padding:10px 6px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">${rot}</button>`;
   return AVISO_DIGITINHO + telaPedidoSS(true).replace("<h2>Abrir e encerrar SS</h2>", `<h2>Pedir SS</h2>
     <div class="nota">Atalhos de vazamento (preenchem o tipo):</div>
     <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${atalho("Vazamento de rede", "43", "1")}${atalho("Vazamento de ramal", "43", "2")}${atalho("Vazamento de hidrômetro", "43", "3")}</div>
-    <div class="nota"><b>O que fazer com a SS:</b> "Só gerar" (o escritório abre), "Mandar no Digiteam" (abre e manda para alguém) ou "Digitar e encerrar" (já foi feito; pede os dados do encerramento).</div>`);
+    <div id="ssp_atalho_msg"></div>
+    <div class="nota"><b>O que fazer com a SS:</b> "Só gerar" (o escritório abre), "Mandar no Digiteam" (abre e manda para alguém) ou "Digitar e encerrar" (já foi feito; pede os dados do encerramento).</div>`).replace(">Enviar pedido de abertura e encerramento</button>", ">Enviar pedido de SS</button>");
+}
+// Atalho de vazamento: preenche o tipo, marca o botão e leva a tela até o formulário
+function sspAtalho(btn, tipo, esp) {
+  presetSS(tipo, esp);
+  document.querySelectorAll(".ssp-atalho").forEach(b => { b.style.background = "#fff"; b.style.color = "#0b5394"; b.textContent = b.textContent.replace(/^✔ /, ""); });
+  btn.style.background = "#0b5394"; btn.style.color = "#fff"; btn.textContent = "✔ " + btn.textContent;
+  const sel = document.getElementById("ps_esp"), nome = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : "";
+  const msg = document.getElementById("ssp_atalho_msg");
+  if (msg) msg.innerHTML = `<div style="background:#e8f5e9;border-left:6px solid #2e7d32;padding:8px 10px;border-radius:6px;margin:4px 0;font-weight:bold">✔ Tipo preenchido: Vazamento de água · ${sspEsc(nome)}. Agora escolha a localidade, o bairro e escreva a observação.</div>`;
+  const alvo = document.getElementById("ps_acao") || document.getElementById("ps_tipo");
+  if (alvo) setTimeout(() => alvo.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
 }
 // ===== RESUMO DO DIA E RELATÓRIO (só a gerente) =====
 function telaResumoGerencia() {
@@ -6018,7 +6030,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 16h46";
+const VERSAO_PAINEL = "04/11 17h01";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
