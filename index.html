@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 11h12</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 11h32</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -3897,7 +3897,7 @@ async function carregarPendExecutar() {
     // Filtros por tipo de serviço, com a quantidade entre parênteses. "Vazamento no Porto Rico" fica à parte, em vermelho
     // (vazamento no bairro Porto Rico, por causa da obra de asfalto), para os agentes de São Desidério.
     const nomeTipo = t => String(t || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
-    const ehPortoRico = x => /vazament/i.test(String(x.tipo)) && /porto\s*rico/i.test([x.extras.join(" ")].join(" "));
+    const ehPortoRico = x => /\bvaz/i.test(String(x.tipo)) && /porto\s*rico/i.test([x.extras.join(" ")].join(" "));
     const agenteSD = ["luzenildo", "joaquim", "carlito", "francisco"].some(n => eu.includes(n)) || (window.MODO_GERENTE && !emPrevia());
     const tiposCont = {};
     ordenadas.forEach(x => { const t = nomeTipo(x.tipo); tiposCont[t] = (tiposCont[t] || 0) + 1; });
@@ -5433,7 +5433,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 11h12";
+const VERSAO_PAINEL = "04/11 11h32";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
