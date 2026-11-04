@@ -1501,6 +1501,56 @@ function trocarPerfil() {
   if (window.credenciais) carregarQtdUrgentes().then(() => { if (!pilha.length) renderAtual(); });
 }
 
+// ===== PRIORIDADES DO DIA (São Desidério). Cada item: dia (AAAA-MM-DD), quem (nomes ou "sd" = todos da localidade) e o serviço =====
+const PRIORIDADES = [
+  {dia: "2026-11-04", quem: ["oseias"], texto: "Entregar contas em São Desidério", urgente: true},
+  {dia: "2026-11-04", quem: ["joaquim"], texto: "Entregar contas da prefeitura", urgente: true},
+  {dia: "2026-11-04", quem: ["joaquim"], texto: "Retirar contas amanhã", urgente: true},
+  {dia: "2026-11-04", quem: ["luzenildo", "francisco"], texto: "Pela manhã: fechar a extensão da casa da Aparecida (vala do Moreira)", urgente: true},
+  {dia: "2026-11-04", quem: ["luzenildo", "francisco"], texto: "Pela manhã: executar a ligação do Élio", urgente: true},
+  {dia: "2026-11-04", quem: ["luzenildo", "francisco"], texto: "Pela manhã: abrir o registro do Careca", urgente: true},
+  {dia: "2026-11-04", quem: ["francisco"], texto: "À tarde: fazer 2 transferências com Exaque", urgente: true},
+  {dia: "2026-11-04", quem: ["luzenildo"], texto: "À tarde: fazer a extensão de rede do vereador Acácio", urgente: true},
+  {dia: "2026-11-04", quem: ["sd"], texto: "Fechar o buraco do Posto Santo Antônio (chamar a máquina do Luan). Urgente: Zé Rodrigues já cobrou", urgente: true},
+  {dia: "2026-11-05", quem: ["sd"], texto: "Fechar a vala do Moreira até a casa da Aparecida", urgente: false},
+  {dia: "2026-11-06", quem: ["joaquim"], texto: "Terminar a entrega de contas pelo app", urgente: false},
+  {dia: "2026-11-06", quem: ["luzenildo", "francisco"], texto: "Iniciar as ligações novas pendentes", urgente: false},
+  {dia: "2026-11-06", quem: ["sd"], texto: "Ligação da Lúcia", urgente: false},
+  {dia: "2026-11-06", quem: ["sd"], texto: "Tirar by-pass na casa de esquina da creche Tangará", urgente: false},
+  {dia: "2026-11-06", quem: ["sd"], texto: "Entrar em contato com o vereador Acácio para escutar a extensão que ele pediu", urgente: false},
+  {dia: "2026-11-06", quem: ["sd"], texto: "Localizar o registro em frente ao Careca", urgente: false},
+  {dia: "2026-11-06", quem: ["sd"], texto: "Entregar contas da rota do Avistão Brasil (Joaquim)", urgente: false}
+];
+// Quem é "sd": agentes de campo de São Desidério
+const EQUIPE_SD_PRIOR = ["luzenildo", "joaquim", "carlito", "francisco", "oseias", "igor", "acacio", "janiolima", "eduardo"];
+function prioridadesDoUsuario() {
+  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  const eu = (chaves) => chaves.some(c => quem.includes(c));
+  return PRIORIDADES.filter(p => p.quem.some(k => k === "sd" ? eu(EQUIPE_SD_PRIOR) : eu([k])));
+}
+function telaPrioridades() {
+  const hoje = hojeISO();
+  const itens = prioridadesDoUsuario().sort((a, b) => a.dia.localeCompare(b.dia));
+  if (!itens.length) return `<h2>Prioridades</h2><p>Nenhuma prioridade para você.</p>`;
+  const data = d => d.split("-").reverse().join("/");
+  return `<h2>Prioridades do dia</h2>` + itens.map(p => {
+    const vencida = p.dia < hoje;
+    const cor = vencida || p.urgente ? "#c62828" : "#f9a825";
+    const tag = vencida ? "VENCIDA" : p.dia === hoje ? "HOJE" : p.dia === somarDiasISO(hoje, 1) ? "AMANHÃ" : "";
+    return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${cor}">
+      <b style="color:${cor}">${tag ? tag + " · " : ""}${data(p.dia)}</b>${p.urgente ? " · <b>URGENTE</b>" : ""}<br>
+      <span style="font-size:15px">${p.texto}</span></div>`;
+  }).join("");
+}
+function somarDiasISO(iso, n) {
+  const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function contarPrioridadesHoje() {
+  const hoje = hojeISO(), amanha = somarDiasISO(hoje, 1);
+  return prioridadesDoUsuario().filter(p => p.dia <= amanha).length;
+}
+
 // ===== QUEM VÊ CADA BOTÃO (menu principal). Botão sem regra aqui = todos =====
 const GRUPOS_BOTAO = {
   agentes: ["luzenildo", "joaquim", "carlito", "francisco", "isaque", "isaac", "ivocarlos", "janiogualberto"],
@@ -1551,6 +1601,8 @@ function mostrarMenu(itens, titulo) {
     const principalCampo = ["Pendência de SS para executar", "Solicitação no SCI", "Vazamento de rede", "Vazamento de ramal",
       "Abrir e encerrar SS", "Solicitação ao Digiteam", "Demandas Agersa"];
     let [fixos, restoCampo] = promoverDoOutros(itens, i => principalCampo.includes(i.nome) || ["pendExecutar", "ssRede", "ssRamal", "ssVazRede", "ssVazRamal", "ssVazHid", "solicitarSS"].includes(i.tela));
+    const nPrior = prioridadesDoUsuario().length ? contarPrioridadesHoje() : 0;
+    if (prioridadesDoUsuario().length) fixos.unshift({nome: "PRIORIDADES DE HOJE E AMANHÃ", tela: "prioridades", prioridade: true, qtd: nPrior});
     // Histórico dos níveis dos reservatórios e macro, para todos os agentes (só consulta)
     fixos.push({nome: "Histórico de níveis dos reservatórios", sub: [
       {nome: "ETA São Desidério", tela: "nivelHistSD"},
@@ -1595,10 +1647,10 @@ function mostrarMenu(itens, titulo) {
   html += `<h2>${titulo}</h2><div class="grid">`;
   itens.forEach((it, i) => {
     const nomeBotao = it.urgente ? `Serviços urgentes (${window.qtdUrgentes || 0})` : it.nome;
-    const destaque = it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
+    const destaque = it.prioridade ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff;font-weight:bold"' : it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
     const contavel = CONTAGEM_SS_TELAS[it.tela];
     const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
-    const rotulo = contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
+    const rotulo = it.prioridade ? `${it.nome} (${it.qtd || 0})` : contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
     html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${nomeExibido}" onclick="abrir(${i})">${rotulo}</button>`;
   });
   html += `</div>`;
