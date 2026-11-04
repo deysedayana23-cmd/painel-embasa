@@ -270,14 +270,6 @@ const TELAS = {
     <h3>EPI</h3>
     <div id="mp_lista">Carregando...</div>`,
 
-  planejamento: () => `
-    <h2>Pedido de planejamento</h2>
-    <input class="campo" placeholder="Data do planejamento">
-    <input class="campo" placeholder="Período (de / até)">
-    <select class="campo"><option>Região…</option><option>Sede</option><option>Angico</option></select>
-    <select class="campo"><option>Serviços…</option><option>Corte</option><option>Religação</option><option>Vazamento</option></select>
-    <button class="acao">Gerar texto do pedido</button>
-    <div class="nota">O texto vai para o escritório. Quando estiver pronto, aparece em "Meus pedidos".</div>`,
 
   solicitarSS: () => AVISO_DIGITINHO + telaPedidoSS(false),
 
@@ -342,8 +334,30 @@ const TELAS = {
 
   cronograma: () => `
     <h2>Cronograma de leitura</h2>
-    <div class="card">Grupo A · Início: 05/11 · Data máxima: 12/11</div><br>
-    <div class="card">Grupo B · Início: 10/11 · Data máxima: 17/11</div><br>
+    <details class="card" open><summary class="acao" style="display:inline-block;cursor:pointer">Novembro</summary>
+      ${tabela(["Localidade","Grupo","Setores","Referência","Leitura a partir de","Exportar até","Substituir HD até"],[
+      ["204 Baianópolis","161","1, 3","01/2027","28/11","10/12","18/11"],
+      ["1019 Catolândia","161","1, 2","01/2027","28/11","10/12","18/11"],
+      ["1019 Catolândia","114","3 a 8","12/2026","01/11","10/11","11/11 a 26/11"],
+      ["1019 Catolândia","126","10 a 16 (conferir)","a informar","a informar","a informar","a informar"],
+      ["306 Angico","130","1","a informar","a informar","a informar","a informar"],
+      ["1411 Buriti Cortado","114","1","12/2026","01/11","10/11","11/11 a 26/11"],
+      ["1412 Mozondó","126","1","a informar","a informar","a informar","a informar"],
+      ["156 São Desidério","137","1 a 6","a informar","a informar","a informar","a informar"]
+      ])}
+    </details><br>
+    <details class="card"><summary class="acao" style="display:inline-block;cursor:pointer">Dezembro</summary>
+      ${tabela(["Localidade","Grupo","Setores","Referência","Leitura a partir de","Exportar até","Substituir HD até"],[
+      ["1019 Catolândia","114","3 a 8","01/2027","gera arquivo 02/12","10/12","após 11/12"],
+      ["1411 Buriti Cortado","114","1","01/2027","gera arquivo 02/12","10/12","após 11/12"],
+      ["204 Baianópolis","161","1, 3","a informar","a informar","a informar","a informar"],
+      ["1019 Catolândia","161","1, 2","a informar","a informar","a informar","a informar"],
+      ["1019 Catolândia","126","10 a 16 (conferir)","a informar","a informar","a informar","a informar"],
+      ["306 Angico","130","1","a informar","a informar","a informar","a informar"],
+      ["1412 Mozondó","126","1","a informar","a informar","a informar","a informar"],
+      ["156 São Desidério","137","1 a 6","a informar","a informar","a informar","a informar"]
+      ])}
+    </details><br>
     <h2>Contas retidas</h2>
     <div class="card">Impressas: 120 · Entregues: <input class="campo" style="width:90px;display:inline"></div>
     <button class="acao">Salvar entregas</button>`,
@@ -635,7 +649,6 @@ const PERFIS = {
       {nome:"Buscar por matrícula, HD ou nome", tela:"busca"}
     ]},
     {nome:"Meus pedidos", tela:"meusPedidos"},
-    {nome:"Pedido de planejamento", tela:"planejamento"},
     {nome:"Urgências", tela:"urgencias"},
     {nome:"Ocorrência operacional", sub:[
       {nome:"Solicitar abertura", tela:"ocorAbrir"},
