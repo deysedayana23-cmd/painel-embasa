@@ -153,6 +153,9 @@ function doPost(e) {
           const atual = pedidos.getRange(linha, 16).getValue() || "";
           pedidos.getRange(linha, 16).setValue((atual + " " + req.foto).trim());
         }
+        // Colunas 17 (concluída em) e 18 (foto anexada no sistema): aparecem em "Meus pedidos" do funcionário
+        if (req.concluida === "Sim") pedidos.getRange(linha, 17).setValue(Utilities.formatDate(new Date(), "America/Bahia", "dd/MM/yyyy HH:mm"));
+        if (req.fotoAnexada === "Sim") pedidos.getRange(linha, 18).setValue(Utilities.formatDate(new Date(), "America/Bahia", "dd/MM/yyyy HH:mm"));
         registrarHistorico(quem.usuario, "respondeu SS " + req.numero, "linha " + linha);
         return resposta({ ok: true });
       }

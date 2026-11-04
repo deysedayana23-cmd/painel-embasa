@@ -3968,7 +3968,7 @@ async function concluirAbrirEncerrar(linha) {
   const foto = (document.getElementById("pae_f_" + linha) || {}).value || "";
   if (foto !== "Sim") { alert("Só conclui depois de anexar as fotos no sistema. Marque 'Sim' em Foto anexada."); return; }
   try {
-    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: "", concluida: "Sim", foto: "Sim" });
+    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: "", concluida: "Sim", foto: "", fotoAnexada: "Sim" });
     if (res.erro) { alert(res.erro); return; }
     carregarPendAbrirEncerrar();
   } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
