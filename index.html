@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#0b5394">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f2f4f7; color: #1d2330; font-size: 17px; }
@@ -45,11 +46,12 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 18h44</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 18h54</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
+  <button id="btnAvisos" onclick="ativarAvisos()" style="display:none;margin-top:8px;background:#f9a825;color:#1d2330;border:none;border-radius:8px;padding:8px 12px;font-weight:700">🔔 Ativar avisos no celular</button>
   <button id="btnInstalar" onclick="instalarApp()" style="display:none;margin-top:8px;background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">📲 Instalar aplicativo</button>
   <div id="versaoMsg" style="font-size:13px;margin-top:6px"></div>
 </header>
@@ -6073,7 +6075,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 18h44";
+const VERSAO_PAINEL = "04/11 18h54";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -6089,6 +6091,7 @@ function sairPainel() {
   if (!confirm("Sair do painel?")) return;
   window.credenciais = null;
   try { localStorage.removeItem("painelLogin"); } catch (e) {}
+  try { if (window.osPronto) window.osPronto.logout(); } catch (e) {}
   location.replace(location.pathname + "?v=" + Date.now());
 }
 async function entrar() {
@@ -6110,6 +6113,7 @@ async function entrar() {
     document.getElementById("perfil").style.display = res.usuario.perfil === "gerente" ? "" : "none";
     document.getElementById("login").style.display = "none";
     init();
+    avisosVincular();
   } catch (e) {
     msg.textContent = "Não consegui conectar. Verifique a internet. (detalhe: " + (e && e.message ? e.message : e) + ")";
   }
@@ -6122,6 +6126,35 @@ function checarVersaoSilenciosa() {
     const b = document.getElementById("avisoAtualizacao");
     if (b) { b.style.display = "block"; b.querySelector("span").textContent = "Há uma atualização do painel (" + m[1] + ")."; }
   }).catch(() => {});
+}
+// ===== AVISOS NO CELULAR (OneSignal): SS nova, serviço urgente e pedidos chegam como notificação =====
+// O celular fica ligado ao usuário do painel (external_id = usuário em minúsculas). Quem envia é o Codigo.gs (a cada 5 min).
+const ONESIGNAL_APP_ID = "ffb50baa-3d6c-47b3-9d6a-b3ac84d50ba1";
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+OneSignalDeferred.push(async function (OneSignal) {
+  try {
+    await OneSignal.init({ appId: ONESIGNAL_APP_ID, serviceWorkerPath: "painel-embasa/sw.js", serviceWorkerParam: { scope: "/painel-embasa/" } });
+    window.osPronto = OneSignal;
+    OneSignal.Notifications.addEventListener("permissionChange", () => avisosAtualizarBotao());
+    avisosAtualizarBotao();
+  } catch (e) {}
+});
+async function avisosVincular() {
+  const OS = window.osPronto; if (!OS || !window.credenciais) return;
+  try { await OS.login(String(window.credenciais.usuario).trim().toLowerCase()); } catch (e) {}
+}
+function avisosAtualizarBotao() {
+  const b = document.getElementById("btnAvisos"), OS = window.osPronto; if (!b || !OS) return;
+  b.style.display = OS.Notifications.permission ? "none" : "";
+  avisosVincular();
+}
+async function ativarAvisos() {
+  const OS = window.osPronto;
+  if (!OS) { alert("Aguarde alguns segundos e toque de novo."); return; }
+  try { await OS.Notifications.requestPermission(); } catch (e) {}
+  await avisosVincular(); avisosAtualizarBotao();
+  alert(OS.Notifications.permission ? "Pronto! Você vai receber aviso no celular quando chegar SS nova ou serviço urgente."
+    : "As notificações estão bloqueadas. Libere em Configurações do celular > Apps > Chrome (ou Painel EMBASA) > Notificações e toque de novo.");
 }
 // Aplicativo instalável (PWA): registra o service worker e mostra "Instalar aplicativo" quando o Chrome permitir
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
