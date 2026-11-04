@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 07h24</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 08h17</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -3064,10 +3064,14 @@ async function carregarSSLista(filtro) {
   if (!box) return;
   const agora = new Date();
   try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
+    window.ssListaFiltro = filtro;
+    const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+    const [res, ex] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] }))]);
     if (res.erro) { box.textContent = res.erro; return; }
-    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
-      .filter(x => x.ss && !/encerrad|cancelad|conclu/i.test(x.situacao));
+    // SS que alguém já deu OK (executada) somem desta lista
+    const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
+    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu/i.test(x.situacao) && !executadas.has(x.ss));
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
     lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
@@ -3075,6 +3079,7 @@ async function carregarSSLista(filtro) {
     box.innerHTML = lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
         <label><input type="checkbox" class="sl_sel" value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
         <span style="font-size:14px">${x.nome} · matrícula ${x.mat} · ${x.loc}<br>Aberta em ${fmt(x.abertura)} · vence em ${fmt(x.vencimento)}</span>
+        <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
       </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
@@ -3965,7 +3970,8 @@ async function marcarExecutada(ss, tipo, loc) {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo",
       linhas: [[new Date().toISOString(), "'" + ss, tipo, loc, nomesDoUsuario(), "executada", confirmado]] });
     if (res.erro) { alert(res.erro); return; }
-    carregarPendExecutar();
+    // recarrega a tela que estiver aberta (SS pendente ou listas de SS em aberto)
+    if (document.getElementById("sl_lista")) carregarSSLista(window.ssListaFiltro || null); else carregarPendExecutar();
   } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
 }
 async function carregarPendAbrirEncerrar() {
@@ -5334,7 +5340,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 07h24";
+const VERSAO_PAINEL = "04/11 08h17";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
