@@ -1667,7 +1667,7 @@ function mostrarMenu(itens, titulo) {
     const destaque = it.prioridade ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff;font-weight:bold"' : it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
     const contavel = CONTAGEM_SS_TELAS[it.tela];
     const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
-    const rotulo = it.prioridade ? `${it.nome} (${it.qtd || 0})` : contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
+    const rotulo = it.prioridade ? `${it.nome} (${window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : 0})` : contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
     html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${nomeExibido}" onclick="abrir(${i})">${rotulo}</button>`;
   });
   html += `</div>`;
@@ -1678,7 +1678,33 @@ function mostrarMenu(itens, titulo) {
 
 // ===== Contadores nos botões de SS e pendência =====
 const NOME_EXIBIDO = { encerrarEscritorio: "Encerrar SS como executada", pendExecutar: "SS pendente", gersa: "Demandas Agersa" };
-const CONTAGEM_SS_TELAS = { ocorPedidos: "ocorrencias", todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos", gersa: "agersa" };
+const CONTAGEM_SS_TELAS = { ocorPedidos: "ocorrencias", todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos", gersa: "agersa", pendExecutar: "pendExecutar", ssDigiteam: "ssDigiteam" };
+async function contarPendExecutar(cred) {
+  try {
+    const res = await chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" });
+    if (res.erro) return 0;
+    const linhas = res.dados.slice(1);
+    const executadas = new Set(linhas.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1])));
+    const eu = nomesDoUsuario();
+    return linhas.filter(l => String(l[5]).toLowerCase() === "pendente" && !executadas.has(String(l[1])) && String(l[4]).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n)))).length;
+  } catch (e) { return 0; }
+}
+async function contarSSDigiteam(cred) {
+  try {
+    const [res, ex, encV] = await Promise.all([
+      chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }),
+      chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })),
+      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] }))
+    ]);
+    if (res.erro) return 0;
+    const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
+    const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
+    const gerente = window.MODO_GERENTE && !emPrevia();
+    return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), loc: l[2], situacao: l[5] || "" }))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
+      .filter(x => gerente || localidadesAgersaDoUsuario().includes(String(x.loc).trim())).length;
+  } catch (e) { return 0; }
+}
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
   window.contagemSSCarregando = true;
@@ -1707,7 +1733,8 @@ async function atualizarContagemSS() {
     contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
     contarAgersa()
   ]);
-  window.contagemSS = { todas, encerrar, pedidos, ocorrencias, agersa };
+  const [pendEx, digi] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred)]);
+  window.contagemSS = { todas, encerrar, pedidos, ocorrencias, agersa, pendExecutar: pendEx, ssDigiteam: digi };
   window.contagemSSCarregando = false;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
     const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
