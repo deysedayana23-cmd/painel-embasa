@@ -1543,8 +1543,14 @@ function mostrarMenu(itens, titulo) {
     const principalCampo = ["Pendência de SS para executar", "Solicitação no SCI", "Vazamento de rede", "Vazamento de ramal",
       "Abrir e encerrar SS", "Solicitação ao Digiteam", "Demandas Agersa"];
     const fixos = itens.filter(i => principalCampo.includes(i.nome) || i.tela === "pendExecutar");
+    // Histórico dos níveis dos reservatórios e macro, para todos os agentes (só consulta)
+    fixos.push({nome: "Histórico de níveis dos reservatórios", sub: [
+      {nome: "ETA São Desidério", tela: "nivelHistSD"},
+      {nome: "ETA Angico", tela: "nivelHistAngico"},
+      {nome: "ETA Mozondó", tela: "nivelHistMozondo"}
+    ]});
     const outrosAtuais = itens.find(i => i.nome === "Outros" && i.sub);
-    const mover = itens.filter(i => !fixos.includes(i) && i !== outrosAtuais && i.nome !== "Outros");
+    const mover = itens.filter(i => !fixos.includes(i) && i !== outrosAtuais && i.nome !== "Outros" && i.tela !== "nivelHistorico");
     const outrosSub = [...(outrosAtuais ? outrosAtuais.sub : []), ...mover];
     itens = [...fixos];
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
