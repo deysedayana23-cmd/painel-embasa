@@ -41,7 +41,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 15h15</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 16h30</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -1653,6 +1653,21 @@ function mostrarMenu(itens, titulo) {
     itens = [...fixos];
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
+  // SS pendentes por localidade: substituem "SS pendente"; "Encerrar SS como executada" vai para Outros
+  if (!pilha.length) {
+    const ssp = sspBotoesDoUsuario();
+    if (ssp.length) {
+      const enc = itens.filter(i => i.tela === "encerrarEscritorio");
+      itens = itens.filter(i => !["pendExecutar", "encerrarEscritorio"].includes(i.tela));
+      if (enc.length) {
+        const out = itens.find(i => i.nome === "Outros" && i.sub);
+        if (out) itens = itens.map(i => i === out ? Object.assign({}, i, { sub: [...i.sub.filter(j => j.tela !== "encerrarEscritorio"), ...enc] }) : i);
+        else itens.push({ nome: "Outros", sub: enc });
+      }
+      const k = itens.findIndex(i => i.tela === "servicosUrgentes");
+      itens.splice(k + 1, 0, ...ssp);
+    }
+  }
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -1730,12 +1745,12 @@ async function atualizarContagemSS() {
   const [todas, encerrar, pedidos, ocorrencias, agersa] = await Promise.all([
     contar("SSAbertas", l => l[0] && !/encerrad|cancelad|conclu/i.test(l[5] || "")),
     contar("EncerrarSS", l => (l[6] || "pendente") === "pendente"),
-    contar("PedidoSS", l => (l[10] || "pendente") === "pendente"),
+    contar("PedidoSS", l => (l[10] || "pendente") === "pendente" && !sspPedidoNaTelaLocal(l[4], l[9])),
     contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
     contarAgersa()
   ]);
-  const [pendEx, digi] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred)]);
-  window.contagemSS = { todas, encerrar, pedidos, ocorrencias, agersa, pendExecutar: pendEx, ssDigiteam: digi };
+  const [pendEx, digi, ssp] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens()]);
+  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, pendExecutar: pendEx, ssDigiteam: digi }, ssp);
   window.contagemSSCarregando = false;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
     const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
@@ -1775,6 +1790,7 @@ function abrir(i) {
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
+    if (SSP_TELA[it.tela]) carregarSSPend(SSP_TELA[it.tela]);
     if (it.tela === "semLocalizacao") carregarSemLocalizacao();
     if (it.local) window.almoxLocalPreset = it.local;
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
@@ -3894,6 +3910,7 @@ async function enviarPedidoSS(encerrar = false) {
     if (!hIni || !hFim) { alert("Informe o horário de início e de fim do serviço."); return; }
     obsFinal += " | Início: " + hIni + " | Fim: " + hFim;
     const arquivos = window.fotosEnc || [];
+    if (arquivos.length && !window.ssGps && !(await obterPosicao())) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e tente de novo."); return; }
     if (window.ssGps) obsFinal += " | GPS: " + window.ssGps.lat.toFixed(6) + ", " + window.ssGps.lon.toFixed(6);
     try {
       const links = [];
@@ -4124,11 +4141,14 @@ function campoExtraSS(nome, valor) {
   return `<div style="font-size:14px">${rotulo}: ${v}</div>`;
 }
 async function marcarExecutada(ss, tipo, loc) {
+  if (window.marcandoEx) return; // evita linha repetida com toque duplo
+  window.marcandoEx = true; setTimeout(() => { window.marcandoEx = false; }, 8000);
   try {
     const pos = await obterPosicao();
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
     // fotos do serviço (opcionais): carimbadas com a localização e enviadas antes do OK
     const fotos = (window.fotosPex || {})[ss] || [];
+    if (fotos.length && !pos) { window.marcandoEx = false; alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e toque de novo."); return; }
     const links = [];
     for (const arq of fotos) {
       const base64 = await carimbarFoto(arq, pos);
@@ -4229,7 +4249,8 @@ async function carregarPedidosSS(boxId = "pss_lista") {
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "", concl: l[16] || "", fotoAnex: l[17] || "" }))
       // Some da tela quando a SS é respondida com o número. Abrir e encerrar só some quando estiver concluída e com a foto anexada.
       .filter(p => p.situacao === "pendente" || (/ENCERRAR/.test(p.obs || "") && p.situacao === "respondida" && !(p.concl && p.fotoAnex)))
-      .map(p => p.situacao === "respondida" ? Object.assign(p, { situacao: "pendente", jaTemSS: p.ss }) : p);
+      .map(p => p.situacao === "respondida" ? Object.assign(p, { situacao: "pendente", jaTemSS: p.ss }) : p)
+      .filter(p => !sspPedidoNaTelaLocal(p.loc, p.obs)); // "Só gerar" e "Mandar no Digiteam" ficam em SS pendentes da localidade
     // Pedido à UNBA e Análise de consumo: só a Deyse vê
     const quemPss = normalizarNome(window.credenciais.usuario);
     const ehDeyse = quemPss.includes("deyse");
@@ -4290,6 +4311,238 @@ async function responderSS(linha, mandarDigiteam) {
     }
     carregarPedidosSS();
   } catch (e) { alert("Não consegui responder. Verifique a internet."); }
+}
+
+// ===== SS PENDENTES POR LOCALIDADE (São Desidério, Catolândia, Baianópolis) =====
+// Uma tela só para a equipe de campo da localidade e para os digitadores (Deyse, Thiago, Oseias, Igor).
+// Fontes: PedidoSS (pedidos "Só gerar" e "Mandar no Digiteam") e ExecucaoCampo (SS lançadas, situacao "pendente").
+// Cada confirmação é uma linha nova na ExecucaoCampo (nada é apagado), com a SS (ou "P<linha do pedido>") na coluna ss:
+//   "executada" (campo, com GPS e fotos) · "digitada" (digitador) · "foto anexada" (digitador)
+// Some quando: executada + digitada + (foto anexada, se tiver foto). "Mandar no Digiteam" some quando o digitador abre e manda.
+// "Abrir e encerrar" continua em Demandas > Pedidos de SS.
+const SSP_LOCAIS = { sd: "São Desidério", cat: "Catolândia", bai: "Baianópolis" };
+const SSP_TELA = { ssPendSD: "sd", ssPendCat: "cat", ssPendBai: "bai" };
+const SSP_CONTA = { sd: "sspSD", cat: "sspCat", bai: "sspBai" };
+const SSP_EQUIPE = { sd: ["luzenildo", "joaquim", "carlito", "francisco"], cat: ["isaque", "isaac"], bai: ["ivocarlos", "janiogualberto"] };
+const SSP_DIGITADORES = ["deyse", "thiago", "tiago", "oseias", "igor"];
+function sspPedidoNaTelaLocal(loc, obs) {
+  return Object.values(SSP_LOCAIS).some(x => sspMesmoLocal(loc, x)) && /^\[(S[ÓO] GERAR|MANDAR NO DIGITEAM)\]/i.test(String(obs || ""));
+}
+const SSP_INICIO = "2026-11-04T19:00:00Z"; // pedidos respondidos antes disso já seguiram o fluxo antigo
+Object.assign(TELAS, {
+  ssPendSD: () => telaSSPend("sd"),
+  ssPendCat: () => telaSSPend("cat"),
+  ssPendBai: () => telaSSPend("bai")
+});
+Object.assign(CONTAGEM_SS_TELAS, { ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai" });
+function sspPapel(chave) {
+  const id = identidadeAtual();
+  const digitador = SSP_DIGITADORES.some(n => id.includes(n)) || (window.MODO_GERENTE && !emPrevia());
+  const campo = SSP_EQUIPE[chave].some(n => id.includes(n));
+  return { campo, digitador, ve: campo || digitador };
+}
+function sspBotoesDoUsuario() {
+  return Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
+    .map(k => ({ nome: "SS pendentes – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai" }[k], prioridade: true }));
+}
+function sspEsc(v) {
+  return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+const sspLimpo = v => String(v == null ? "" : v).replace(/^'/, "").trim();
+const sspMesmoLocal = (a, b) => normalizarNome(a) === normalizarNome(b);
+function telaSSPend(chave) {
+  const p = sspPapel(chave);
+  return `<h2>SS pendentes – ${SSP_LOCAIS[chave]}</h2>
+    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.campo ? "Campo: quando executar, toque em \"Executei em campo\". Foto só vai com o GPS ligado. " : ""}A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver).</div>
+    <div id="ssp_lista">Carregando...</div>`;
+}
+async function sspDados() {
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  const [ex, pe] = await Promise.all([
+    chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }),
+    chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" })
+  ]);
+  if (ex.erro) throw new Error(ex.erro);
+  if (pe.erro) throw new Error(pe.erro);
+  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1) };
+}
+// Monta a lista da localidade a partir das duas abas
+function sspMontar(d, chave) {
+  const loc = SSP_LOCAIS[chave];
+  const conf = {}; // chave (SS ou P<linha>) -> confirmações
+  const pegar = k => (conf[k] = conf[k] || { executada: null, digitada: null, foto: null, finalizada: false, fotos: [] });
+  d.ex.forEach(l => {
+    const k = sspLimpo(l[1]); if (!k) return;
+    const sit = String(l[5] || "").toLowerCase().trim();
+    const c = pegar(k);
+    const quem = String(l[6] || "").split("|")[0].trim() || String(l[4] || "");
+    if (sit === "executada") {
+      if (!c.executada) c.executada = { quem, quando: l[0] };
+      const f = String(l[6] || "").match(/Fotos:\s*(.+)$/);
+      if (f) f[1].split(/\s+/).filter(u => /^https?:/.test(u)).forEach(u => { if (!c.fotos.includes(u)) c.fotos.push(u); });
+    } else if (sit === "digitada") { if (!c.digitada) c.digitada = { quem, quando: l[0] }; }
+    else if (sit === "foto anexada") { c.foto = { quem, quando: l[0] }; }
+    else if (/finalizada/.test(sit)) c.finalizada = true;
+  });
+  const itens = []; const porSS = {};
+  // 1) pedidos de abertura da localidade
+  d.pe.forEach((l, i) => {
+    const linha = i + 2, obs = String(l[9] || ""), sit = String(l[10] || "pendente").toLowerCase();
+    if (!sspMesmoLocal(l[4], loc)) return;
+    const digiteam = /^\[MANDAR NO DIGITEAM\]/i.test(obs);
+    const soGerar = /^\[S[ÓO] GERAR\]/i.test(obs);
+    if (!digiteam && !soGerar) return;
+    if (sit !== "pendente" && sit !== "respondida") return;
+    if (digiteam && sit !== "pendente") return; // mandado ao Digiteam: some
+    if (sit === "respondida" && String(l[0] || "") < SSP_INICIO) return;
+    const it = { id: "P" + linha, pedidoLinha: linha, tipo: [l[2], l[3]].filter(Boolean).join(" · "), tipoCurto: l[2], loc, quando: l[0], pedidoPor: l[1],
+      ss: sspLimpo(l[11]), tipoPedido: digiteam ? "digiteam" : "abrir",
+      campos: [["Bairro", l[5]], ["Logradouro/Ref.", l[6]], ["Matrícula", l[7]], ["Hidrômetro", l[8]], ["Obs.", obs.replace(/^\[[^\]]+\]\s{0,}/, "")]],
+      fotosPedido: String(l[15] || "").split(/\s+/).filter(u => /^https?:/.test(u)) };
+    itens.push(it); if (it.ss) porSS[it.ss] = it;
+  });
+  // 2) SS lançadas na ExecucaoCampo (pendente) da localidade
+  const cab = d.cab; const ic = n => cab.indexOf(n);
+  d.ex.forEach(l => {
+    if (String(l[5] || "").toLowerCase().trim() !== "pendente" || !sspMesmoLocal(l[3], loc)) return;
+    const ss = sspLimpo(l[1]); if (!ss || porSS[ss]) return;
+    const v = n => ic(n) >= 0 ? l[ic(n)] : "";
+    const it = { id: ss, ss, tipo: l[2], tipoCurto: l[2], loc, quando: l[0], tipoPedido: "ss", campos: [["Matrícula", v("matricula")], ["Bairro", v("bairro")], ["Logradouro", v("logradouro")],
+      ["Solicitante", v("solicitante")], ["Telefone", v("telefone")], ["Hidrômetro", v("hidrometro")], ["Obs.", v("obs_ss")]], gpsCol: String(v("localizacao") || ""), mat: sspLimpo(v("matricula")), fotosPedido: [] };
+    itens.push(it); porSS[ss] = it;
+  });
+  // junta as confirmações (pela SS e pelo número do pedido) e decide o que ainda aparece
+  return itens.map(it => {
+    const cs = [conf[it.id], it.ss ? conf[it.ss] : null].filter(Boolean);
+    const um = campo => cs.map(c => c[campo]).find(Boolean) || null;
+    const fotos = [...it.fotosPedido]; cs.forEach(c => c.fotos.forEach(u => { if (!fotos.includes(u)) fotos.push(u); }));
+    return Object.assign(it, { executada: um("executada"), digitada: um("digitada"), fotoAnexada: um("foto"), finalizada: cs.some(c => c.finalizada), fotos });
+  }).filter(it => {
+    if (it.finalizada) return false;
+    if (it.tipoPedido === "digiteam") return true;
+    return !(it.executada && it.digitada && (!it.fotos.length || it.fotoAnexada));
+  });
+}
+async function sspContagens() {
+  const out = {};
+  try {
+    const d = await sspDados();
+    Object.keys(SSP_LOCAIS).forEach(k => { out[SSP_CONTA[k]] = sspPapel(k).ve ? sspMontar(d, k).length : 0; });
+  } catch (e) {}
+  return out;
+}
+async function carregarSSPend(chave) {
+  const box = document.getElementById("ssp_lista");
+  if (!box) return;
+  window.sspChave = chave;
+  box.textContent = "Carregando...";
+  try {
+    const [d, base] = await Promise.all([sspDados(), carregarBaseLocalizacao()]);
+    const lista = sspMontar(d, chave).sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+    window.sspCache = {}; lista.forEach(it => { window.sspCache[it.id] = it; });
+    const p = sspPapel(chave);
+    if (!lista.length) { box.innerHTML = "<p>Nenhuma SS pendente.</p>"; return; }
+    const chip = (txt, cor) => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${cor}">${txt}</span>`;
+    const verde = "#2e7d32", vermelho = "#c62828", laranja = "#ef6c00";
+    box.innerHTML = `<div class="nota">${lista.length} SS pendente(s)</div>` + lista.map(it => {
+      const id = sspEsc(it.id);
+      const gpsTexto = (String(it.gpsCol || "").match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || String((it.campos.find(c => /Logradouro/.test(c[0])) || [])[1] || "").match(/GPS:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || []);
+      const gps = gpsTexto[1] ? gpsTexto[1] + "," + gpsTexto[2] : (it.mat && base[it.mat]) || "";
+      const etapas = [];
+      if (it.tipoPedido === "digiteam") etapas.push(chip("Aguardando abertura e envio ao Digiteam", laranja));
+      else {
+        if (!it.ss) etapas.push(chip("Aguardando número da SS", laranja));
+        etapas.push(it.executada ? chip("✔ Executada em campo (" + sspEsc(it.executada.quem) + ")", verde) : chip("Falta executar em campo", vermelho));
+        etapas.push(it.digitada ? chip("✔ Digitada (" + sspEsc(it.digitada.quem) + ")", verde) : chip("Falta digitar", vermelho));
+        if (it.fotos.length) etapas.push(it.fotoAnexada ? chip("✔ Foto anexada à SS", verde) : chip("📷 Foto para anexar à SS", vermelho));
+      }
+      const ficha = it.campos.filter(c => sspLimpo(c[1])).map(c => `<div style="font-size:14px">${sspEsc(c[0])}: ${sspEsc(sspLimpo(c[1]))}</div>`).join("");
+      const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
+      const acoesCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada ? `
+        <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço (opcional, precisa do GPS ligado)</b><br>
+          <button onclick="document.getElementById('sspcam_${id}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:600">📷 Tirar foto</button>
+          <button onclick="document.getElementById('sspgal_${id}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#fff;color:#555;font-weight:600">Anexar do celular</button>
+          <input type="file" id="sspcam_${id}" accept="image/*" capture="environment" style="display:none" onchange="sspAddFoto('${id}', this)">
+          <input type="file" id="sspgal_${id}" accept="image/*" multiple style="display:none" onchange="sspAddFoto('${id}', this)">
+          <div id="sspfotos_${id}" class="nota">${((window.fotosSsp || {})[it.id] || []).length} foto(s)</div></div>
+        <button class="acao" onclick="sspExecutar('${id}', this)">Executei em campo</button>` : "";
+      let acoesDig = "";
+      if (p.digitador) {
+        if (it.tipoPedido === "digiteam") acoesDig = `<input id="sspn_${id}" class="campo" placeholder="Número da SS aberta">${selectDigiteam("sspd_" + it.id)}
+          <button class="acao" onclick="sspResponder('${id}', true, this)">Abri a SS e mandei no Digiteam</button>`;
+        else {
+          if (!it.ss) acoesDig += `<input id="sspn_${id}" class="campo" placeholder="Número da SS aberta"><button class="acao" onclick="sspResponder('${id}', false, this)">Informar número da SS</button>`;
+          if (it.ss && !it.digitada) acoesDig += `<button class="acao" onclick="sspConfirmar('${id}', 'digitada', this)">Digitei / encerrei no SCI</button>`;
+          if (it.fotos.length && !it.fotoAnexada) acoesDig += `<button class="acao" style="background:#6a1b9a" onclick="sspConfirmar('${id}', 'foto anexada', this)">Anexei a foto na SS</button>`;
+        }
+      }
+      return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.tipoPedido === "digiteam" ? laranja : vermelho}">
+        <b>${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</b> · ${sspEsc(it.tipo)}<br>
+        <span style="font-size:13px;color:#555">${it.pedidoPor ? "Pedido por " + sspEsc(it.pedidoPor) + " em " : "Lançada em "}${formatarQuando(it.quando)}</span>
+        <div style="margin:6px 0">${etapas.join("")}</div>
+        ${ficha}${fotosHTML}
+        ${gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
+        ${acoesCampo}${acoesDig}
+      </div>`;
+    }).join("");
+  } catch (e) { box.textContent = "Não consegui carregar: " + (e && e.message ? e.message : "erro") + "."; }
+}
+function sspAddFoto(id, input) {
+  window.fotosSsp = window.fotosSsp || {};
+  const lista = window.fotosSsp[id] = window.fotosSsp[id] || [];
+  Array.from(input.files || []).forEach(a => { if (lista.length < 10) lista.push(a); });
+  input.value = "";
+  const el = document.getElementById("sspfotos_" + id);
+  if (el) el.textContent = lista.length + " foto(s): " + lista.map(f => f.name).join(", ");
+}
+function sspTravar(btn, texto) { if (!btn) return; btn.disabled = true; btn.dataset.txt = btn.textContent; btn.textContent = texto || "Enviando..."; }
+function sspDestravar(btn) { if (!btn) return; btn.disabled = false; if (btn.dataset.txt) btn.textContent = btn.dataset.txt; }
+async function sspExecutar(id, btn) {
+  const it = (window.sspCache || {})[id]; if (!it || (btn && btn.disabled)) return;
+  sspTravar(btn, "Pegando o GPS...");
+  try {
+    const fotos = (window.fotosSsp || {})[id] || [];
+    const pos = await obterPosicao();
+    if (fotos.length && !pos) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e toque de novo."); sspDestravar(btn); return; }
+    const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+    const links = [];
+    for (const arq of fotos) {
+      if (btn) btn.textContent = "Enviando foto " + (links.length + 1) + " de " + fotos.length + "...";
+      const base64 = await carimbarFoto(arq, pos);
+      const r = await chamarApi({ acao: "salvarFoto", ...cred, base64, tipo: "image/jpeg", nome: arq.name });
+      if (r.erro) { alert("Não consegui enviar a foto: " + r.erro); sspDestravar(btn); return; }
+      links.push(r.url);
+    }
+    const confirmado = window.credenciais.usuario + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "") + (links.length ? " | Fotos: " + links.join(" ") : "");
+    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo",
+      linhas: [[new Date().toISOString(), "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), "executada", confirmado]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    if (window.fotosSsp) delete window.fotosSsp[id];
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
+async function sspConfirmar(id, situacao, btn) {
+  const it = (window.sspCache || {})[id]; if (!it || (btn && btn.disabled)) return;
+  sspTravar(btn);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo",
+      linhas: [[new Date().toISOString(), "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), situacao, window.credenciais.usuario]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
+async function sspResponder(id, digiteam, btn) {
+  const it = (window.sspCache || {})[id]; if (!it || !it.pedidoLinha || (btn && btn.disabled)) return;
+  const numero = String((document.getElementById("sspn_" + id) || {}).value || "").replace(/\D/g, "");
+  const dg = digiteam ? ((document.getElementById("sspd_" + id) || {}).value || "") : "";
+  if (!numero) { alert("Digite o número da SS."); return; }
+  if (digiteam && !dg) { alert("Escolha quem recebe no Digiteam."); return; }
+  sspTravar(btn);
+  try {
+    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: it.pedidoLinha, numero, digiteam: dg, concluida: "", foto: "", fotoAnexada: "" });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
 }
 
 // ===== ALMOXARIFADO: menu com as operações; cada uma abre na área abaixo =====
@@ -5573,7 +5826,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 15h15";
+const VERSAO_PAINEL = "04/11 16h30";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
