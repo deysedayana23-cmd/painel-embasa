@@ -1549,6 +1549,17 @@ function mostrarMenu(itens, titulo) {
     itens = [...fixos];
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
+  // Gerência (Deyse) e escritório (Thiago): menu principal com Demandas, Pedidos de SS e SS para encerrar pelo escritório
+  if (!pilha.length && (perfilAtual.startsWith("Gerente") || perfilAtual.startsWith("Atendente"))) {
+    const demandas = {nome: "Demandas", sub: [
+      {nome: "EPI", tela: "episHistorico"},
+      {nome: "Pedidos de SS", tela: "pedidosSS"},
+      {nome: "Ocorrência operacional", tela: "ocorPedidos"},
+      {nome: "Contas, SCI e Digiteam", tela: "pedidosSS"}
+    ]};
+    const fixosGer = itens.filter(i => ["pedidosSS", "encerrarEscritorio"].includes(i.tela));
+    itens = [demandas, ...fixosGer];
+  }
   if (!pilha.length && /^Operador/.test(String(perfilAtual || ""))) {
     const quem = normalizarNome(window.credenciais && window.credenciais.usuario);
     const principalOp = ["Ocorrência operacional", "Reclamação Coelba", "Estoque diário produto químico"];
@@ -3871,9 +3882,11 @@ async function carregarPedidosSS(boxId = "pss_lista") {
     if (res.erro) { box.textContent = res.erro; return; }
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "" }));
     // Pedido à UNBA e Análise de consumo: só a Deyse vê
-    const ehDeyse = normalizarNome(window.credenciais.usuario).includes("deyse");
-    const restritos = /^Pedido à UNBA|^Análise de consumo/;
-    const visiveis = itens.filter(p => ehDeyse || !restritos.test(p.tipo || ""));
+    const quemPss = normalizarNome(window.credenciais.usuario);
+    const ehDeyse = quemPss.includes("deyse");
+    const ehThiago = quemPss.includes("thiago") || quemPss.includes("tiago");
+    const soSCI = /SCI|Segunda via|Análise de consumo|Débito|Digiteam|conta|matrícula/i;
+    const visiveis = itens.filter(p => ehDeyse ? true : ehThiago ? (soSCI.test(p.tipo || "") && !/^Pedido à UNBA/.test(p.tipo || "")) : !/^Pedido à UNBA|^Análise de consumo/.test(p.tipo || ""));
     itens.length = 0; itens.push(...visiveis);
     itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
     window.pssCache = {};
