@@ -45,7 +45,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 17h49</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 18h19</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -1645,6 +1645,7 @@ function mostrarMenu(itens, titulo) {
     const principalOp = ["Ocorrência operacional", "Reclamação Coelba", "Estoque diário produto químico"];
     const quemId = identidadeAtual();
     if (quemId.includes("igor") || quemId.includes("oseias")) principalOp.push("SS para encerrar pelo escritório");
+    else principalOp.push("Serviços urgentes"); // demais operadores: recados da gerência no menu principal
     const ehAngico = quem.includes("ramon") || quem.includes("renato");
     if (ehAngico) principalOp.push("Níveis e macro ETA", "Níveis dos reservatórios", "Pendência de SS para executar");
     // Igor e Oseias: encerrar SS pelo escritório e pedidos de ocorrência no principal (o botão vem com outro nome do menu do operador)
@@ -1659,7 +1660,7 @@ function mostrarMenu(itens, titulo) {
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
-  if (!pilha.length) itens = sspAjustarMenu(itens);
+  if (!pilha.length) itens = sspPedirParaTodos(sspAjustarMenu(itens));
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -4397,6 +4398,17 @@ function sspAjustarMenu(itens) {
   itens.splice(k + 1, 0, ...ssp, ...extras);
   return itens;
 }
+// "Pedir SS" no menu principal de todo mundo (menos a gerente); os botões antigos de pedir SS saem do menu
+function sspPedirParaTodos(itens) {
+  if (identidadeAtual().includes("deyse")) return itens;
+  const tira = i => SSP_TELAS_PEDIR.includes(i.tela);
+  itens = itens.filter(i => !tira(i)).map(i => i.nome === "Outros" && i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => !tira(j)) }) : i);
+  if (!itens.some(i => i.tela === "pedirSS")) {
+    let k = -1; itens.forEach((i, n) => { if (i.tela === "servicosUrgentes" || SSP_TELA[i.tela]) k = n; });
+    itens.splice(k + 1, 0, { nome: "Pedir SS", tela: "pedirSS", grande: true });
+  }
+  return itens;
+}
 function sspEsc(v) {
   return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
@@ -6044,7 +6056,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 17h49";
+const VERSAO_PAINEL = "04/11 18h19";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
