@@ -593,7 +593,11 @@ const TELAS = {
   pedidosSS: () => telaPedidosSS(),
   semLocalizacao: () => `<h2>Matrículas sem localização</h2><div class="nota">Matrículas das SS pendentes que ainda não têm coordenada (nem na tabela, nem na BaseLocalizacao, nem no GPS de campo).</div><div id="sl2_lista">Carregando...</div>`,
   ssDigiteam: () => telaSSLista("Solicitação ao Digiteam"),
-  analiseConsumo: () => `<h2>Análise de consumo</h2><div class="nota">Esta tela ainda não está no painel.</div>`,
+  analiseConsumo: () => `<h2>Análise de consumo</h2>
+    <div class="nota">Informe a matrícula ou o número do HD. O pedido vai para a Deyse ou para o Tiago, que mandam a tela da leitura dos últimos meses.</div>
+    <select id="ac_tipo" class="campo" onchange="document.getElementById('ac_campo').placeholder = this.value === 'hd' ? 'Número do HD' : 'Matrícula'"><option value="matricula">Matrícula</option><option value="hd">Número do HD</option></select>
+    <input id="ac_campo" class="campo" placeholder="Matrícula">
+    <button class="acao" onclick="enviarAnaliseConsumo()">Enviar pedido</button>`,
   buscarMatricula: () => `<h2>Buscar por matrícula, HD ou nome</h2><div class="nota">Esta tela ainda não está no painel.</div>`,
   pedidoUNBA: () => `<h2>Pedido à UNBA</h2>
     <div class="nota">Pedido de tubos ou serviços diversos. Chega no painel da Deyse.</div>
@@ -2885,6 +2889,19 @@ async function marcarEncerrada(linha) {
 
 // ===== LISTA DE SS PARA A EQUIPE: vencendo em 24 ou 48 horas e todas em aberto. Quem está na rua marca e escolhe a ação =====
 // Aba SSAbertas (exportada do SCI pela gerência): ss | tipo | localidade | abertura | vencimento | situacao | nome | matricula
+async function enviarAnaliseConsumo() {
+  const tipo = document.getElementById("ac_tipo").value;
+  const valor = document.getElementById("ac_campo").value.trim();
+  if (!valor) { alert(tipo === "hd" ? "Informe o número do HD." : "Informe a matrícula."); return; }
+  const linha = [new Date().toISOString(), window.credenciais.usuario, "Análise de consumo", "Tela da leitura dos últimos meses",
+    "", "", "", tipo === "matricula" ? valor : "", tipo === "hd" ? valor : "", "", "pendente", "", "", "", "", ""];
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS", linhas: [linha] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Pedido enviado para a Deyse ou o Tiago.");
+    document.getElementById("ac_campo").value = "";
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
+}
 function mostrarCamposUNBA() {
   const t = document.getElementById("un_tipo").value;
   const loc = `<label>Localidade <input id="un_loc" class="campo"></label><label>Bairro <input id="un_bairro" class="campo"></label><label>Logradouro <input id="un_log" class="campo"></label>`;
