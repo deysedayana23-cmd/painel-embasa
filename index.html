@@ -1563,8 +1563,8 @@ const REGRA_BOTAO = {
   "Abrir e encerrar SS": "menos_deyse",
   "EPI": "menos_deyse",
   "SS para encerrar pelo escritório": ["deyse", "thiago", "oseias", "igor", "alan", "genildo"],
-  "SS pendente": ["luzenildo", "joaquim", "carlito", "francisco"],
-  "pendExecutar": ["luzenildo", "joaquim", "carlito", "francisco"],
+  "SS pendente": "agentes_perfil",
+  "pendExecutar": "agentes_perfil",
   "Níveis e macro ETA": "operadores",
   "Estoque diário produto químico": ["operadores", "deyse"],
   "Abastecimento (cartões)": ["deyse", "thiago", "tiago"],
@@ -1577,6 +1577,7 @@ function visivelBotao(nome, tela) {
   const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
   const tem = k => quem.includes(k);
   if (r === "menos_deyse") return !tem("deyse");
+  if (r === "agentes_perfil") return /^Agente/.test(String(perfilAtual || "")) || GRUPOS_BOTAO.agentes.some(tem);
   if (r === "operadores") return GRUPOS_BOTAO.operadores.some(tem);
   return r.some(k => k === "agentes" ? GRUPOS_BOTAO.agentes.some(tem) : k === "operadores" ? GRUPOS_BOTAO.operadores.some(tem) : tem(k));
 }
