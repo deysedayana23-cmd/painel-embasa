@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Protótipo – Painel EMBASA</title>
+<title>Painel EMBASA</title>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f2f4f7; color: #1d2330; font-size: 17px; }
@@ -40,15 +40,15 @@
 
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
-  <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 16h35</div>
+  <h1>Painel EMBASA</h1>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 16h46</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
   <div id="versaoMsg" style="font-size:13px;margin-top:6px"></div>
 </header>
-<div class="aviso-proto">PROTÓTIPO: dados de exemplo. Endereços, matrículas e valores são fictícios.</div>
+<div class="aviso-proto">Sincronização dos pedidos de SS: 7h30, 10h, 13h30 e 15h30. Nesses horários, clique em "Verificar nova versão" para receber as atualizações.</div>
 
 <div id="login" style="position:fixed;inset:0;background:#0b5394;display:flex;align-items:center;justify-content:center;z-index:9">
   <div style="background:#fff;padding:24px;border-radius:12px;width:90%;max-width:340px">
@@ -1653,21 +1653,8 @@ function mostrarMenu(itens, titulo) {
     itens = [...fixos];
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
-  // SS pendentes por localidade: substituem "SS pendente"; "Encerrar SS como executada" vai para Outros
-  if (!pilha.length) {
-    const ssp = sspBotoesDoUsuario();
-    if (ssp.length) {
-      const enc = itens.filter(i => i.tela === "encerrarEscritorio");
-      itens = itens.filter(i => !["pendExecutar", "encerrarEscritorio"].includes(i.tela));
-      if (enc.length) {
-        const out = itens.find(i => i.nome === "Outros" && i.sub);
-        if (out) itens = itens.map(i => i === out ? Object.assign({}, i, { sub: [...i.sub.filter(j => j.tela !== "encerrarEscritorio"), ...enc] }) : i);
-        else itens.push({ nome: "Outros", sub: enc });
-      }
-      const k = itens.findIndex(i => i.tela === "servicosUrgentes");
-      itens.splice(k + 1, 0, ...ssp);
-    }
-  }
+  // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
+  if (!pilha.length) itens = sspAjustarMenu(itens);
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -1791,6 +1778,7 @@ function abrir(i) {
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
     if (SSP_TELA[it.tela]) carregarSSPend(SSP_TELA[it.tela]);
+    if (it.tela === "resumoGerencia") carregarResumoGerencia(0);
     if (it.tela === "semLocalizacao") carregarSemLocalizacao();
     if (it.local) window.almoxLocalPreset = it.local;
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
@@ -4337,9 +4325,9 @@ async function responderSS(linha, mandarDigiteam) {
 
 // ===== SS PENDENTES POR LOCALIDADE (São Desidério, Catolândia, Baianópolis) =====
 // Uma tela só para a equipe de campo da localidade e para os digitadores (Deyse, Thiago, Oseias, Igor).
-// Fontes: PedidoSS (pedidos "Só gerar" e "Mandar no Digiteam") e ExecucaoCampo (SS lançadas, situacao "pendente").
+// Fontes: PedidoSS ("Só gerar" e "Mandar no Digiteam"), ExecucaoCampo (SS lançadas, "pendente") e SSAbertas (SS abertas no SCI, menos corte).
 // Cada confirmação é uma linha nova na ExecucaoCampo (nada é apagado), com a SS (ou "P<linha do pedido>") na coluna ss:
-//   "executada" (campo, com GPS e fotos) · "digitada" (digitador) · "foto anexada" (digitador)
+//   "executada" (campo, com GPS e fotos) · "digitada" · "foto anexada" (digitador) · "assumida" / "liberada" (campo: "Vou executar")
 // Some quando: executada + digitada + (foto anexada, se tiver foto). "Mandar no Digiteam" some quando o digitador abre e manda.
 // "Abrir e encerrar" continua em Demandas > Pedidos de SS.
 const SSP_LOCAIS = { sd: "São Desidério", cat: "Catolândia", bai: "Baianópolis" };
@@ -4347,6 +4335,11 @@ const SSP_TELA = { ssPendSD: "sd", ssPendCat: "cat", ssPendBai: "bai" };
 const SSP_CONTA = { sd: "sspSD", cat: "sspCat", bai: "sspBai" };
 const SSP_EQUIPE = { sd: ["luzenildo", "joaquim", "carlito", "francisco"], cat: ["isaque", "isaac"], bai: ["ivocarlos", "janiogualberto"] };
 const SSP_DIGITADORES = ["deyse", "thiago", "tiago", "oseias", "igor"];
+const SSP_ORIGEM = { "São Desidério": [-12.3654726, -44.9743524], "Catolândia": [-12.314725, -44.8615625], "Baianópolis": [-12.307875, -44.53859375] };
+// Foto obrigatória por tipo de serviço (no "Executei em campo")
+const SSP_FOTO_MIN = [{ re: /PAVI/i, n: 2, texto: "serviço com pavimento: tire pelo menos 2 fotos (antes e depois)" }];
+const SSP_HORAS_PARADA_DIG = 24; // executada e sem digitação há mais que isso
+const SSP_HORAS_PARADA_NUM = 2;  // pedido sem número há mais que isso
 function sspPedidoNaTelaLocal(loc, obs) {
   return Object.values(SSP_LOCAIS).some(x => sspMesmoLocal(loc, x)) && /^\[(S[ÓO] GERAR|MANDAR NO DIGITEAM)\]/i.test(String(obs || ""));
 }
@@ -4354,7 +4347,9 @@ const SSP_INICIO = "2026-11-04T19:00:00Z"; // pedidos respondidos antes disso j�
 Object.assign(TELAS, {
   ssPendSD: () => telaSSPend("sd"),
   ssPendCat: () => telaSSPend("cat"),
-  ssPendBai: () => telaSSPend("bai")
+  ssPendBai: () => telaSSPend("bai"),
+  pedirSS: () => telaPedirSSUnico(),
+  resumoGerencia: () => telaResumoGerencia()
 });
 Object.assign(CONTAGEM_SS_TELAS, { ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai" });
 function sspPapel(chave) {
@@ -4367,32 +4362,66 @@ function sspBotoesDoUsuario() {
   return Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
     .map(k => ({ nome: "SS pendentes – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai" }[k], prioridade: true }));
 }
+// Menu principal: SS pendentes no topo; para o campo, um botão só "Pedir SS"; para a gerente, "Resumo e relatório"
+const SSP_TELAS_PEDIR = ["ssVazRede", "ssVazRamal", "ssVazHid", "solicitarSS", "pedidoSS", "pedidoSSEncerrar", "ssRede", "ssRamal"];
+function sspAjustarMenu(itens) {
+  const ssp = sspBotoesDoUsuario();
+  if (!ssp.length) return itens;
+  const enc = itens.filter(i => i.tela === "encerrarEscritorio");
+  itens = itens.filter(i => !["pendExecutar", "encerrarEscritorio"].includes(i.tela));
+  if (enc.length) {
+    const out = itens.find(i => i.nome === "Outros" && i.sub);
+    if (out) itens = itens.map(i => i === out ? Object.assign({}, i, { sub: [...i.sub.filter(j => j.tela !== "encerrarEscritorio"), ...enc] }) : i);
+    else itens.push({ nome: "Outros", sub: enc });
+  }
+  const extras = [];
+  const ehCampo = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).campo);
+  if (ehCampo) {
+    const tira = i => SSP_TELAS_PEDIR.includes(i.tela);
+    if (itens.some(tira) || itens.some(i => i.sub && i.sub.some(tira))) extras.push({ nome: "Pedir SS", tela: "pedirSS", grande: true });
+    itens = itens.filter(i => !tira(i)).map(i => i.nome === "Outros" && i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => !tira(j)) }) : i);
+  }
+  if (window.MODO_GERENTE && !emPrevia()) extras.push({ nome: "Resumo e relatório", tela: "resumoGerencia" });
+  const k = itens.findIndex(i => i.tela === "servicosUrgentes");
+  itens.splice(k + 1, 0, ...ssp, ...extras);
+  return itens;
+}
 function sspEsc(v) {
   return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 const sspLimpo = v => String(v == null ? "" : v).replace(/^'/, "").trim();
 const sspMesmoLocal = (a, b) => normalizarNome(a) === normalizarNome(b);
+const sspNome = u => { const t = String(u || "").trim().split(/\s+/)[0] || ""; return t.charAt(0).toUpperCase() + t.slice(1); };
+// Data como "dd/mm/aaaa hh:mm" (horário da Bahia), para a regra de prazo
+function sspTxtData(v) {
+  const t = String(v || "").trim();
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(t)) return t;
+  const d = new Date(t); if (!t || isNaN(d)) return "";
+  return d.toLocaleString("pt-BR", { timeZone: "America/Bahia", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", "");
+}
+const sspHorasDesde = v => { const d = new Date(v); return isNaN(d) ? 0 : (Date.now() - d.getTime()) / 3600e3; };
 function telaSSPend(chave) {
   const p = sspPapel(chave);
   return `<h2>SS pendentes – ${SSP_LOCAIS[chave]}</h2>
-    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.campo ? "Campo: quando executar, toque em \"Executei em campo\". Foto só vai com o GPS ligado. " : ""}A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver).</div>
+    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.campo ? "Campo: toque em \"Vou executar\" antes de sair e em \"Executei em campo\" quando terminar. Foto só vai com o GPS ligado. " : ""}A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver).</div>
     <div id="ssp_lista">Carregando...</div>`;
 }
 async function sspDados() {
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-  const [ex, pe] = await Promise.all([
+  const [ex, pe, sa] = await Promise.all([
     chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }),
-    chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" })
+    chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" }),
+    chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] }))
   ]);
   if (ex.erro) throw new Error(ex.erro);
   if (pe.erro) throw new Error(pe.erro);
-  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1) };
+  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []) };
 }
-// Monta a lista da localidade a partir das duas abas
+// Monta a lista da localidade a partir das abas
 function sspMontar(d, chave) {
   const loc = SSP_LOCAIS[chave];
   const conf = {}; // chave (SS ou P<linha>) -> confirmações
-  const pegar = k => (conf[k] = conf[k] || { executada: null, digitada: null, foto: null, finalizada: false, fotos: [] });
+  const pegar = k => (conf[k] = conf[k] || { executada: null, digitada: null, foto: null, assumida: null, finalizada: false, fotos: [] });
   d.ex.forEach(l => {
     const k = sspLimpo(l[1]); if (!k) return;
     const sit = String(l[5] || "").toLowerCase().trim();
@@ -4404,6 +4433,8 @@ function sspMontar(d, chave) {
       if (f) f[1].split(/\s+/).filter(u => /^https?:/.test(u)).forEach(u => { if (!c.fotos.includes(u)) c.fotos.push(u); });
     } else if (sit === "digitada") { if (!c.digitada) c.digitada = { quem, quando: l[0] }; }
     else if (sit === "foto anexada") { c.foto = { quem, quando: l[0] }; }
+    else if (sit === "assumida") { c.assumida = { quem, quando: l[0] }; }
+    else if (sit === "liberada") { c.assumida = null; }
     else if (/finalizada/.test(sit)) c.finalizada = true;
   });
   const itens = []; const porSS = {};
@@ -4417,7 +4448,7 @@ function sspMontar(d, chave) {
     if (sit !== "pendente" && sit !== "respondida") return;
     if (digiteam && sit !== "pendente") return; // mandado ao Digiteam: some
     if (sit === "respondida" && String(l[0] || "") < SSP_INICIO) return;
-    const it = { id: "P" + linha, pedidoLinha: linha, tipo: [l[2], l[3]].filter(Boolean).join(" · "), tipoCurto: l[2], loc, quando: l[0], pedidoPor: l[1],
+    const it = { id: "P" + linha, pedidoLinha: linha, tipo: [l[2], l[3]].filter(Boolean).join(" · "), tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(l[0]), pedidoPor: l[1],
       ss: sspLimpo(l[11]), tipoPedido: digiteam ? "digiteam" : "abrir",
       campos: [["Bairro", l[5]], ["Logradouro/Ref.", l[6]], ["Matrícula", l[7]], ["Hidrômetro", l[8]], ["Obs.", obs.replace(/^\[[^\]]+\]\s{0,}/, "")]],
       fotosPedido: String(l[15] || "").split(/\s+/).filter(u => /^https?:/.test(u)) };
@@ -4429,8 +4460,16 @@ function sspMontar(d, chave) {
     if (String(l[5] || "").toLowerCase().trim() !== "pendente" || !sspMesmoLocal(l[3], loc)) return;
     const ss = sspLimpo(l[1]); if (!ss || porSS[ss]) return;
     const v = n => ic(n) >= 0 ? l[ic(n)] : "";
-    const it = { id: ss, ss, tipo: l[2], tipoCurto: l[2], loc, quando: l[0], tipoPedido: "ss", campos: [["Matrícula", v("matricula")], ["Bairro", v("bairro")], ["Logradouro", v("logradouro")],
+    const it = { id: ss, ss, tipo: l[2], tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(v("abertura")) || sspTxtData(l[0]), tipoPedido: "ss", campos: [["Matrícula", v("matricula")], ["Bairro", v("bairro")], ["Logradouro", v("logradouro")],
       ["Solicitante", v("solicitante")], ["Telefone", v("telefone")], ["Hidrômetro", v("hidrometro")], ["Obs.", v("obs_ss")]], gpsCol: String(v("localizacao") || ""), mat: sspLimpo(v("matricula")), fotosPedido: [] };
+    itens.push(it); porSS[ss] = it;
+  });
+  // 3) SS abertas no SCI (aba SSAbertas) que ainda não estão no painel. Corte (tipo 20) fica no fluxo do Digiteam.
+  (d.sa || []).forEach(l => {
+    const ss = sspLimpo(l[0]); if (!/^\d{6,}$/.test(ss) || porSS[ss]) return;
+    if (!sspMesmoLocal(l[2], loc) || /^\s*20\s*-/.test(String(l[1] || "")) || /encerrad|cancelad|conclu/i.test(String(l[5] || ""))) return;
+    const it = { id: ss, ss, tipo: l[1], tipoCurto: l[1], loc, quando: l[3], abertura: sspTxtData(l[3]), tipoPedido: "sci",
+      campos: [["Cliente", l[6]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
   // junta as confirmações (pela SS e pelo número do pedido) e decide o que ainda aparece
@@ -4438,7 +4477,12 @@ function sspMontar(d, chave) {
     const cs = [conf[it.id], it.ss ? conf[it.ss] : null].filter(Boolean);
     const um = campo => cs.map(c => c[campo]).find(Boolean) || null;
     const fotos = [...it.fotosPedido]; cs.forEach(c => c.fotos.forEach(u => { if (!fotos.includes(u)) fotos.push(u); }));
-    return Object.assign(it, { executada: um("executada"), digitada: um("digitada"), fotoAnexada: um("foto"), finalizada: cs.some(c => c.finalizada), fotos });
+    Object.assign(it, { executada: um("executada"), digitada: um("digitada"), fotoAnexada: um("foto"), assumida: um("assumida"), finalizada: cs.some(c => c.finalizada), fotos });
+    it.prazo = it.tipoPedido === "digiteam" || it.executada ? null : prazoSS(it.tipo, it.abertura);
+    it.parada = "";
+    if (it.executada && !it.digitada && sspHorasDesde(it.executada.quando) > SSP_HORAS_PARADA_DIG) it.parada = "executada há " + Math.floor(sspHorasDesde(it.executada.quando)) + "h e ainda sem digitação";
+    else if (!it.ss && (it.tipoPedido === "abrir" || it.tipoPedido === "digiteam") && sspHorasDesde(it.quando) > SSP_HORAS_PARADA_NUM) it.parada = "pedido há " + Math.floor(sspHorasDesde(it.quando)) + "h e ainda sem número";
+    return it;
   }).filter(it => {
     if (it.finalizada) return false;
     if (it.tipoPedido === "digiteam") return true;
@@ -4460,6 +4504,17 @@ async function sspContagens() {
   } catch (e) {}
   return out;
 }
+// Ordem de visita: a partir do escritório, sempre a mais próxima da última parada (SS sem coordenada no fim)
+function sspRota(lista, loc) {
+  const origem = SSP_ORIGEM[loc]; if (!origem) return lista;
+  const dist = (a, b) => { const t = x => x * Math.PI / 180, dLa = t(b[0] - a[0]), dLo = t(b[1] - a[1]);
+    const h = Math.sin(dLa / 2) ** 2 + Math.cos(t(a[0])) * Math.cos(t(b[0])) * Math.sin(dLo / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
+  const coord = x => { const p = String(x.gps || "").split(",").map(Number); return p.length === 2 && p.every(n => isFinite(n)) ? p : null; };
+  const rota = []; let atual = origem, resto = lista.filter(coord);
+  while (resto.length) { let m = 0, dm = Infinity; resto.forEach((x, k) => { const dd = dist(atual, coord(x)); if (dd < dm) { dm = dd; m = k; } });
+    const e = resto.splice(m, 1)[0]; rota.push(e); atual = coord(e); }
+  return [...rota, ...lista.filter(x => !coord(x))];
+}
 async function carregarSSPend(chave) {
   const box = document.getElementById("ssp_lista");
   if (!box) return;
@@ -4467,7 +4522,11 @@ async function carregarSSPend(chave) {
   box.textContent = "Carregando...";
   try {
     const [d, base] = await Promise.all([sspDados(), carregarBaseLocalizacao()]);
-    const lista = sspMontar(d, chave).sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+    const lista = sspMontar(d, chave);
+    lista.forEach(it => {
+      const g = (String(it.gpsCol || "").match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || String((it.campos.find(c => /Logradouro/.test(c[0])) || [])[1] || "").match(/GPS:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || []);
+      it.gps = g[1] ? g[1] + "," + g[2] : (it.mat && base[it.mat]) || "";
+    });
     window.sspCache = {}; lista.forEach(it => { window.sspCache[it.id] = it; });
     const p = sspPapel(chave);
     if (!lista.length) { box.innerHTML = "<p>Nenhuma SS pendente.</p>"; return; }
@@ -4476,25 +4535,37 @@ async function carregarSSPend(chave) {
     const nC = lista.filter(sspFaltaCampo).length, nD = lista.filter(sspFaltaDig).length, nF = lista.filter(sspFaltaFoto).length;
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
     const barra = `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Falta digitação", nD, "#6a1b9a")}${btnF("fotos", "Falta adicionar fotos", nF, "#ef6c00")}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`;
-    const visiveis = filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : lista;
+    let visiveis = filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : lista;
+    // Ordem: vencidas e paradas primeiro; no "Falta ir a campo", ordem de visita a partir do escritório
+    const urg = it => (it.prazo && it.prazo.vencida) || !!it.parada;
+    if (filtro === "campo") visiveis = [...sspRota(visiveis.filter(urg), SSP_LOCAIS[chave]), ...sspRota(visiveis.filter(it => !urg(it)), SSP_LOCAIS[chave])];
+    else visiveis = [...visiveis.filter(urg), ...visiveis.filter(it => !urg(it))].sort((a, b) => (urg(b) - urg(a)) || String(b.quando).localeCompare(String(a.quando)));
     const chip = (txt, cor) => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${cor}">${txt}</span>`;
-    const verde = "#2e7d32", vermelho = "#c62828", laranja = "#ef6c00";
-    box.innerHTML = barra + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map(it => {
+    const verde = "#2e7d32", vermelho = "#c62828", laranja = "#ef6c00", vinho = "#7f0000";
+    const eu = normalizarNome(window.credenciais.usuario);
+    box.innerHTML = barra + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
       const id = sspEsc(it.id);
-      const gpsTexto = (String(it.gpsCol || "").match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || String((it.campos.find(c => /Logradouro/.test(c[0])) || [])[1] || "").match(/GPS:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || []);
-      const gps = gpsTexto[1] ? gpsTexto[1] + "," + gpsTexto[2] : (it.mat && base[it.mat]) || "";
       const etapas = [];
+      if (it.prazo) etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA – prazo " + sspEsc(it.prazo.texto), vermelho) : chip("Prazo: vence " + it.prazo.fim.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), "#8d6e00"));
+      if (it.parada) etapas.push(chip("⏱ Parada: " + sspEsc(it.parada), vinho));
       if (it.tipoPedido === "digiteam") etapas.push(chip("Aguardando abertura e envio ao Digiteam", laranja));
       else {
+        if (it.tipoPedido === "sci") etapas.push(chip("Aberta no SCI", "#0b5394"));
         if (!it.ss) etapas.push(chip("Aguardando número da SS", laranja));
-        etapas.push(it.executada ? chip("✔ Executada em campo (" + sspEsc(it.executada.quem) + ")", verde) : chip("Falta executar em campo", vermelho));
-        etapas.push(it.digitada ? chip("✔ Digitada (" + sspEsc(it.digitada.quem) + ")", verde) : chip("Falta digitar", vermelho));
+        if (it.assumida && !it.executada) etapas.push(chip("🚶 Com " + sspEsc(sspNome(it.assumida.quem)), "#1565c0"));
+        etapas.push(it.executada ? chip("✔ Executada em campo (" + sspEsc(sspNome(it.executada.quem)) + ")", verde) : chip("Falta executar em campo", vermelho));
+        etapas.push(it.digitada ? chip("✔ Digitada (" + sspEsc(sspNome(it.digitada.quem)) + ")", verde) : chip("Falta digitar", vermelho));
         if (it.fotos.length) etapas.push(it.fotoAnexada ? chip("✔ Foto anexada à SS", verde) : chip("📷 Foto para anexar à SS", vermelho));
       }
       const ficha = it.campos.filter(c => sspLimpo(c[1])).map(c => `<div style="font-size:14px">${sspEsc(c[0])}: ${sspEsc(sspLimpo(c[1]))}</div>`).join("");
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
-      const acoesCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada ? `
-        <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço (opcional, precisa do GPS ligado)</b><br>
+      const exige = sspFotoExigida(it.tipo);
+      const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada;
+      const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
+      const acoesCampo = podeCampo ? `
+        ${p.campo ? (minha ? `<button class="acao" style="background:#555" onclick="sspConfirmar('${id}', 'liberada', this)">Não vou mais (liberar)</button>`
+          : !it.assumida ? `<button class="acao" style="background:#1565c0" onclick="sspConfirmar('${id}', 'assumida', this)">🚶 Vou executar</button>` : "") : ""}
+        <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço ${exige ? `<span style="color:#c62828">(obrigatório: ${sspEsc(exige.texto)})</span>` : "(opcional)"}</b> – precisa do GPS ligado<br>
           <button onclick="document.getElementById('sspcam_${id}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:600">📷 Tirar foto</button>
           <button onclick="document.getElementById('sspgal_${id}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#fff;color:#555;font-weight:600">Anexar do celular</button>
           <input type="file" id="sspcam_${id}" accept="image/*" capture="environment" style="display:none" onchange="sspAddFoto('${id}', this)">
@@ -4511,17 +4582,19 @@ async function carregarSSPend(chave) {
           if (it.fotos.length && !it.fotoAnexada) acoesDig += `<button class="acao" style="background:#6a1b9a" onclick="sspConfirmar('${id}', 'foto anexada', this)">Anexei a foto na SS</button>`;
         }
       }
-      return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.tipoPedido === "digiteam" ? laranja : vermelho}">
+      return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.prazo && it.prazo.vencida ? vermelho : it.parada ? vinho : it.tipoPedido === "digiteam" ? laranja : "#0b5394"}">
+        ${filtro === "campo" ? `<span style="float:right;font-weight:bold;color:#0b5394">${n + 1}º</span>` : ""}
         <b>${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</b> · ${sspEsc(it.tipo)}<br>
-        <span style="font-size:13px;color:#555">${it.pedidoPor ? "Pedido por " + sspEsc(it.pedidoPor) + " em " : "Lançada em "}${formatarQuando(it.quando)}</span>
+        <span style="font-size:13px;color:#555">${it.pedidoPor ? "Pedido por " + sspEsc(sspNome(it.pedidoPor)) + " em " : it.tipoPedido === "sci" ? "Aberta em " : "Lançada em "}${it.tipoPedido === "sci" ? sspEsc(it.abertura) : formatarQuando(it.quando)}</span>
         <div style="margin:6px 0">${etapas.join("")}</div>
         ${ficha}${fotosHTML}
-        ${gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
+        ${it.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(it.gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
         ${acoesCampo}${acoesDig}
       </div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar: " + (e && e.message ? e.message : "erro") + "."; }
 }
+function sspFotoExigida(tipo) { return SSP_FOTO_MIN.find(x => x.re.test(String(tipo || ""))) || null; }
 function sspAddFoto(id, input) {
   window.fotosSsp = window.fotosSsp || {};
   const lista = window.fotosSsp[id] = window.fotosSsp[id] || [];
@@ -4534,9 +4607,11 @@ function sspTravar(btn, texto) { if (!btn) return; btn.disabled = true; btn.data
 function sspDestravar(btn) { if (!btn) return; btn.disabled = false; if (btn.dataset.txt) btn.textContent = btn.dataset.txt; }
 async function sspExecutar(id, btn) {
   const it = (window.sspCache || {})[id]; if (!it || (btn && btn.disabled)) return;
+  const fotos = (window.fotosSsp || {})[id] || [];
+  const exige = sspFotoExigida(it.tipo);
+  if (exige && fotos.length < exige.n) { alert("Foto obrigatória: " + exige.texto + ". Você anexou " + fotos.length + "."); return; }
   sspTravar(btn, "Pegando o GPS...");
   try {
-    const fotos = (window.fotosSsp || {})[id] || [];
     const pos = await obterPosicao();
     if (fotos.length && !pos) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e toque de novo."); sspDestravar(btn); return; }
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
@@ -4578,6 +4653,88 @@ async function sspResponder(id, digiteam, btn) {
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
+// ===== PEDIR SS: um botão só para o campo (vazamento, Digiteam e abrir e encerrar ficam dentro) =====
+function telaPedirSSUnico() {
+  const atalho = (rot, t, e) => `<button onclick="presetSS('${t}', '${e}')" style="flex:1 1 30%;margin:3px;padding:10px 6px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">${rot}</button>`;
+  return AVISO_DIGITINHO + telaPedidoSS(true).replace("<h2>Abrir e encerrar SS</h2>", `<h2>Pedir SS</h2>
+    <div class="nota">Atalhos de vazamento (preenchem o tipo):</div>
+    <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${atalho("Vazamento de rede", "43", "1")}${atalho("Vazamento de ramal", "43", "2")}${atalho("Vazamento de hidrômetro", "43", "3")}</div>
+    <div class="nota"><b>O que fazer com a SS:</b> "Só gerar" (o escritório abre), "Mandar no Digiteam" (abre e manda para alguém) ou "Digitar e encerrar" (já foi feito; pede os dados do encerramento).</div>`);
+}
+// ===== RESUMO DO DIA E RELATÓRIO (só a gerente) =====
+function telaResumoGerencia() {
+  const b = (rot, dias) => `<button onclick="carregarResumoGerencia(${dias})" style="flex:1;margin:3px;padding:12px 6px;border-radius:10px;font-weight:bold;border:2px solid #0b5394;background:#fff;color:#0b5394">${rot}</button>`;
+  return `<h2>Resumo e relatório</h2>
+    <div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${b("Hoje", 0)}${b("Últimos 7 dias", 7)}${b("Últimos 30 dias", 30)}</div>
+    <div id="rg_box">Carregando...</div>`;
+}
+async function carregarResumoGerencia(dias) {
+  const box = document.getElementById("rg_box"); if (!box) return;
+  box.textContent = "Carregando...";
+  try {
+    const d = await sspDados();
+    const hojeBA = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bahia" });
+    const inicio = new Date(hojeBA + "T00:00:00-03:00"); inicio.setDate(inicio.getDate() - (dias || 0));
+    const noPeriodo = v => { const t = new Date(v); return !isNaN(t) && t >= inicio; };
+    const periodoTxt = dias ? "últimos " + dias + " dias" : "hoje";
+    // Situação agora, por localidade
+    const sit = Object.keys(SSP_LOCAIS).map(k => { const l = sspMontar(d, k);
+      return { loc: SSP_LOCAIS[k], campo: l.filter(sspFaltaCampo).length, dig: l.filter(sspFaltaDig).length, foto: l.filter(sspFaltaFoto).length,
+        venc: l.filter(it => it.prazo && it.prazo.vencida).length, parada: l.filter(it => it.parada).length, lista: l }; });
+    // Quando cada SS/pedido entrou (para o tempo até a execução)
+    const entrou = {};
+    d.pe.forEach((l, i) => { entrou["P" + (i + 2)] = l[0]; const ss = sspLimpo(l[11]); if (ss) entrou[ss] = entrou[ss] || l[0]; });
+    d.ex.forEach(l => { if (String(l[5]).toLowerCase().trim() === "pendente") { const ss = sspLimpo(l[1]); if (ss && !entrou[ss]) entrou[ss] = l[0]; } });
+    // Execuções e digitações no período (a primeira de cada SS)
+    const vistos = {}, porAgente = {}, porDig = {}, linhasCSV = [["data_hora", "ss", "tipo", "localidade", "situacao", "quem"]];
+    let somaH = 0, nH = 0;
+    d.ex.forEach(l => {
+      const s = String(l[5] || "").toLowerCase().trim(); if (!["executada", "digitada", "foto anexada"].includes(s) || !noPeriodo(l[0])) return;
+      const ss = sspLimpo(l[1]), chave = s + "|" + ss; if (vistos[chave]) return; vistos[chave] = 1;
+      const quem = sspNome(String(l[6] || "").split("|")[0]) || sspNome(l[4]);
+      linhasCSV.push([sspTxtData(l[0]), ss, l[2], l[3], s, quem]);
+      if (s === "executada") { porAgente[quem] = (porAgente[quem] || 0) + 1;
+        if (entrou[ss]) { const h = (new Date(l[0]) - new Date(entrou[ss])) / 3600e3; if (h >= 0 && h < 24 * 60) { somaH += h; nH++; } } }
+      if (s === "digitada") porDig[quem] = (porDig[quem] || 0) + 1;
+    });
+    const pedidos = {}; d.pe.forEach(l => { if (noPeriodo(l[0]) && /^\[(S[ÓO] GERAR|MANDAR NO DIGITEAM|DIGITAR E ENCERRAR|ABRIR E ENCERRAR)\]/i.test(String(l[9] || ""))) pedidos[l[4] || "Sem localidade"] = (pedidos[l[4] || "Sem localidade"] || 0) + 1; });
+    const totalExec = Object.values(porAgente).reduce((a, b) => a + b, 0), totalDig = Object.values(porDig).reduce((a, b) => a + b, 0);
+    const media = nH ? (somaH / nH) : 0;
+    const fmtH = h => h >= 48 ? (h / 24).toFixed(1).replace(".", ",") + " dias" : h.toFixed(1).replace(".", ",") + " h";
+    const tab = (cab, linhas) => `<table><tr>${cab.map(c => `<th>${c}</th>`).join("")}</tr>${linhas.map(r => `<tr>${r.map(c => `<td>${sspEsc(c)}</td>`).join("")}</tr>`).join("")}</table>`;
+    const ordem = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
+    window.rgTexto = [`*Painel EMBASA – resumo (${periodoTxt})*`,
+      `Executadas em campo: ${totalExec}` + (nH ? ` · tempo médio até executar: ${fmtH(media)}` : ""),
+      ...ordem(porAgente).map(([q, n]) => `  - ${q}: ${n}`),
+      `Digitadas: ${totalDig}`, ...ordem(porDig).map(([q, n]) => `  - ${q}: ${n}`),
+      `Pedidos de SS: ${Object.values(pedidos).reduce((a, b) => a + b, 0)}`, ...ordem(pedidos).map(([q, n]) => `  - ${q}: ${n}`),
+      `*Situação agora*`, ...sit.map(s => `${s.loc}: falta campo ${s.campo} · falta digitação ${s.dig} · falta foto ${s.foto} · vencidas ${s.venc} · paradas ${s.parada}`)].join("\n");
+    window.rgCSV = linhasCSV;
+    const paradas = sit.flatMap(s => s.lista.filter(it => it.parada || (it.prazo && it.prazo.vencida)).map(it => [s.loc, it.ss || "pedido sem número", String(it.tipo).slice(0, 40), it.parada || "vencida"]));
+    box.innerHTML = `<h3>Situação agora</h3>${tab(["Localidade", "Falta campo", "Falta digitação", "Falta foto", "Vencidas", "Paradas"], sit.map(s => [s.loc, s.campo, s.dig, s.foto, s.venc, s.parada]))}
+      ${paradas.length ? `<h3 style="color:#c62828">Vencidas e paradas (${paradas.length})</h3>` + tab(["Localidade", "SS", "Tipo", "Motivo"], paradas) : ""}
+      <h3>Executadas em campo – ${periodoTxt} (${totalExec})</h3>
+      ${nH ? `<div class="nota">Tempo médio entre o pedido/lançamento e a execução: <b>${fmtH(media)}</b> (${nH} SS)</div>` : ""}
+      ${totalExec ? tab(["Agente", "Executadas"], ordem(porAgente)) : "<p>Nenhuma no período.</p>"}
+      <h3>Digitadas – ${periodoTxt} (${totalDig})</h3>${totalDig ? tab(["Digitador", "Digitadas"], ordem(porDig)) : "<p>Nenhuma no período.</p>"}
+      <h3>Pedidos de SS – ${periodoTxt}</h3>${Object.keys(pedidos).length ? tab(["Localidade", "Pedidos"], ordem(pedidos)) : "<p>Nenhum no período.</p>"}
+      <button class="acao" onclick="rgCopiar()">Copiar resumo (para WhatsApp ou e-mail)</button>
+      <button class="acao" style="background:#2e7d32" onclick="rgBaixar()">Baixar planilha (CSV)</button>`;
+  } catch (e) { box.textContent = "Não consegui carregar: " + (e && e.message ? e.message : "erro") + "."; }
+}
+function rgCopiar() {
+  const t = window.rgTexto || "";
+  const ok = () => alert("Resumo copiado. É só colar no WhatsApp ou no e-mail.");
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, () => prompt("Copie o texto:", t));
+  else prompt("Copie o texto:", t);
+}
+function rgBaixar() {
+  const csv = (window.rgCSV || []).map(r => r.map(c => '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"').join(";")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  a.download = "painel-embasa-relatorio-" + new Date().toLocaleDateString("en-CA", { timeZone: "America/Bahia" }) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 // ===== ALMOXARIFADO: menu com as operações; cada uma abre na área abaixo =====
@@ -5861,7 +6018,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 16h35";
+const VERSAO_PAINEL = "04/11 16h46";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
