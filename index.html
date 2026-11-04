@@ -1535,6 +1535,19 @@ function mostrarMenu(itens, titulo) {
   // Demandas Agersa aparece para todos; cada um vê só a(s) localidade(s) que atende
   if (!pilha.length && !window.MODO_GERENTE && !perfilAtual.startsWith("Gerente") && !itens.some(i => i.tela === "gersa")) itens = [...itens, {nome: "Demandas Agersa", tela: "gersa"}];
   itens = itens.filter(i => (pilha.length || visivelBotao(i.nome, i.tela)) && (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
+  // Operadores: no menu principal só Ocorrência operacional, Reclamação Coelba e Consumo de produto químico
+  // (Igor e Oseias também veem SS para encerrar pelo escritório). O resto vai para Outros.
+  if (!pilha.length && /^Operador/.test(String(perfilAtual || ""))) {
+    const quem = normalizarNome(window.credenciais && window.credenciais.usuario);
+    const principalOp = ["Ocorrência operacional", "Reclamação Coelba", "Estoque diário produto químico"];
+    if (quem.includes("igor") || quem.includes("oseias")) principalOp.push("SS para encerrar pelo escritório");
+    const fixos = itens.filter(i => principalOp.includes(i.nome));
+    const outrosAtuais = itens.find(i => i.nome === "Outros" && i.sub);
+    const mover = itens.filter(i => !principalOp.includes(i.nome) && i !== outrosAtuais && i.nome !== "Outros");
+    const outrosSub = [...(outrosAtuais ? outrosAtuais.sub : []), ...mover];
+    itens = [...fixos];
+    if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
+  }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
