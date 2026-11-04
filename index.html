@@ -270,6 +270,14 @@ const TELAS = {
     <h3>EPI</h3>
     <div id="mp_lista">Carregando...</div>`,
 
+  planejamento: () => `
+    <h2>Pedido de planejamento</h2>
+    <input class="campo" placeholder="Data do planejamento">
+    <input class="campo" placeholder="Período (de / até)">
+    <select class="campo"><option>Região…</option><option>Sede</option><option>Angico</option></select>
+    <select class="campo"><option>Serviços…</option><option>Corte</option><option>Religação</option><option>Vazamento</option></select>
+    <button class="acao">Gerar texto do pedido</button>
+    <div class="nota">O texto vai para o escritório. Quando estiver pronto, aparece em "Meus pedidos".</div>`,
 
   solicitarSS: () => AVISO_DIGITINHO + telaPedidoSS(false),
 
@@ -627,6 +635,7 @@ const PERFIS = {
       {nome:"Buscar por matrícula, HD ou nome", tela:"busca"}
     ]},
     {nome:"Meus pedidos", tela:"meusPedidos"},
+    {nome:"Pedido de planejamento", tela:"planejamento"},
     {nome:"Urgências", tela:"urgencias"},
     {nome:"Ocorrência operacional", sub:[
       {nome:"Solicitar abertura", tela:"ocorAbrir"},
