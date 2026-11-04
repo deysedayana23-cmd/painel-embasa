@@ -3957,6 +3957,7 @@ async function carregarPendAbrirEncerrar() {
       <pre style="white-space:pre-wrap;font-size:13px">${p.obs}</pre>
       ${p.fotos ? "<div style=\"font-size:14px\">Fotos: " + p.fotos.split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") + "</div>" : ""}
       <input id="pae_n_${p.linha}" class="campo" placeholder="Número da SS gerada">
+      <label>Foto anexada no sistema? <select id="pae_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
       <button class="acao" onclick="concluirAbrirEncerrar(${p.linha})">Marcar como concluída</button>
     </div>`).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
@@ -3964,8 +3965,10 @@ async function carregarPendAbrirEncerrar() {
 async function concluirAbrirEncerrar(linha) {
   const numero = (document.getElementById("pae_n_" + linha) || {}).value || "";
   if (!numero.trim()) { alert("Digite o número da SS."); return; }
+  const foto = (document.getElementById("pae_f_" + linha) || {}).value || "";
+  if (foto !== "Sim") { alert("Só conclui depois de anexar as fotos no sistema. Marque 'Sim' em Foto anexada."); return; }
   try {
-    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: "", concluida: "Sim", foto: "" });
+    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: "", concluida: "Sim", foto: "Sim" });
     if (res.erro) { alert(res.erro); return; }
     carregarPendAbrirEncerrar();
   } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
