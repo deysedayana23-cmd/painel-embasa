@@ -3612,9 +3612,9 @@ const CAMPOS_ENCERRAMENTO = {
     ["Material da rede", ["PVC", "PEAD", "Ferro fundido", "Amianto", "De FoFo", "PBA", "Corrugado", "Cerâmica"]],
     ["Diâmetro", "texto"], ["Profundidade", "texto"], ["Localização do vazamento", "texto"],
     ["Ponto de referência", "texto"], ["Pavimento da rua", "texto"], ["Pavimento da calçada", "texto"],
-    ["Causado por obras", "texto"]]},
+    ["Origem do vazamento", ["Obra da prefeitura", "Obra da Embasa", "Obra particular", "Coelba", "Bahiagás", "Outros"]]]},
   "43-2": {titulo: "Vazamento no ramal", campos: [
-    ["Material do ramal", "texto"], ["Diâmetro", "texto"], ["Localização do vazamento", "texto"],
+    ["Material do ramal", ["PEAD", "PVC"]], ["Diâmetro (mm)", "texto"], ["Localização do vazamento", ["Passeio (calçada)", "Rua"]],
     ["Ponto de referência", "texto"], ["Usuário presente", ["Sim", "Não"]]]}
 };
 function blocoEncerramento(chave) {
