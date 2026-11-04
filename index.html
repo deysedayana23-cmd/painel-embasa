@@ -1541,9 +1541,12 @@ function mostrarMenu(itens, titulo) {
     const quem = normalizarNome(window.credenciais && window.credenciais.usuario);
     const principalOp = ["Ocorrência operacional", "Reclamação Coelba", "Estoque diário produto químico"];
     if (quem.includes("igor") || quem.includes("oseias")) principalOp.push("SS para encerrar pelo escritório");
-    const fixos = itens.filter(i => principalOp.includes(i.nome));
+    const ehAngico = quem.includes("ramon") || quem.includes("renato");
+    if (ehAngico) principalOp.push("Níveis e macro ETA", "Níveis dos reservatórios", "Pendência de SS para executar");
+    let fixos = itens.filter(i => principalOp.includes(i.nome));
+    if (ehAngico && !fixos.some(i => i.tela === "pendExecutar")) fixos.push({nome: "Pendência de SS para executar", tela: "pendExecutar"});
     const outrosAtuais = itens.find(i => i.nome === "Outros" && i.sub);
-    const mover = itens.filter(i => !principalOp.includes(i.nome) && i !== outrosAtuais && i.nome !== "Outros");
+    const mover = itens.filter(i => !principalOp.includes(i.nome) && i !== outrosAtuais && i.nome !== "Outros" && i.tela !== "pendExecutar");
     const outrosSub = [...(outrosAtuais ? outrosAtuais.sub : []), ...mover];
     itens = [...fixos];
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
