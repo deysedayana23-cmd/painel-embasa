@@ -160,6 +160,21 @@ function doPost(e) {
         return resposta({ ok: true });
       }
 
+      // PedidoSS: só a gerência cancela pedido duplicado ou errado (situacao(11) = "cancelado"; a linha não é apagada)
+      case "cancelarPedidoSS": {
+        if (quem.perfil !== "gerente") return resposta({ erro: "Só a gerência pode cancelar pedido de SS" });
+        const ped = aba("PedidoSS");
+        const linha = Number(req.linha);
+        if (!linha || linha < 2 || linha > ped.getLastRow()) return resposta({ erro: "Pedido não encontrado" });
+        // confere que a linha ainda é o mesmo pedido (quem pediu e tipo)
+        if (String(ped.getRange(linha, 2).getValue()) !== String(req.quem || "") || String(ped.getRange(linha, 3).getValue()) !== String(req.tipo || "")) return resposta({ erro: "Esse pedido mudou; recarregue a lista" });
+        ped.getRange(linha, 11).setValue("cancelado");
+        ped.getRange(linha, 13).setValue(quem.usuario);
+        ped.getRange(linha, 14).setValue(new Date());
+        registrarHistorico(quem.usuario, "cancelou pedido de SS", "linha " + linha);
+        return resposta({ ok: true });
+      }
+
       // ExecucaoCampo: gerência preenche um campo (ex.: hidrometro) nas linhas de uma SS.
       // Se a coluna ainda não existe, ela é criada no fim do cabeçalho. Nada é apagado.
       case "definirCampoExecucao": {

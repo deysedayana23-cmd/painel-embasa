@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 10h07</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 10h14</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -4016,7 +4016,8 @@ async function carregarPedidosSS(boxId = "pss_lista") {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
     if (res.erro) { box.textContent = res.erro; return; }
-    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "" }));
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "" }))
+      .filter(p => p.situacao !== "cancelado");
     // Pedido à UNBA e Análise de consumo: só a Deyse vê
     const quemPss = normalizarNome(window.credenciais.usuario);
     const ehDeyse = quemPss.includes("deyse");
@@ -4042,11 +4043,21 @@ async function carregarPedidosSS(boxId = "pss_lista") {
           ${/ENCERRAR/.test(p.obs) ? `<label>Concluída? <select id="pss_c_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
           <label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>` : `<div class="nota">Pedido só para gerar: basta o número da SS (sem foto).</div>`}
           <button class="acao" onclick="responderSS(${p.linha}, false)">Responder com a SS (sem Digiteam)</button>
-          <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>`
+          <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>
+          ${window.MODO_GERENTE && !emPrevia() ? `<button class="acao" style="background:#c62828" onclick="cancelarPedidoSS(${p.linha})">Cancelar pedido (duplicado ou errado)</button>` : ""}`
           : `<div>SS nº <b>${p.ss}</b> · respondida por ${p.por}${p.dg ? " · enviada ao Digiteam de <b>" + p.dg + "</b>" : ""}</div>`}
       </div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function cancelarPedidoSS(linha) {
+  const p = (window.pssCache || {})[linha];
+  if (!p || !confirm("Cancelar este pedido de SS?\n\n" + p.tipo + " · " + p.loc + "\nPedido por " + p.quem)) return;
+  try {
+    const res = await chamarApi({ acao: "cancelarPedidoSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, quem: p.quem, tipo: p.tipo });
+    if (res.erro) { alert(res.erro); return; }
+    carregarPedidosSS();
+  } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 async function responderSS(linha, mandarDigiteam) {
   const numero = (document.getElementById("pss_n_" + linha) || {}).value || "";
@@ -4672,7 +4683,8 @@ async function carregarMeusPedidos() {
     html += "<h3>Pedidos de SS</h3>";
     const ssMinhas = rs.erro ? [] : rs.dados.slice(1).filter(l => String(l[1]).toLowerCase() === eu);
     html += ssMinhas.length ? ssMinhas.reverse().map(l => {
-      const resp = l[10] === "respondida" && l[11];
+      const resp = /respondida|concluida/.test(String(l[10])) && l[11];
+      if (l[10] === "cancelado") return `<div class="card" style="margin-bottom:8px;opacity:.7"><b>${l[2]}</b> · ${l[4]}<br><span style="font-size:14px">Pedido em ${formatarQuando(l[0])} · <span class="tag t-venc">Cancelado pela gerência (duplicado ou errado)</span></span></div>`;
       return `<div class="card" style="margin-bottom:8px"><b>${l[2]}</b> · ${l[4]}<br><span style="font-size:14px">Pedido em ${formatarQuando(l[0])} · ${resp ? "SS nº <b>" + l[11] + "</b>" + (l[14] ? " · enviada ao Digiteam de " + l[14] : "") + (l[16] ? " · concluída: " + l[16] : "") + (l[17] ? " · foto anexada: " + l[17] : "") : '<span class="tag t-alerta">Nas pendências do SCI, aguardando oportunidade</span>'}</span></div>`;
     }).join("") : "<p>Nenhum pedido de SS.</p>";
     const rr = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "RILC" });
@@ -5341,7 +5353,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 10h07";
+const VERSAO_PAINEL = "04/11 10h14";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
