@@ -45,7 +45,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 18h19</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 18h44</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -216,6 +216,7 @@ const TELAS = {
     <select id="qm_produto" class="campo" onchange="atualizarUnidadesQuimico()"><option value="">Produto…</option>${PRODUTOS_QUIMICO.map(p => `<option>${p}</option>`).join("")}</select>
     <input id="qm_qtd" class="campo" placeholder="Quantidade">
     <select id="qm_un" class="campo"><option value="">Escolha o produto primeiro</option></select>
+    <div class="nota"><b>Quando foi a retirada ou o recebimento</b> (o dia e a hora em que usou ou recebeu o produto, não a hora de agora):</div>
     <input type="date" id="qm_dia" class="campo" value="${hojeISO()}">
     <input type="time" id="qm_hora" class="campo">
     <textarea id="qm_obs" class="campo" rows="2" placeholder="Observação"></textarea>
@@ -1893,7 +1894,7 @@ async function carregarSaldosQuimicos() {
     if (res.erro) { alert(res.erro); return; }
     // Dia operacional: das 07h do dia anterior às 07h de hoje (flúor: 48h, das 07h de anteontem)
     const fim = new Date(hojeISO() + "T07:00:00-03:00").getTime();
-    res.dados.slice(1).forEach(l => {
+    res.dados.slice(1).map(linhaQuimico).forEach(l => {
       // colunas: data_hora, usuario, local, tipo, produto, quantidade, unidade, data_movimento, observacao
       if (l[2] !== "ETA Mozondó") return;
       const pref = Object.keys(mapa).find(k => mapa[k] === l[4]);
@@ -1962,6 +1963,10 @@ function copiarTexto(idCampo) {
 
 // ===== PRODUTO QUÍMICO: retirada, recebimento e consumo (aba Quimicos) =====
 const ETAS_QUIMICO = ["ETA Angico", "ETA São Desidério", "ETA Mozondó"];
+// Linhas antigas de químico foram gravadas sem data_hora e usuario (tudo 2 colunas para a esquerda): aqui voltam ao lugar
+function linhaQuimico(l) { return ETAS_QUIMICO.includes(String(l[0] || "").trim()) ? ["", "", ...l.slice(0, 7)] : l; }
+// Número digitado com vírgula ou ponto vira número de verdade (a planilha em português transformava "4.5" em data)
+function numOuTexto(v) { const t = String(v == null ? "" : v).trim().replace(",", "."); return t !== "" && !isNaN(t) ? Number(t) : v; }
 const PRODUTOS_QUIMICO = ["Dicloro", "Sulfato", "Flúor"];
 
 // Flúor é medido em litros; dicloro e sulfato em quilos ou gramas
@@ -1982,7 +1987,7 @@ async function mostrarEstoqueQuimico() {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Quimicos" });
     if (res.erro) { box.textContent = res.erro; return; }
     let saldo = 0, unidade = produto === "Flúor" ? "litros" : "kg", movs = 0;
-    res.dados.slice(1).forEach(l => {
+    res.dados.slice(1).map(linhaQuimico).forEach(l => {
       // colunas: data_hora, usuario, local, tipo, produto, quantidade, unidade, data_movimento, observacao
       if (l[2] !== local || l[4] !== produto) return;
       // o saldo é mostrado em quilos: gramas são convertidas
@@ -1998,11 +2003,18 @@ async function mostrarEstoqueQuimico() {
 async function salvarQuimico() {
   const local = document.getElementById("qm_local").value;
   if (!local) { alert("Escolha a ETA."); return; }
+  if (!document.getElementById("qm_produto").value || !document.getElementById("qm_un").value) { alert("Escolha o produto e a unidade."); return; }
+  if (isNaN(numOuTexto(document.getElementById("qm_qtd").value)) || String(numOuTexto(document.getElementById("qm_qtd").value)).trim() === "") { alert("Digite a quantidade só com números (ex.: 25 ou 2,5)."); return; }
+  if (!document.getElementById("qm_dia").value || !document.getElementById("qm_hora").value) { alert("Informe o dia e a hora da retirada ou do recebimento."); return; }
+  if (window.salvandoQm) return; // evita linha repetida com toque duplo
+  window.salvandoQm = true; setTimeout(() => { window.salvandoQm = false; }, 6000);
   const linha = [
+    new Date().toISOString(),
+    window.credenciais.usuario,
     local,
     document.getElementById("qm_tipo").value,
     document.getElementById("qm_produto").value,
-    document.getElementById("qm_qtd").value,
+    numOuTexto(document.getElementById("qm_qtd").value),
     document.getElementById("qm_un").value,
     (document.getElementById("qm_dia").value || "") + "T" + (document.getElementById("qm_hora").value || "00:00"),
     document.getElementById("qm_obs").value
@@ -5710,7 +5722,7 @@ async function salvarTela(btn, aba) {
     const data = (area.querySelector('input[type="date"]') || {}).value || "";
     const linha = [data + "T07:00:00", window.credenciais.usuario, wrap.dataset.chave, document.getElementById("mac_leitura").value, document.getElementById("mac_consumo").value];
     try {
-      const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Leituras", linhas: [linha] });
+      const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Leituras", linhas: [linha.map((c, k) => k >= 3 ? numOuTexto(c) : c)] });
       alert(res.erro ? res.erro : "Macro salvo no histórico.");
     } catch (e) {
       alert("Não consegui salvar. Verifique a internet.");
@@ -5726,7 +5738,7 @@ async function salvarTela(btn, aba) {
       [dh, u, "Macro Buriti Cortado", document.getElementById("bc_leitura").value, document.getElementById("bc_consumo").value]
     ];
     try {
-      const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "Leituras", linhas: linhas });
+      const res = await chamarApi({ acao: "gravarVarias", usuario: u, senha: window.credenciais.senha, aba: "Leituras", linhas: linhas.map(l => l.map((c, k) => k >= 3 ? numOuTexto(c) : c)) });
       alert(res.erro ? res.erro : "Leitura salva no histórico.");
     } catch (e) {
       alert("Não consegui salvar. Verifique a internet.");
@@ -5737,18 +5749,21 @@ async function salvarTela(btn, aba) {
     // Uma linha por reservatório e horário: data-hora da leitura, quem, reservatório, hora e nível
     const data = (area.querySelector('input[type="date"]') || {}).value || "";
     const heads = [...area.querySelectorAll("table th")].map(th => th.textContent).slice(1);
-    const linhas = [];
+    const linhas = [], invalidos = [];
     area.querySelectorAll("table tr").forEach((tr, idx) => {
       if (idx === 0) return;
       const tds = tr.querySelectorAll("td");
       const hora = tds[0].textContent.trim();
       tds.forEach((td, j) => {
         if (j === 0) return;
-        const valor = td.querySelector("input").value;
-        if (valor === "") return;
+        const bruto = td.querySelector("input").value.trim();
+        if (bruto === "") return;
+        const valor = numOuTexto(bruto);
+        if (typeof valor !== "number") { invalidos.push(hora); return; }
         linhas.push([data + "T" + hora + ":00", window.credenciais.usuario, heads[j - 1], hora, valor]);
       });
     });
+    if (invalidos.length) { alert("Nível inválido em: " + invalidos.join(", ") + ". Use só números, por exemplo 4,5."); return; }
     try {
       const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Niveis", linhas: linhas });
       alert(res.erro ? res.erro : "Níveis salvos no histórico.");
@@ -5808,9 +5823,10 @@ async function verHistorico(aba) {
       corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR")}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[5]}</td></tr>`).join("");
     } else if (aba === "Quimicos") {
       // colunas: data_hora (quando foi alterado), usuario, local, tipo, produto, quantidade, unidade, data_movimento, observacao
-      cabecalho = "<tr><th>Alterado em</th><th>Operador</th><th>ETA</th><th>Movimento</th><th>Produto</th><th>Quantidade</th><th>Unidade</th><th>Data do movimento</th><th>Observação</th></tr>";
+      cabecalho = "<tr><th>Data e hora da retirada/recebimento</th><th>ETA</th><th>Movimento</th><th>Produto</th><th>Quantidade</th><th>Unidade</th><th>Operador</th><th>Lançado em</th><th>Observação</th></tr>";
       const fmt = v => { const d = new Date(v); return isNaN(d) ? String(v) : d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }); };
-      corpo = linhas.map(l => `<tr><td>${fmt(l[0])}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[5]}</td><td>${l[6] || ""}</td><td>${l[7] ? fmt(l[7]) : ""}</td><td>${l[8] || ""}</td></tr>`).join("");
+      const lq = res.dados.slice(1).map(linhaQuimico).sort((a, b) => (new Date(b[7] || b[0]) - new Date(a[7] || a[0])) || 0).slice(0, 50);
+      corpo = lq.map(l => `<tr><td><b>${l[7] ? fmt(l[7]) : "—"}</b></td><td>${l[2]}</td><td>${l[3]}</td><td>${l[4]}</td><td>${l[5]}</td><td>${l[6] || ""}</td><td>${l[1] || "—"}</td><td>${l[0] ? fmt(l[0]) : "—"}</td><td>${l[8] || ""}</td></tr>`).join("");
     } else if (aba === "Niveis") {
       cabecalho = "<tr><th>Horário da leitura</th><th>Quem</th><th>Reservatório</th><th>Nível (MCA)</th></tr>";
       corpo = linhas.map(l => `<tr><td>${new Date(l[0]).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td>${l[1]}</td><td>${l[2]}</td><td>${l[4]}</td></tr>`).join("");
@@ -5893,8 +5909,9 @@ async function carregarNiveis(chave) {
       const hora = String(h).padStart(2, "0") + ":00";
       cfg.reservatorios.forEach(r => {
         const v = valores[hora + "|" + r];
-        const minha = v && String(v.operador).toLowerCase() === String(window.credenciais.usuario).toLowerCase();
-        html += `<tr><td>${hora}</td>${multi ? `<td>${r}</td>` : ""}<td>${v ? v.valor : "—"}</td><td>${v ? v.operador : ""}</td>` +
+        const minha = v && (String(v.operador).toLowerCase() === String(window.credenciais.usuario).toLowerCase() || (window.MODO_GERENTE && !emPrevia())); // a gerente corrige qualquer nível
+        const errado = v && (typeof v.valor !== "number" && (isNaN(Number(String(v.valor).replace(",", "."))) || /^\d{4}-\d{2}-\d{2}T/.test(String(v.valor))));
+        html += `<tr><td>${hora}</td>${multi ? `<td>${r}</td>` : ""}<td>${v ? (errado ? '<b style="color:#c62828">⚠ valor errado – corrigir</b>' : v.valor) : "—"}</td><td>${v ? v.operador : ""}</td>` +
           `<td>${minha ? `<button class="acao" style="margin:0;padding:4px 8px" onclick="editarNivel('${chave}', ${v.linha}, '${v.valor}')">Editar</button>` : ""}</td></tr>`;
       });
     }
@@ -6056,7 +6073,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 18h19";
+const VERSAO_PAINEL = "04/11 18h44";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
