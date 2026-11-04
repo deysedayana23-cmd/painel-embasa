@@ -3613,18 +3613,31 @@ const CAMPOS_ENCERRAMENTO = {
     ["Diâmetro", "texto"], ["Profundidade", "texto"], ["Localização do vazamento", ["Rua", "Passeio", "Quintal", "Fundo", "Lateral"]],
     ["Ponto de referência", "texto"], ["Pavimento da rua", ["Asfalto", "Concreto", "Paralelepípedo", "Intertravado", "Terra", "Sem pavimento"]],
     ["Pavimento da calçada", ["Corrente", "Cimentado", "Concreto", "Grama", "Jardim", "Paralelepípedo", "Pedra portuguesa", "Piso cerâmico", "Intertravado", "Terra", "Sem pavimento"]],
-    ["Origem do vazamento", ["Obra da prefeitura", "Obra da Embasa", "Obra particular", "Coelba", "Bahiagás", "Outros"]]]},
+    ["Vazamento causado por obras?", ["Sim", "Não"], "pergunta_obra"],
+    ["Origem do vazamento", ["Obra da prefeitura", "Obra da Embasa", "Obra particular", "Coelba", "Bahiagás", "Outros"], "obra"]]},
   "43-2": {titulo: "Vazamento no ramal", campos: [
     ["Material do ramal", ["PEAD", "PVC"]], ["Diâmetro (mm)", "texto"], ["Localização do vazamento", ["Passeio (calçada)", "Rua"]],
     ["Ponto de referência", "texto"], ["Usuário presente", ["Sim", "Não"]]]}
 };
+// Origem do vazamento só aparece quando "Causado por obras?" = Sim
+function marcaOrigemObra(sel) {
+  const wrap = document.getElementById("enc_origem_wrap");
+  if (!wrap) return;
+  const sim = sel.value === "Sim";
+  wrap.style.display = sim ? "" : "none";
+  if (!sim) { const o = wrap.querySelector("select"); if (o) o.value = ""; }
+}
 function blocoEncerramento(chave) {
   const c = CAMPOS_ENCERRAMENTO[chave];
   if (!c) return "";
   return `<div class="card" style="border-left:6px solid #0a6e8a"><b>Dados obrigatórios para encerrar: ${c.titulo}</b>
-    ${c.campos.map(([nome, tipo], i) => Array.isArray(tipo)
-      ? `<select id="enc_${i}" class="campo"><option value="">${nome}…</option>${tipo.map(o => `<option>${o}</option>`).join("")}</select>`
-      : `<input id="enc_${i}" class="campo" placeholder="${nome}">`).join("")}
+    ${c.campos.map(([nome, tipo, condicao], i) => {
+      const campo = Array.isArray(tipo)
+        ? `<select id="enc_${i}" class="campo"${condicao === "pergunta_obra" ? ` onchange="marcaOrigemObra(this)"` : ""}><option value="">${nome}…</option>${tipo.map(o => `<option>${o}</option>`).join("")}</select>`
+        : `<input id="enc_${i}" class="campo" placeholder="${nome}">`;
+      if (condicao === "obra") return `<div id="enc_origem_wrap" style="display:none">${campo}</div>`;
+      return campo;
+    }).join("")}
   </div>`;
 }
 function telaPedidoSS(encerrar = false) {
