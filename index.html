@@ -1497,8 +1497,8 @@ function mostrarMenu(itens, titulo) {
 }
 
 // ===== Contadores nos botões de SS e pendência =====
-const NOME_EXIBIDO = { encerrarEscritorio: "Encerrar SS como executada", pendExecutar: "SS pendente" };
-const CONTAGEM_SS_TELAS = { ocorPedidos: "ocorrencias", todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
+const NOME_EXIBIDO = { encerrarEscritorio: "Encerrar SS como executada", pendExecutar: "SS pendente", gersa: "Demandas Agersa" };
+const CONTAGEM_SS_TELAS = { ocorPedidos: "ocorrencias", todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos", gersa: "agersa" };
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
   window.contagemSSCarregando = true;
@@ -1510,13 +1510,24 @@ async function atualizarContagemSS() {
       return res.dados.slice(1).filter(filtro).length;
     } catch (e) { return 0; }
   };
-  const [todas, encerrar, pedidos, ocorrencias] = await Promise.all([
+  // Agersa: demandas em aberto da(s) localidade(s) de quem está usando (gerente vê todas)
+  const contarAgersa = async () => {
+    try {
+      const res = await chamarApi({ acao: "listar", ...cred, aba: "Agersa" });
+      if (res.erro) return 0;
+      const angico = String(perfilAtual || "").startsWith("Operador Angico");
+      return res.dados.slice(1).filter(l => l[0] && !/encerrad|conclu|validad/i.test(l[5] || "") &&
+        (angico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]))).length;
+    } catch (e) { return 0; }
+  };
+  const [todas, encerrar, pedidos, ocorrencias, agersa] = await Promise.all([
     contar("SSAbertas", l => l[0] && !/encerrad|cancelad|conclu/i.test(l[5] || "")),
     contar("EncerrarSS", l => (l[6] || "pendente") === "pendente"),
     contar("PedidoSS", l => (l[10] || "pendente") === "pendente"),
-    contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada"))
+    contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
+    contarAgersa()
   ]);
-  window.contagemSS = { todas, encerrar, pedidos, ocorrencias };
+  window.contagemSS = { todas, encerrar, pedidos, ocorrencias, agersa };
   window.contagemSSCarregando = false;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
     const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
