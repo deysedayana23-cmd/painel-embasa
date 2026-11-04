@@ -633,9 +633,9 @@ const TELAS = {
     <input class="campo" placeholder="Nível do reservatório">
     <button class="acao">Gerar texto para o grupo</button>`,
 
-  escalaTurno: () => (String(perfilAtual || "").startsWith("Operador Mozondó") || !String(perfilAtual || "").startsWith("Operador ETA"))
-    ? TELAS.escalaMozondo()
-    : `<h2>Escala de turno</h2><div class="nota">A escala de turno de São Desidério ainda não está cadastrada no painel.</div>`,
+  escalaTurno: () => `<h2>Escala de turno</h2><div class="nota">A escala de turno de São Desidério ainda não está cadastrada no painel.</div>`,
+  escalaAngico: () => `<h2>Escala ETA Angico</h2><div class="nota">A escala da ETA Angico ainda não está cadastrada no painel.</div>`,
+  escalaSD: () => `<h2>Escala ETA São Desidério</h2><div class="nota">A escala da ETA São Desidério ainda não está cadastrada no painel.</div>`,
 
   ferias: () => `
     <h2>Marcação de férias</h2>
@@ -1439,6 +1439,20 @@ const PRINCIPAL_CAMPO = ["Vazamento de rede", "Vazamento de ramal", "SS para enc
 const PRINCIPAL_GERENTE = ["SS para encerrar pelo escritório", "Adicionar informações", "Pendências de aprovação", "Urgências (criar e acompanhar)", "Pedidos de SS (gerar e responder)",
   "Pedidos de SS da equipe", "Relatório de hora extra", "Pedidos de EPI", "Pedidos RILC", "Solicitações de aquisição",
   "Demandas Agersa (acompanhar e validar)", "Pendências com Estado", "Abastecimento (cartões)", "Cadastro da equipe (matrículas)"];
+// Escala de turno vira um botão com as quatro escalas: ETA Angico, sobreaviso do escritório de SD, ETA SD e ETA Mozondó
+function escalaComSubmenu(lista) {
+  return lista.map(i => {
+    if (i.tela === "escalaTurno" || (i.tela === "escalaMozondo" && i.nome === "Escala de turno")) return {nome: "Escala de turno", sub: [
+      {nome: "Escala ETA Angico", tela: "escalaAngico"},
+      {nome: "Sobreaviso do escritório de São Desidério", tela: "escalaSobreaviso"},
+      {nome: "Escala ETA São Desidério", tela: "escalaSD"},
+      {nome: "Escala ETA Mozondó", tela: "escalaMozondo"}
+    ]};
+    if (i.sub) return {...i, sub: escalaComSubmenu(i.sub)};
+    return i;
+  });
+}
+Object.keys(PERFIS).forEach(k => { PERFIS[k] = escalaComSubmenu(PERFIS[k]); });
 Object.keys(PERFIS).forEach(k => {
   const principal = (k.startsWith("Gerente") || k === "Atendente (Thiago)") ? PRINCIPAL_GERENTE : PRINCIPAL_CAMPO;
   const itens = PERFIS[k];
@@ -1554,7 +1568,7 @@ function abrir(i) {
     if (chaveNiv) carregarNiveis(chaveNiv);
     if (it.tela === "urgencias") { if (perfilAtual.startsWith("Operador Angico")) carregarUrgenciaAngico(); else carregarUrgencias(); }
     if (it.tela === "consumoQuimico") carregarSaldosQuimicos();
-    if ((it.tela === "escalaTurno" && (String(perfilAtual || "").startsWith("Operador Mozondó") || !String(perfilAtual || "").startsWith("Operador ETA"))) || it.tela === "escalaMozondo") {
+    if (it.tela === "escalaMozondo") {
       const [ano, mesNum] = hojeISO().split("-");
       mostrarEscalaMes(Number(ano), Number(mesNum) - 1);
     }
