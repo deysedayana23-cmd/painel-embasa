@@ -4934,15 +4934,20 @@ async function editarNivel(chave, linha, atual) {
   } catch (e) { alert("Não consegui editar. Verifique a internet."); }
 }
 
-// ===== ESQUECI A SENHA (pede à gerência uma senha nova) =====
-async function esqueciSenha() {
-  const usuario = document.getElementById("lg_usuario").value.trim();
+// ===== ESQUECI A SENHA: a pessoa escolhe o próprio nome; a gerência e o Thiago recebem o pedido e resetam a senha =====
+const NOMES_ESQUECI_SENHA = ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Isaque", "Ivo Carlos", "Jânio Gualberto",
+  "Igor", "Oseias", "Acácio", "Eduardo", "Jânio Lima", "Genildo", "Alan", "Juvenson", "Valdesandro", "Ramon", "Renato", "Thiago"];
+function esqueciSenha() {
   const msg = document.getElementById("lg_msg");
-  if (!usuario) { msg.textContent = "Digite seu usuário no campo acima e clique de novo em Esqueci a senha."; return; }
+  msg.innerHTML = "<b>Escolha seu nome:</b><br>" + NOMES_ESQUECI_SENHA.map(n =>
+    `<button class="acao" style="margin:4px 0;padding:8px;width:100%" onclick="pedirNovaSenhaPara('${n.replace(/'/g, "")}')">${n}</button>`).join("");
+}
+async function pedirNovaSenhaPara(nome) {
+  const msg = document.getElementById("lg_msg");
   msg.textContent = "Enviando pedido...";
   try {
-    await chamarApi({ acao: "pedirNovaSenha", usuario: usuario });
-    msg.textContent = "Pedido enviado. A gerência vai te passar uma senha nova.";
+    const res = await chamarApi({ acao: "pedirNovaSenha", usuario: nome });
+    msg.textContent = res && res.erro ? res.erro : "Pedido enviado. A gerência vai resetar a senha e te passar pelo app.";
   } catch (e) {
     msg.textContent = "Não consegui enviar o pedido. Verifique a internet.";
   }

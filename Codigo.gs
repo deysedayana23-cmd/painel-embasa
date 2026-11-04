@@ -10,6 +10,7 @@
 
 const EMAIL_GERENCIA = "deysedayana23@gmail.com";
 const GERENCIA_USUARIOS = ["deyse"];
+const EMAIL_TIAGO = ""; // preencher com o e-mail do Thiago para receber os pedidos de senha
 const PASTA_FOTOS = "Fotos Painel EMBASA";
 
 // Quem pode retirar ou adicionar em cada almoxarifado (mesma regra do painel)
@@ -78,8 +79,9 @@ function doPost(e) {
     if (req.acao === "pedirNovaSenha") {
       const usuario = String(req.usuario || "").trim();
       registrarHistorico(usuario, "pediu nova senha", "");
-      MailApp.sendEmail(EMAIL_GERENCIA, "Painel EMBASA: pedido de nova senha",
-        "O usuário \"" + usuario + "\" pediu uma nova senha. Defina com a função resetarSenha no Apps Script.");
+      const destinos = [EMAIL_GERENCIA, EMAIL_TIAGO].filter(e => e);
+      destinos.forEach(e => MailApp.sendEmail(e, "Painel EMBASA: pedido de nova senha",
+        "Pediram uma nova senha para: " + usuario + ". Resete no painel e informe a senha nova ao funcionário pelo app."));
       return resposta({ ok: true, mensagem: "Pedido enviado para a gerência." });
     }
 
