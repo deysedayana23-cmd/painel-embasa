@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 07h13</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 07h24</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -1693,7 +1693,7 @@ async function atualizarContagemSS() {
       const res = await chamarApi({ acao: "listar", ...cred, aba: "Agersa" });
       if (res.erro) return 0;
       const angico = String(perfilAtual || "").startsWith("Operador Angico");
-      return res.dados.slice(1).filter(l => l[0] && !/encerrad|conclu|validad/i.test(l[5] || "") &&
+      return res.dados.slice(1).filter(l => l[0] && !/encerrad|conclu|validad|cancelad/i.test(l[5] || "") &&
         (angico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]))).length;
     } catch (e) { return 0; }
   };
@@ -2224,12 +2224,13 @@ function localidadesAgersaDoUsuario() {
   const todos = Object.values(AGERSA_EQUIPE).flat();
   const primeiros = {};
   todos.forEach(n => { const p = normalizarNome(String(n).split(" ")[0]); primeiros[p] = (primeiros[p] || 0) + 1; });
-  const casa = n => { const k = normalizarNome(n); const p = normalizarNome(String(n).split(" ")[0]); return (k && quem.includes(k)) || (primeiros[p] === 1 && p && quem.includes(p)); };
+  // Só o primeiro nome "Ivo" vale como apelido (login ivo); Jânio precisa do sobrenome para não confundir Jânio Lima com Jânio Gualberto
+  const casa = n => { const k = normalizarNome(n); const p = normalizarNome(String(n).split(" ")[0]); return (k && quem.includes(k)) || (p === "ivo" && quem.includes("ivo")) || (p === "isaque" && quem.includes("isaac")); };
   return Object.keys(AGERSA_EQUIPE).filter(loc => AGERSA_EQUIPE[loc].some(casa));
 }
 function localidadeVisivel(local) {
   if (window.MODO_GERENTE) return true;
-  return localidadesAgersaDoUsuario().some(l => l === local) || (window.usuarioLocalidades || []).some(l => l === local);
+  return localidadesAgersaDoUsuario().some(l => l === local);
 }
 
 function telaAgersaCampo() {
@@ -3393,7 +3394,8 @@ async function salvarEstadoSS() {
 
 // Quem atende cada localidade na Agersa (recebe a demanda)
 const AGERSA_EQUIPE = {
-  "São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo"],
+  // Cada localidade só para a equipe de campo dela (pedido da Deyse em 04/11)
+  "São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco"],
   "Angico": ["Ramon", "Renato"],
   "Catolândia": ["Isaque"],
   "Baianópolis": ["Ivo Carlos", "Jânio Gualberto"],
@@ -3442,15 +3444,16 @@ async function carregarAgersaGerente() {
       chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AgersaEvidencia" })
     ]);
     if (dem.erro || fot.erro) { box.textContent = dem.erro || fot.erro; return; }
-    const demandas = dem.dados.slice(1).map((l, i) => ({ local: l[2], demanda: l[3], resp: l[4], situacao: l[5], quando: l[0] }))
-      .filter(d => !filtro || d.local === filtro);
+    const demandas = dem.dados.slice(1).map((l, i) => ({ linha: i + 2, local: l[2], demanda: l[3], resp: l[4], situacao: l[5], quando: l[0] }))
+      .filter(d => !/cancelad/i.test(String(d.situacao || ""))).filter(d => !filtro || d.local === filtro);
+    window.agersaDemandas = demandas;
     const fotos = fot.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], local: l[2], demanda: l[3], url: l[4], situacao: l[5] || "aguardando validação", por: l[6] || "" }))
       .filter(f => !filtro || f.local === filtro);
     const contaFotos = d => fotos.filter(f => f.local === d.local && f.demanda === d.demanda);
-    const demHTML = demandas.length ? `<table><tr><th>Localidade</th><th>Demanda</th><th>Responsável</th><th>Situação</th><th>Fotos</th><th>Validadas</th></tr>` +
+    const demHTML = demandas.length ? `<table><tr><th>Localidade</th><th>Demanda</th><th>Responsável</th><th>Situação</th><th>Fotos</th><th>Validadas</th><th></th></tr>` +
       demandas.map(d => {
         const f = contaFotos(d);
-        return `<tr><td>${d.local}</td><td>${d.demanda}</td><td>${d.resp || "--"}</td><td>${d.situacao || "--"}</td><td>${f.length}</td><td>${f.filter(x => x.situacao === "validada").length}</td></tr>`;
+        return `<tr><td>${d.local}</td><td>${d.demanda}</td><td>${d.resp || "--"}</td><td>${d.situacao || "--"}</td><td>${f.length}</td><td>${f.filter(x => x.situacao === "validada").length}</td><td>${window.MODO_GERENTE && !emPrevia() ? `<button onclick="cancelarDemandaAgersa(${d.linha})" style="background:#c62828;color:#fff;border:none;border-radius:6px;padding:4px 8px">Cancelar</button>` : ""}</td></tr>`;
       }).join("") + "</table>" : "<p>Nenhuma demanda.</p>";
     const fotosHTML = fotos.length ? fotos.slice().reverse().map(f => {
       const cor = f.situacao === "validada" ? "#2e7d32" : f.situacao === "não validada" ? "#c62828" : "#f9a825";
@@ -3482,7 +3485,7 @@ async function carregarAgersa() {
     // colunas: data_hora, usuario, localidade, demanda, responsavel, situacao
     // Ramon e Renato veem só as demandas do Angico e da Captação São Desidério
     const ehAngico = String(perfilAtual || "").startsWith("Operador Angico");
-    const minhas = res.dados.slice(1).filter(l => ehAngico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]));
+    const minhas = res.dados.slice(1).filter(l => !/cancelad/i.test(String(l[5] || ""))).filter(l => ehAngico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]));
     box.innerHTML = minhas.length === 0 ? '<div class="nota">Nenhuma demanda da sua localidade.</div>' :
       minhas.map(l => `
         <div class="card" style="margin-bottom:10px">
@@ -5320,8 +5323,18 @@ async function carregarSSAbertoLocal() {
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
+// Gerência: cancela demanda Agersa lançada errado (some da lista de todos; a linha fica na planilha como "cancelada")
+async function cancelarDemandaAgersa(linha) {
+  const d = (window.agersaDemandas || []).find(x => x.linha === linha);
+  if (!d || !confirm("Cancelar esta demanda Agersa?\n\n" + d.demanda)) return;
+  try {
+    const res = await chamarApi({ acao: "cancelarAgersa", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, demanda: d.demanda });
+    if (res.erro) { alert(res.erro); return; }
+    renderAtual();
+  } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
+}
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 07h13";
+const VERSAO_PAINEL = "04/11 07h24";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";

@@ -160,6 +160,18 @@ function doPost(e) {
         return resposta({ ok: true });
       }
 
+      // Agersa: só a gerência cancela uma demanda lançada errado (situacao(6) = "cancelada"; a linha não é apagada)
+      case "cancelarAgersa": {
+        if (quem.perfil !== "gerente") return resposta({ erro: "Só a gerência pode cancelar demanda Agersa" });
+        const ag = aba("Agersa");
+        const linha = Number(req.linha);
+        if (!linha || linha < 2 || linha > ag.getLastRow()) return resposta({ erro: "Demanda não encontrada" });
+        if (String(ag.getRange(linha, 4).getValue()) !== String(req.demanda || "")) return resposta({ erro: "A demanda dessa linha mudou; recarregue a lista" });
+        ag.getRange(linha, 6).setValue("cancelada");
+        registrarHistorico(quem.usuario, "cancelou demanda Agersa", "linha " + linha);
+        return resposta({ ok: true });
+      }
+
       // EncerrarSS: situacao(7) encerrada_por(8) data_encerramento(9)
       case "marcarEncerrada": {
         const lista = aba("EncerrarSS");
