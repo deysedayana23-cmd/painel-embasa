@@ -40,14 +40,10 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 12h13</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
-  <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
-  <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
-  <div id="versaoMsg" style="font-size:13px;margin-top:6px"></div>
 </header>
-<div class="aviso-proto">PROTÓTIPO: dados de exemplo. Endereços, matrículas e valores são fictícios.</div>
+<div class="aviso-proto">Sincronização dos pedidos de SS: 7h30, 10h, 13h30 e 15h30. Nesses horários, clique em "Verificar nova versão" para receber as atualizações.</div>
 
 <div id="login" style="position:fixed;inset:0;background:#0b5394;display:flex;align-items:center;justify-content:center;z-index:9">
   <div style="background:#fff;padding:24px;border-radius:12px;width:90%;max-width:340px">
@@ -273,6 +269,14 @@ const TELAS = {
     <h3>EPI</h3>
     <div id="mp_lista">Carregando...</div>`,
 
+  planejamento: () => `
+    <h2>Pedido de planejamento</h2>
+    <input class="campo" placeholder="Data do planejamento">
+    <input class="campo" placeholder="Período (de / até)">
+    <select class="campo"><option>Região…</option><option>Sede</option><option>Angico</option></select>
+    <select class="campo"><option>Serviços…</option><option>Corte</option><option>Religação</option><option>Vazamento</option></select>
+    <button class="acao">Gerar texto do pedido</button>
+    <div class="nota">O texto vai para o escritório. Quando estiver pronto, aparece em "Meus pedidos".</div>`,
 
   solicitarSS: () => AVISO_DIGITINHO + telaPedidoSS(false),
 
@@ -297,9 +301,9 @@ const TELAS = {
 
   extensaoRede: () => `
     <h2>Solicitação de extensão de rede</h2>
-    <select class="campo" data-end-loc="er"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
-    <input class="campo" data-end-bairro="er" placeholder="Bairro">
-    <input class="campo" data-end-log="er" placeholder="Logradouro">
+    <input class="campo" placeholder="Logradouro">
+    <input class="campo" placeholder="Bairro">
+    <input class="campo" placeholder="Localidade">
     <input class="campo" placeholder="Quantidade de ligações beneficiadas">
     <input class="campo" placeholder="Metragem da extensão (opcional)">
     <input class="campo" placeholder="Quantidade de tubos">
@@ -337,91 +341,9 @@ const TELAS = {
 
   cronograma: () => `
     <h2>Cronograma de leitura</h2>
-    <details class="card" open><summary class="acao" style="display:inline-block;cursor:pointer">Novembro</summary>
-      ${tabela(["Localidade","Grupo","Setores","Referência","Leitura ou roteiro","Exportar até","Substituir HD"],[
-      ["204 Baianópolis","161","1, 3","01/2027","28/11","10/12","até 18/11"],
-      ["1019 Catolândia","161","1, 2","01/2027","28/11","10/12","até 18/11"],
-      ["1019 Catolândia","114","3 a 8","12/2026","01/11","10/11","de 11/11 a 26/11"],
-      ["1019 Catolândia","126","10 a 16 (conferir)","12/2026","06/11","13/11","até 10/11 e a partir de 14/11"],
-      ["306 Angico","130","1","a confirmar","gera roteiro 12/11","19/11","até 06/11 e a partir de 23/11"],
-      ["1411 Buriti Cortado","114","1","12/2026","01/11","10/11","de 11/11 a 26/11"],
-      ["1412 Mozondó","126","1","12/2026","06/11","13/11","até 10/11 e a partir de 14/11"],
-      ["156 São Desidério","137","1 a 6","a confirmar","gera roteiro 19/11","27/11","até 13/11 e a partir de 16/12"]
-      ])}
-    </details><br>
-    <details class="card"><summary class="acao" style="display:inline-block;cursor:pointer">Dezembro</summary>
-      ${tabela(["Localidade","Grupo","Setores","Referência","Leitura ou roteiro","Exportar até","Substituir HD"],[
-      ["1019 Catolândia","114","3 a 8","01/2027","gera roteiro 02/12","10/12","após 11/12"],
-      ["1411 Buriti Cortado","114","1","01/2027","gera roteiro 02/12","10/12","após 11/12"],
-      ["204 Baianópolis","161","1, 3","a informar","a informar","a informar","a informar"],
-      ["1019 Catolândia","161","1, 2","a informar","a informar","a informar","a informar"],
-      ["1019 Catolândia","126","10 a 16 (conferir)","a informar","a informar","a informar","a informar"],
-      ["306 Angico","130","1","01/2027 (confirmar: escrito 01/2026)","gera roteiro 13/12","19/12","de 23/11 a 06/12"],
-      ["1412 Mozondó","126","1","a informar","a informar","a informar","a informar"],
-      ["156 São Desidério","137","1 a 6","01/2027","gera roteiro 22/12","30/12","de 16/12 a 18/12"]
-      ])}
-    </details><br>
-    <details class="card"><summary class="acao" style="display:inline-block;cursor:pointer">Data de leitura e geração de roteiro</summary>
-      ${tabela(["Mês","Localidade","Grupo","Setores","Leitura ou roteiro"],[
-      ["Novembro","204 Baianópolis","161","1, 3","28/11"],
-      ["Novembro","1019 Catolândia","161","1, 2","28/11"],
-      ["Novembro","1019 Catolândia","114","3 a 8","01/11"],
-      ["Novembro","1019 Catolândia","126","10 a 16 (conferir)","06/11"],
-      ["Novembro","306 Angico","130","1","gera roteiro 12/11"],
-      ["Novembro","1411 Buriti Cortado","114","1","01/11"],
-      ["Novembro","1412 Mozondó","126","1","06/11"],
-      ["Novembro","156 São Desidério","137","1 a 6","gera roteiro 19/11"],
-      ["Dezembro","1019 Catolândia","114","3 a 8","gera roteiro 02/12"],
-      ["Dezembro","1411 Buriti Cortado","114","1","gera roteiro 02/12"],
-      ["Dezembro","204 Baianópolis","161","1, 3","a informar"],
-      ["Dezembro","1019 Catolândia","161","1, 2","a informar"],
-      ["Dezembro","1019 Catolândia","126","10 a 16 (conferir)","a informar"],
-      ["Dezembro","306 Angico","130","1","gera roteiro 13/12"],
-      ["Dezembro","1412 Mozondó","126","1","a informar"],
-      ["Dezembro","156 São Desidério","137","1 a 6","gera roteiro 22/12"]
-      ])}
-    </details><br>
-    <details class="card"><summary class="acao" style="display:inline-block;cursor:pointer">Prazo para exportar</summary>
-      ${tabela(["Mês","Localidade","Grupo","Setores","Exportar até"],[
-      ["Novembro","204 Baianópolis","161","1, 3","10/12"],
-      ["Novembro","1019 Catolândia","161","1, 2","10/12"],
-      ["Novembro","1019 Catolândia","114","3 a 8","10/11"],
-      ["Novembro","1019 Catolândia","126","10 a 16 (conferir)","13/11"],
-      ["Novembro","306 Angico","130","1","19/11"],
-      ["Novembro","1411 Buriti Cortado","114","1","10/11"],
-      ["Novembro","1412 Mozondó","126","1","13/11"],
-      ["Novembro","156 São Desidério","137","1 a 6","27/11"],
-      ["Dezembro","1019 Catolândia","114","3 a 8","10/12"],
-      ["Dezembro","1411 Buriti Cortado","114","1","10/12"],
-      ["Dezembro","204 Baianópolis","161","1, 3","a informar"],
-      ["Dezembro","1019 Catolândia","161","1, 2","a informar"],
-      ["Dezembro","1019 Catolândia","126","10 a 16 (conferir)","a informar"],
-      ["Dezembro","306 Angico","130","1","19/12"],
-      ["Dezembro","1412 Mozondó","126","1","a informar"],
-      ["Dezembro","156 São Desidério","137","1 a 6","30/12"]
-      ])}
-    </details><br>
-    <details class="card"><summary class="acao" style="display:inline-block;cursor:pointer">Período de substituição de HD</summary>
-      ${tabela(["Mês","Localidade","Grupo","Setores","Substituir HD"],[
-      ["Novembro","204 Baianópolis","161","1, 3","até 18/11"],
-      ["Novembro","1019 Catolândia","161","1, 2","até 18/11"],
-      ["Novembro","1019 Catolândia","114","3 a 8","de 11/11 a 26/11"],
-      ["Novembro","1019 Catolândia","126","10 a 16 (conferir)","até 10/11 e a partir de 14/11"],
-      ["Novembro","306 Angico","130","1","até 06/11 e a partir de 23/11"],
-      ["Novembro","1411 Buriti Cortado","114","1","de 11/11 a 26/11"],
-      ["Novembro","1412 Mozondó","126","1","até 10/11 e a partir de 14/11"],
-      ["Novembro","156 São Desidério","137","1 a 6","até 13/11 e a partir de 16/12"],
-      ["Dezembro","1019 Catolândia","114","3 a 8","após 11/12"],
-      ["Dezembro","1411 Buriti Cortado","114","1","após 11/12"],
-      ["Dezembro","204 Baianópolis","161","1, 3","a informar"],
-      ["Dezembro","1019 Catolândia","161","1, 2","a informar"],
-      ["Dezembro","1019 Catolândia","126","10 a 16 (conferir)","a informar"],
-      ["Dezembro","306 Angico","130","1","de 23/11 a 06/12"],
-      ["Dezembro","1412 Mozondó","126","1","a informar"],
-      ["Dezembro","156 São Desidério","137","1 a 6","de 16/12 a 18/12"]
-      ])}
-    </details><br>
-        <h2>Contas retidas</h2>
+    <div class="card">Grupo A · Início: 05/11 · Data máxima: 12/11</div><br>
+    <div class="card">Grupo B · Início: 10/11 · Data máxima: 17/11</div><br>
+    <h2>Contas retidas</h2>
     <div class="card">Impressas: 120 · Entregues: <input class="campo" style="width:90px;display:inline"></div>
     <button class="acao">Salvar entregas</button>`,
 
@@ -540,17 +462,14 @@ const TELAS = {
         <select id="fer_m_${i}" class="campo">${MOTIVOS_FERRAMENTA.map(m => `<option>${m}</option>`).join("")}</select>
         <input id="fer_q_${i}" class="campo" type="number" min="0" value="0" placeholder="Quantidade">
       </div>`).join("")}
-    <button class="acao" onclick="enviarTudoEpi()">Enviar pedido de EPI e ferramentas</button>
-    <h3>Meus pedidos de EPI</h3>
-    <div id="epi_meus">Carregando...</div>`,
+    <button class="acao" onclick="enviarTudoEpi()">Enviar pedido de EPI e ferramentas</button>`,
 
   episHistorico: () => `<h2>Pedidos de EPI</h2>
-    <div class="nota">Os pedidos chegam aqui. Você marca quando o EPI foi enviado e quando a ficha chegou assinada. O funcionário confirma que recebeu e assinou.</div>
+    <div class="nota">Marque os pedidos que quer juntar num e-mail só.</div>
     <div id="epi_lista">Carregando...</div>
-    <h3>E-mail único com os pedidos em aberto</h3>
-    <select id="epi_destino" class="campo"><option>Todos</option><option>Consórcio</option><option>EMBASA</option></select>
+    <h3>E-mail com os pedidos marcados</h3>
     <input id="epi_para" class="campo" placeholder="Para (e-mail do destinatário)">
-    <button class="acao" onclick="gerarEmailEpi()">Gerar e-mail com os pedidos em aberto</button>
+    <button class="acao" onclick="gerarEmailEpi()">Gerar e-mail com os marcados</button>
     <textarea id="epi_email" class="campo" rows="10" placeholder="O e-mail aparece aqui"></textarea>
     <button class="acao" style="background:#555" onclick="copiarEmailEpi()">Copiar e-mail</button>
     <a id="epi_mailto" class="acao" style="display:none;padding:10px 14px;text-decoration:none" href="#">Abrir no meu e-mail</a>`,
@@ -579,9 +498,9 @@ const TELAS = {
     <label><input type="radio" name="he_tem_ss" value="nao" onchange="alternarHoraExtra()"> Não</label>
     <div id="he_com_ss" style="margin-top:8px"><input id="he_ss" class="campo" placeholder="Número da SS"></div>
     <select id="he_servico" class="campo"><option value="">Tipo de serviço…</option>${SERVICOS_HORA_EXTRA.map(s => `<option>${s}</option>`).join("")}</select>
-    <select id="he_localidade" class="campo" data-end-loc="he"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
-    <input id="he_bairro" class="campo" data-end-bairro="he" placeholder="Bairro">
-    <input id="he_logradouro" class="campo" data-end-log="he" placeholder="Logradouro">
+    <select id="he_localidade" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+    <input id="he_bairro" class="campo" placeholder="Bairro">
+    <input id="he_logradouro" class="campo" placeholder="Logradouro">
     <textarea id="he_obs" class="campo" rows="3" placeholder="Observação (sem SS, escreva o motivo do serviço)"></textarea>
     <div class="nota">Foi liberado pela gerência?</div>
     <label><input type="radio" name="he_liberado" value="Sim"> Sim</label> &nbsp;
@@ -594,21 +513,6 @@ const TELAS = {
   ssRede: () => telaPedidoSS(true),
   ssRamal: () => telaPedidoSS(true),
   pedidosSS: () => telaPedidosSS(),
-  semLocalizacao: () => `<h2>Matrículas sem localização</h2><div class="nota">Matrículas das SS pendentes que ainda não têm coordenada (nem na tabela, nem na BaseLocalizacao, nem no GPS de campo).</div><div id="sl2_lista">Carregando...</div>`,
-  ssDigiteam: () => telaSSLista("Solicitação ao Digiteam"),
-  analiseConsumo: () => `<h2>Análise de consumo</h2>
-    <div class="nota">Informe a matrícula ou o número do HD. O pedido vai para a Deyse, que manda a tela da leitura dos últimos meses.</div>
-    <select id="ac_tipo" class="campo" onchange="document.getElementById('ac_campo').placeholder = this.value === 'hd' ? 'Número do HD' : 'Matrícula'"><option value="matricula">Matrícula</option><option value="hd">Número do HD</option></select>
-    <input id="ac_campo" class="campo" placeholder="Matrícula">
-    <button class="acao" onclick="enviarAnaliseConsumo()">Enviar pedido</button>`,
-  buscarMatricula: () => `<h2>Buscar por matrícula, HD ou nome</h2><div class="nota">Esta tela ainda não está no painel.</div>`,
-  pedidoUNBA: () => `<h2>Pedido à UNBA</h2>
-    <div class="nota">Pedido de tubos ou serviços diversos. Chega no painel da Deyse.</div>
-    <select id="un_tipo" class="campo" onchange="mostrarCamposUNBA()"><option value="">Escolha o tipo…</option><option value="tubos">Pedido de tubos</option><option value="diversos">Serviços diversos</option></select>
-    <div id="un_campos"></div>`,
-  pendExecutar: () => `<h2>SS pendente</h2><div id="pex_prior">${telaPrioridades()}</div><div class="nota">Quando executar a SS em campo, toque em "OK, executada". Ela sai da lista.</div><div id="pex_lista">Carregando...</div>`,
-  ocorPedidos: () => `<h2>Pedidos de ocorrência operacional</h2><div class="nota">Abra a ocorrência no SCI e devolva o número para a equipe. O pedido sai da lista.</div><div id="oc_ger">Carregando...</div>`,
-  pendAbrirEncerrar: () => `<h2>Pendências de abrir e encerrar SS</h2><div class="nota">Quando a SS for gerada, digite o número e marque como concluída. Ela sai da lista.</div><div id="pae_lista">Carregando...</div>`,
   meusAcessos: () => `<h2>Meus acessos</h2><div id="ma_lista">Carregando...</div>`,
 
   horaExtraHist: () => `<h2>Histórico de hora extra</h2><div id="he_lista">Carregando...</div>`,
@@ -647,9 +551,7 @@ const TELAS = {
     <input class="campo" placeholder="Nível do reservatório">
     <button class="acao">Gerar texto para o grupo</button>`,
 
-  escalaTurno: () => `<h2>Escala de turno</h2><div class="nota">A escala de turno de São Desidério ainda não está cadastrada no painel.</div>`,
-  escalaAngico: () => `<h2>Escala ETA Angico</h2><div class="nota">A escala da ETA Angico ainda não está cadastrada no painel.</div>`,
-  escalaSD: () => `<h2>Escala ETA São Desidério</h2><div class="nota">A escala da ETA São Desidério ainda não está cadastrada no painel.</div>`,
+  escalaTurno: () => TELAS.escalaMozondo(),
 
   ferias: () => `
     <h2>Marcação de férias</h2>
@@ -691,10 +593,10 @@ const TELAS = {
   alertaPrefeitura: () => telaAlertaPrefeitura(),
   pendenciasAprovacao: () => telaPendenciasAprovacao(),
   backup: () => telaBackup(),
+  ssPrazo: () => telaSSPrazo(),
   adicionarInfo: () => `<h2>Adicionar informações</h2><div class="nota">Escolha o que quer atualizar.</div><button class="btn" style="width:100%" onclick="abrir(0)">Metas</button>`,
   metasAdmin: () => telaMetasAdmin(),
   servicosUrgentes: () => telaServicosUrgentes(),
-  ssAbertoLocal: () => `<h2>SS em aberto por localidade</h2><div class="nota">Para planejar o Digiteam. Junta as SS pendentes lançadas para os agentes e as SS em aberto exportadas do SCI.</div><div id="sal_lista">Carregando...</div>`,
   ssVazRede: () => telaPedidoSS(true),
   ssVazRamal: () => telaPedidoSS(true),
   ssVazHid: () => telaPedidoSS(true),
@@ -716,10 +618,10 @@ const TELAS = {
    ============================================================ */
 const PERFIS = {
   "Agente de campo (exemplo: Luzenildo)": [
-    {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true},
-    {nome:"Solicitação no SCI", sub:[
-      {nome:"Análise de consumo", tela:"analiseConsumo"},
-      {nome:"Buscar por matrícula, HD ou nome", tela:"buscarMatricula"},
+    {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true}, {nome:"SS para acompanhar", tela:"ssPrazo"},
+    {nome:"Vencimentos (24h e 48h)", tela:"vencimentos"},
+    {nome:"Todas as SS abertas (90 dias)", tela:"todasSS"},
+    {nome:"SCI", sub:[
       {nome:"Gerar SS e mandar para o Digiteam", tela:"solicitarSS"},
       {nome:"Segunda via", tela:"segundaVia"},
       {nome:"Débitos em atraso", tela:"debitos"},
@@ -728,6 +630,7 @@ const PERFIS = {
       {nome:"Buscar por matrícula, HD ou nome", tela:"busca"}
     ]},
     {nome:"Meus pedidos", tela:"meusPedidos"},
+    {nome:"Pedido de planejamento", tela:"planejamento"},
     {nome:"Urgências", tela:"urgencias"},
     {nome:"Ocorrência operacional", sub:[
       {nome:"Solicitar abertura", tela:"ocorAbrir"},
@@ -850,14 +753,12 @@ const PERFIS = {
     {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Cronograma de leitura e contas retidas", tela:"cronograma"},
     {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
-    {nome:"EPI", tela:"epi"},
-    {nome:"Análise de consumo", tela:"analiseConsumo"},
-    {nome:"SS em aberto por localidade", tela:"ssAbertoLocal"},
+    {nome:"Vencimentos (24h e 48h)", tela:"vencimentos"},
+    {nome:"Todas as SS abertas (90 dias)", tela:"todasSS"}
   ],
   "Gerente (você)": [
     {nome:"Adicionar informações", sub:[{nome:"Metas", tela:"metasAdmin"}]},
     {nome:"SS para encerrar pelo escritório", tela:"encerrarEscritorio"},
-    {nome:"SS em aberto por localidade", tela:"ssAbertoLocal"},
     {nome:"Pendências de aprovação", tela:"pendenciasAprovacao"},
     {nome:"Gerar relatório (backup)", tela:"backup"},
     {nome:"Urgências (criar e acompanhar)", tela:"urgencias"},
@@ -1365,14 +1266,10 @@ const QUEM_MOVIMENTA_ALMOX = {
   "ETA Mozondó": ["Genildo", "Alan", "Juvenson", "Valdesandro", "Valdesandro Goncalves De Souza"]
 };
 function podeMovimentarAlmox(local) {
-  if (window.MODO_GERENTE && !emPrevia()) return true;
-  const eu = identidadeAtual();
-  return (QUEM_MOVIMENTA_ALMOX[local] || []).some(n => normalizarNome(n) && eu.includes(normalizarNome(n)));
-}
-// Locais que aparecem para a pessoa: só os dela (a gerência vê todos)
-function locaisAlmoxDaPessoa() {
-  const meus = LOCAIS_ALMOX.filter(l => podeMovimentarAlmox(l));
-  return meus.length ? meus : LOCAIS_ALMOX;
+  if (window.MODO_GERENTE) return true;
+  const norm = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const eu = norm(window.nomeUsuario);
+  return (QUEM_MOVIMENTA_ALMOX[local] || []).some(n => norm(n) && eu.includes(norm(n)));
 }
 const ROTINA_ITENS = [
   "Relatório de água bruta enviado no grupo",
@@ -1429,8 +1326,6 @@ const CONTRATOS_COELBA = [
 // Reclamação Coelba aparece para todos os perfis
 Object.entries(PERFIS).forEach(([chave, lista]) => {
   lista.push({ nome: "Reclamação Coelba", tela: "coelba" });
-  lista.push({ nome: "Solicitação ao Digiteam", tela: "ssDigiteam" });
-  lista.push({ nome: "Pedido à UNBA", tela: "pedidoUNBA" });
   if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "aquisicao")) lista.push({ nome: "RILC (compra em loja)", tela: "aquisicao" });
   if (!chave.startsWith("Gerente")) lista.push({ nome: "Reforma ou conserto de equipamento", tela: "conserto" });
   if (!chave.startsWith("Gerente") && !lista.some(i => i.tela === "gersa")) lista.push({ nome: "Demandas Agersa", tela: "gersa" });
@@ -1456,26 +1351,12 @@ PERFIS["Operador Angico (Ramon ou Renato)"] = [
   {nome:"Metas", tela:"metasAngico"}
 ];
 // Menu enxuto: o principal fica com o que é de uso diário; o resto vai para "Outros"
-const PRINCIPAL_CAMPO = ["Vazamento de rede", "Vazamento de ramal", "SS para encerrar pelo escritório", "Pedir abertura de SS", "Abrir e encerrar SS",
-  "Ocorrência operacional", "Solicitação no SCI", "Urgências",
+const PRINCIPAL_CAMPO = ["Vazamento de rede", "Vazamento de ramal", "SS para acompanhar", "SS para encerrar pelo escritório", "Pedir abertura de SS", "Abrir e encerrar SS",
+  "Ocorrência operacional", "Vencimentos (24h e 48h)", "Todas as SS abertas (90 dias)", "SCI", "Urgências",
   "Níveis e macro ETA", "Níveis dos reservatórios", "Estoque diário produto químico"];
 const PRINCIPAL_GERENTE = ["SS para encerrar pelo escritório", "Adicionar informações", "Pendências de aprovação", "Urgências (criar e acompanhar)", "Pedidos de SS (gerar e responder)",
   "Pedidos de SS da equipe", "Relatório de hora extra", "Pedidos de EPI", "Pedidos RILC", "Solicitações de aquisição",
   "Demandas Agersa (acompanhar e validar)", "Pendências com Estado", "Abastecimento (cartões)", "Cadastro da equipe (matrículas)"];
-// Escala de turno vira um botão com as quatro escalas: ETA Angico, sobreaviso do escritório de SD, ETA SD e ETA Mozondó
-function escalaComSubmenu(lista) {
-  return lista.map(i => {
-    if (i.tela === "escalaTurno" || (i.tela === "escalaMozondo" && i.nome === "Escala de turno")) return {nome: "Escala de turno", sub: [
-      {nome: "Escala ETA Angico", tela: "escalaAngico"},
-      {nome: "Sobreaviso do escritório de São Desidério", tela: "escalaSobreaviso"},
-      {nome: "Escala ETA São Desidério", tela: "escalaSD"},
-      {nome: "Escala ETA Mozondó", tela: "escalaMozondo"}
-    ]};
-    if (i.sub) return {...i, sub: escalaComSubmenu(i.sub)};
-    return i;
-  });
-}
-Object.keys(PERFIS).forEach(k => { PERFIS[k] = escalaComSubmenu(PERFIS[k]); });
 Object.keys(PERFIS).forEach(k => {
   const principal = (k.startsWith("Gerente") || k === "Atendente (Thiago)") ? PRINCIPAL_GERENTE : PRINCIPAL_CAMPO;
   const itens = PERFIS[k];
@@ -1500,162 +1381,14 @@ function init() {
 }
 
 function trocarPerfil() {
-  const sel = document.getElementById("perfil");
-  perfilAtual = sel.value;
-  if (window.MODO_GERENTE && sel.selectedIndex >= 0) window.pessoaPrevia = sel.options[sel.selectedIndex].text;
+  perfilAtual = document.getElementById("perfil").value;
   pilha = [];
-  window.contagemSS = undefined;
   mostrarMenu(menuDoPerfil(), "Início");
-  if (window.credenciais) carregarQtdUrgentes().then(() => { if (!pilha.length) renderAtual(); });
 }
 
-// ===== PRIORIDADES DO DIA (São Desidério). Cada item: dia (AAAA-MM-DD), quem (nomes ou "sd" = todos da localidade) e o serviço =====
-const PRIORIDADES = [
-  {dia: "2026-11-04", quem: ["joaquim"], texto: "Entregar contas da prefeitura", urgente: true},
-  {dia: "2026-11-04", quem: ["joaquim"], texto: "Retirar contas amanhã", urgente: true},
-  {dia: "2026-11-04", quem: ["luzenildo", "francisco"], texto: "Pela manhã: fechar a extensão da casa da Aparecida (vala do Moreira)", urgente: true},
-  {dia: "2026-11-04", quem: ["luzenildo", "francisco"], texto: "Pela manhã: executar a ligação do Élio", urgente: true},
-  {dia: "2026-11-04", quem: ["luzenildo", "francisco"], texto: "Pela manhã: abrir o registro do Careca", urgente: true},
-  {dia: "2026-11-04", quem: ["francisco"], texto: "À tarde: fazer 2 transferências com Exaque", urgente: true},
-  {dia: "2026-11-04", quem: ["luzenildo"], texto: "À tarde: fazer a extensão de rede do vereador Acácio", urgente: true},
-  {dia: "2026-11-04", quem: ["sd"], texto: "Fechar o buraco do Posto Santo Antônio (chamar a máquina do Luan). Urgente: Zé Rodrigues já cobrou", urgente: true},
-  {dia: "2026-11-05", quem: ["sd"], texto: "Fechar a vala do Moreira até a casa da Aparecida", urgente: false},
-  {dia: "2026-11-06", quem: ["joaquim"], texto: "Terminar a entrega de contas pelo app", urgente: false},
-  {dia: "2026-11-06", quem: ["luzenildo", "francisco"], texto: "Iniciar as ligações novas pendentes", urgente: false},
-  {dia: "2026-11-06", quem: ["sd"], texto: "Ligação da Lúcia", urgente: false},
-  {dia: "2026-11-06", quem: ["sd"], texto: "Tirar by-pass na casa de esquina da creche Tangará", urgente: false},
-  {dia: "2026-11-06", quem: ["sd"], texto: "Entrar em contato com o vereador Acácio para escutar a extensão que ele pediu", urgente: false},
-  {dia: "2026-11-06", quem: ["sd"], texto: "Localizar o registro em frente ao Careca", urgente: false},
-  {dia: "2026-11-06", quem: ["sd"], texto: "Entregar contas da rota do Avistão Brasil (Joaquim)", urgente: false}
-];
-// Quem é "sd": agentes de campo de São Desidério
-const EQUIPE_SD_PRIOR = ["luzenildo", "joaquim", "carlito", "francisco", "oseias", "igor", "acacio", "janiolima", "eduardo"];
-function prioridadesDoUsuario() {
-  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
-  const eu = (chaves) => chaves.some(c => quem.includes(c));
-  return PRIORIDADES.filter(p => p.quem.some(k => k === "sd" ? eu(EQUIPE_SD_PRIOR) : eu([k])));
-}
-function telaPrioridades() {
-  const hoje = hojeISO();
-  const itens = prioridadesDoUsuario().sort((a, b) => a.dia.localeCompare(b.dia));
-  if (!itens.length) return "";
-  const data = d => d.split("-").reverse().join("/");
-  return `<h3 style="color:#c62828">Prioridades de hoje e amanhã</h3>` + itens.map(p => {
-    const vencida = p.dia < hoje;
-    const cor = vencida || p.urgente ? "#c62828" : "#f9a825";
-    const tag = vencida ? "VENCIDA" : p.dia === hoje ? "HOJE" : p.dia === somarDiasISO(hoje, 1) ? "AMANHÃ" : "";
-    return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${cor}">
-      <b style="color:${cor}">${tag ? tag + " · " : ""}${data(p.dia)}</b>${p.urgente ? " · <b>URGENTE</b>" : ""}<br>
-      <span style="font-size:15px">${p.texto}</span></div>`;
-  }).join("");
-}
-function somarDiasISO(iso, n) {
-  const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-function contarPrioridadesHoje() {
-  const hoje = hojeISO(), amanha = somarDiasISO(hoje, 1);
-  return prioridadesDoUsuario().filter(p => p.dia <= amanha).length;
-}
-
-// ===== QUEM VÊ CADA BOTÃO (menu principal). Botão sem regra aqui = todos =====
-const GRUPOS_BOTAO = {
-  agentes: ["luzenildo", "joaquim", "carlito", "francisco", "isaque", "isaac", "ivocarlos", "janiogualberto"],
-  operadores: ["igor", "oseias", "acacio", "janiolima", "eduardo", "genildo", "alan", "juvenson", "valdesandro", "sandro", "ramon", "renato"]
-};
-const REGRA_BOTAO = {
-  "Serviços urgentes": "menos_deyse",
-  "Vazamento de rede": "menos_deyse",
-  "Vazamento de ramal": "menos_deyse",
-  "Abrir e encerrar SS": "menos_deyse",
-  "EPI": "menos_deyse",
-  "SS para encerrar pelo escritório": ["deyse", "thiago", "oseias", "igor", "alan", "genildo"],
-  "SS pendente": "agentes_perfil",
-  "pendExecutar": "agentes_perfil",
-  "Níveis e macro ETA": "operadores",
-  "Estoque diário produto químico": ["operadores", "deyse"],
-  "Abastecimento (cartões)": ["deyse", "thiago", "tiago"],
-  "Entrega de contas da prefeitura": ["agentes", "deyse", "thiago", "tiago"],
-  "Pedido à UNBA": ["agentes", "thiago", "tiago", "deyse"]
-};
-function visivelBotao(nome, tela) {
-  const r = REGRA_BOTAO[nome] || REGRA_BOTAO[tela];
-  if (!r) return true;
-  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
-  const tem = k => quem.includes(k);
-  if (r === "menos_deyse") return !tem("deyse");
-  if (r === "agentes_perfil") return /^Agente/.test(String(perfilAtual || "")) || GRUPOS_BOTAO.agentes.some(tem);
-  if (r === "operadores") return GRUPOS_BOTAO.operadores.some(tem);
-  return r.some(k => k === "agentes" ? GRUPOS_BOTAO.agentes.some(tem) : k === "operadores" ? GRUPOS_BOTAO.operadores.some(tem) : tem(k));
-}
-// Puxa para o menu principal os itens que estão dentro de "Outros" e devolve [principal, novoOutros]
-function promoverDoOutros(itens, pred) {
-  const outros = itens.find(i => i.nome === "Outros" && i.sub);
-  const pool = [...itens.filter(i => i !== outros && i.nome !== "Outros"), ...(outros ? outros.sub : [])];
-  const principal = []; const resto = [];
-  pool.forEach(i => { if (pred(i)) { if (!principal.some(p => p.nome === i.nome && p.tela === i.tela)) principal.push(i); } else resto.push(i); });
-  return [principal, resto];
-}
 function mostrarMenu(itens, titulo) {
   if (!pilha.length) itens = [{nome: "Serviços urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
-  // Demandas Agersa aparece para todos; cada um vê só a(s) localidade(s) que atende
-  if (!pilha.length && !window.MODO_GERENTE && !perfilAtual.startsWith("Gerente") && !itens.some(i => i.tela === "gersa")) itens = [...itens, {nome: "Demandas Agersa", tela: "gersa"}];
-  itens = itens.filter(i => (pilha.length || visivelBotao(i.nome, i.tela)) && (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
-  // Operadores: no menu principal só Ocorrência operacional, Reclamação Coelba e Consumo de produto químico
-  // (Igor e Oseias também veem SS para encerrar pelo escritório). O resto vai para Outros.
-  // Agentes de campo: no menu principal só Pendência de SS, Solicitação no SCI, SS de vazamento, Abrir e encerrar SS,
-  // Solicitação ao Digiteam e Demandas Agersa. O resto vai para Outros.
-  if (!pilha.length && /^Agente/.test(String(perfilAtual || ""))) {
-    const principalCampo = ["Pendência de SS para executar", "Solicitação no SCI", "Vazamento de rede", "Vazamento de ramal",
-      "Abrir e encerrar SS", "Solicitação ao Digiteam", "Demandas Agersa"];
-    let [fixos, restoCampo] = promoverDoOutros(itens, i => principalCampo.includes(i.nome) || ["pendExecutar", "ssRede", "ssRamal", "ssVazRede", "ssVazRamal", "ssVazHid", "solicitarSS"].includes(i.tela));
-
-    // Histórico dos níveis dos reservatórios e macro, para todos os agentes (só consulta)
-    fixos.push({nome: "Histórico de níveis dos reservatórios", sub: [
-      {nome: "ETA São Desidério", tela: "nivelHistSD"},
-      {nome: "ETA Angico", tela: "nivelHistAngico"},
-      {nome: "ETA Mozondó", tela: "nivelHistMozondo"}
-    ]});
-    const outrosSub = restoCampo;
-    itens = [...fixos];
-    if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
-  }
-  // Gerência (Deyse) e escritório (Thiago): menu principal com Demandas, Pedidos de SS e SS para encerrar pelo escritório
-  if (!pilha.length && (perfilAtual.startsWith("Gerente") || perfilAtual.startsWith("Atendente"))) {
-    const demandas = {nome: "Demandas", sub: [
-      {nome: "EPI", tela: "episHistorico"},
-      {nome: "Pedidos de SS", tela: "pedidosSS"},
-      {nome: "Ocorrência operacional", tela: "ocorPedidos"},
-      {nome: "Contas, SCI e Digiteam", tela: "pedidosSS"}
-    ]};
-    // Serviços urgentes, Pedidos de SS e Encerrar SS no principal; o resto continua acessível em Outros
-    const [fixosGer, restoGer] = promoverDoOutros(itens, i => ["servicosUrgentes", "pedidosSS", "encerrarEscritorio", "ssAbertoLocal"].includes(i.tela));
-    const restoUnico = restoGer.filter((i, k) => restoGer.findIndex(j => j.nome === i.nome && j.tela === i.tela) === k);
-    itens = [demandas, ...fixosGer];
-    if (restoUnico.length) itens.push({nome: "Outros", sub: restoUnico});
-  }
-  if (!pilha.length && /^Operador/.test(String(perfilAtual || ""))) {
-    const quem = normalizarNome(window.credenciais && window.credenciais.usuario);
-    const principalOp = ["Ocorrência operacional", "Reclamação Coelba", "Estoque diário produto químico"];
-    const quemId = identidadeAtual();
-    if (quemId.includes("igor") || quemId.includes("oseias")) principalOp.push("SS para encerrar pelo escritório");
-    const ehAngico = quem.includes("ramon") || quem.includes("renato");
-    if (ehAngico) principalOp.push("Níveis e macro ETA", "Níveis dos reservatórios", "Pendência de SS para executar");
-    // Igor e Oseias: encerrar SS pelo escritório e pedidos de ocorrência no principal (o botão vem com outro nome do menu do operador)
-    const telasOp = (quemId.includes("igor") || quemId.includes("oseias")) ? ["encerrarEscritorio", "ocorPedidos"] : [];
-    const noPrincipal = i => principalOp.includes(i.nome) || telasOp.includes(i.tela);
-    let fixos = itens.filter(noPrincipal);
-    if (ehAngico && !fixos.some(i => i.tela === "pendExecutar")) fixos.push({nome: "Pendência de SS para executar", tela: "pendExecutar"});
-    const outrosAtuais = itens.find(i => i.nome === "Outros" && i.sub);
-    const mover = itens.filter(i => !noPrincipal(i) && i !== outrosAtuais && i.nome !== "Outros" && i.tela !== "pendExecutar");
-    const outrosSub = [...(outrosAtuais ? outrosAtuais.sub : []), ...mover];
-    itens = [...fixos];
-    if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
-  }
-  // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
-  if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
-    itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
-  window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
+  itens = itens.filter(i => (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
   const app = document.getElementById("app");
   let html = "";
   if (pilha.length) html += `<button class="voltar" onclick="voltar()">← Voltar</button>`;
@@ -1664,11 +1397,10 @@ function mostrarMenu(itens, titulo) {
   html += `<h2>${titulo}</h2><div class="grid">`;
   itens.forEach((it, i) => {
     const nomeBotao = it.urgente ? `Serviços urgentes (${window.qtdUrgentes || 0})` : it.nome;
-    const destaque = it.prioridade ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff;font-weight:bold"' : it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
+    const destaque = it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
     const contavel = CONTAGEM_SS_TELAS[it.tela];
-    const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
-    const rotulo = it.prioridade ? `${it.nome} (${it.qtd || 0})` : contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
-    html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${nomeExibido}" onclick="abrir(${i})">${rotulo}</button>`;
+    const rotulo = contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${it.nome} (${window.contagemSS[contavel]})` : nomeBotao;
+    html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${it.nome}" onclick="abrir(${i})">${rotulo}</button>`;
   });
   html += `</div>`;
   app.innerHTML = html;
@@ -1677,8 +1409,7 @@ function mostrarMenu(itens, titulo) {
 }
 
 // ===== Contadores nos botões de SS e pendência =====
-const NOME_EXIBIDO = { encerrarEscritorio: "Encerrar SS como executada", pendExecutar: "SS pendente", gersa: "Demandas Agersa" };
-const CONTAGEM_SS_TELAS = { ocorPedidos: "ocorrencias", todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos", gersa: "agersa" };
+const CONTAGEM_SS_TELAS = { todasSS: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos" };
 async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
   window.contagemSSCarregando = true;
@@ -1690,24 +1421,12 @@ async function atualizarContagemSS() {
       return res.dados.slice(1).filter(filtro).length;
     } catch (e) { return 0; }
   };
-  // Agersa: demandas em aberto da(s) localidade(s) de quem está usando (gerente vê todas)
-  const contarAgersa = async () => {
-    try {
-      const res = await chamarApi({ acao: "listar", ...cred, aba: "Agersa" });
-      if (res.erro) return 0;
-      const angico = String(perfilAtual || "").startsWith("Operador Angico");
-      return res.dados.slice(1).filter(l => l[0] && !/encerrad|conclu|validad|cancelad/i.test(l[5] || "") &&
-        (angico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]))).length;
-    } catch (e) { return 0; }
-  };
-  const [todas, encerrar, pedidos, ocorrencias, agersa] = await Promise.all([
+  const [todas, encerrar, pedidos] = await Promise.all([
     contar("SSAbertas", l => l[0] && !/encerrad|cancelad|conclu/i.test(l[5] || "")),
     contar("EncerrarSS", l => (l[6] || "pendente") === "pendente"),
-    contar("PedidoSS", l => (l[10] || "pendente") === "pendente"),
-    contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
-    contarAgersa()
+    contar("PedidoSS", l => (l[10] || "pendente") === "pendente")
   ]);
-  window.contagemSS = { todas, encerrar, pedidos, ocorrencias, agersa };
+  window.contagemSS = { todas, encerrar, pedidos };
   window.contagemSSCarregando = false;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
     const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
@@ -1716,9 +1435,8 @@ async function atualizarContagemSS() {
 }
 
 function abrir(i) {
-  const menu = window.menuNaTela || (pilha.length ? pilha[pilha.length-1].itens : menuDoPerfil());
+  const menu = pilha.length ? pilha[pilha.length-1].itens : menuDoPerfil();
   const it = menu[i];
-  if (!it) return;
   if (it.sub) {
     pilha.push({itens: it.sub, titulo: it.nome});
     mostrarMenu(it.sub, it.nome);
@@ -1732,28 +1450,22 @@ function abrir(i) {
     if (chaveNiv) carregarNiveis(chaveNiv);
     if (it.tela === "urgencias") { if (perfilAtual.startsWith("Operador Angico")) carregarUrgenciaAngico(); else carregarUrgencias(); }
     if (it.tela === "consumoQuimico") carregarSaldosQuimicos();
-    if (it.tela === "escalaMozondo") {
+    if (it.tela === "escalaTurno" || it.tela === "escalaMozondo") {
       const [ano, mesNum] = hojeISO().split("-");
       mostrarEscalaMes(Number(ano), Number(mesNum) - 1);
     }
     if (it.tela === "episHistorico") carregarEpiGerente();
-    if (it.tela === "epi") carregarEpiMeus("epi_meus");
     if (it.tela === "meusPedidos") carregarMeusPedidos();
     if (it.tela === "ferrHistorico") verHistorico("Ferramentas");
     if (it.tela === "horaExtraHist") carregarHoraExtraHist();
     if (it.tela === "horaExtraGerente") carregarHoraExtraRelatorio();
     if (it.tela === "meusAcessos") carregarMeusAcessos();
-    if (it.tela === "pedidosSS") { carregarPedidosSS(); carregarPedidosDigiteam(); }
-    if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
-    if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
-    if (it.tela === "pendExecutar") carregarPendExecutar();
-    if (it.tela === "semLocalizacao") carregarSemLocalizacao();
-    if (it.local) window.almoxLocalPreset = it.local;
+    if (it.tela === "pedidosSS") carregarPedidosSS();
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
     if (it.tela === "pendenciasEstado") carregarEstadoSS();
     if (it.tela === "ocorMinhas") carregarOcorMinhas();
+    if (it.tela === "ssPrazo") carregarSSPrazo();
     if (it.tela === "servicosUrgentes") carregarServicosUrgentes();
-    if (it.tela === "ssAbertoLocal") carregarSSAbertoLocal();
     if (it.tela === "metasAdmin") carregarMetasAdmin();
     if (it.tela === "encerrarEscritorio") carregarEncerrarEscritorio();
     if (it.tela === "ssRede") presetSS("43", "1");
@@ -1764,7 +1476,6 @@ function abrir(i) {
     if (it.tela === "ssVenc24") carregarSSLista("24");
     if (it.tela === "ssVenc48") carregarSSLista("48");
     if (it.tela === "ssTodas") carregarSSLista("todas");
-    if (it.tela === "ssDigiteam") carregarSSLista("todas");
     if (it.tela === "medicao") carregarMedicao();
     if (it.tela === "mapaAquisicoes") carregarSolicitacoesAquisicao();
     if (it.tela === "mapaPedidos") carregarPedidosSS();
@@ -2220,20 +1931,9 @@ function mostrarEscalaMes(ano, mes) {
 }
 
 // ===== DEMANDAS AGERSA (cada um vê só a sua localidade) =====
-// Localidades da Agersa que a pessoa atende, pelo cadastro AGERSA_EQUIPE (mesmo critério de quem recebe a demanda)
-function localidadesAgersaDoUsuario() {
-  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
-  // nome completo, ou primeiro nome quando ele não se repete no cadastro (ex.: Ivo Carlos -> ivo)
-  const todos = Object.values(AGERSA_EQUIPE).flat();
-  const primeiros = {};
-  todos.forEach(n => { const p = normalizarNome(String(n).split(" ")[0]); primeiros[p] = (primeiros[p] || 0) + 1; });
-  // Só o primeiro nome "Ivo" vale como apelido (login ivo); Jânio precisa do sobrenome para não confundir Jânio Lima com Jânio Gualberto
-  const casa = n => { const k = normalizarNome(n); const p = normalizarNome(String(n).split(" ")[0]); return (k && quem.includes(k)) || (p === "ivo" && quem.includes("ivo")) || (p === "isaque" && quem.includes("isaac")); };
-  return Object.keys(AGERSA_EQUIPE).filter(loc => AGERSA_EQUIPE[loc].some(casa));
-}
 function localidadeVisivel(local) {
   if (window.MODO_GERENTE) return true;
-  return localidadesAgersaDoUsuario().some(l => l === local);
+  return (window.usuarioLocalidades || []).some(l => l === local);
 }
 
 function telaAgersaCampo() {
@@ -2442,7 +2142,7 @@ async function atualizarMedicao(linha) {
 }
 
 // ===== ALERTA DE ENTREGA DE CONTAS DA PREFEITURA (referência 11) =====
-const REF_PREFEITURA = "11/2026";
+const REF_PREFEITURA = "11";
 const ENTREGAS_PREFEITURA = [
   { loc: "Baianópolis", chaves: ["ivocarlos", "janiogualberto"] },
   { loc: "Catolândia", chaves: ["isaque", "isaac"] },
@@ -2489,8 +2189,6 @@ async function carregarAlertaPrefeitura() {
       <div style="margin-top:8px"><button class="acao" onclick="document.getElementById('ent_form').style.display=''">Marcar como entregue</button></div>
       <div id="ent_form" style="display:none;margin-top:10px">
         <label>Data da entrega <input type="date" id="ent_data" class="campo" value="${hoje}"></label>
-        <label>Hora da entrega <input type="time" id="ent_hora" class="campo" required></label>
-        <label>Quem recebeu <input type="text" id="ent_quem" class="campo" placeholder="Nome de quem recebeu" required></label>
         <textarea id="ent_obs" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
         <label>Foto do recebido <input type="file" id="ent_fotos" accept="image/*" multiple class="campo"></label>
         <button class="acao" onclick="enviarEntregaPrefeitura('${grupo.loc}')">Salvar e enviar à gerência</button>
@@ -2500,13 +2198,9 @@ async function carregarAlertaPrefeitura() {
 }
 async function enviarEntregaPrefeitura(loc) {
   const data = document.getElementById("ent_data").value;
-  const hora = document.getElementById("ent_hora").value;
-  const quem = document.getElementById("ent_quem").value.trim();
   const obs = document.getElementById("ent_obs").value.trim();
   const arquivos = document.getElementById("ent_fotos").files;
   if (!data) { alert("Informe a data da entrega."); return; }
-  if (!hora) { alert("Informe a hora da entrega."); return; }
-  if (!quem) { alert("Informe quem recebeu."); return; }
   if (!arquivos.length) { alert("Tire e anexe a foto do recebido."); return; }
   let links = [];
   try {
@@ -2518,7 +2212,7 @@ async function enviarEntregaPrefeitura(loc) {
     }
   } catch (e) { alert("Não consegui enviar a foto. Verifique a internet."); return; }
   const dataBR = data.split("-").reverse().join("/");
-  const texto = `Entrega de contas da prefeitura – referência ${REF_PREFEITURA} – entregue em ${dataBR} às ${hora} – recebido por ${quem}` + (obs ? " – " + obs : "");
+  const texto = `Entrega de contas da prefeitura – referência ${REF_PREFEITURA} – entregue em ${dataBR}` + (obs ? " – " + obs : "");
   // colunas: data_hora, usuario, tipo, especificacao, localidade, bairro, logradouro, matricula, hidrometro, observacao, situacao, ss, por, data, digiteam, fotos
   const linha = [new Date().toISOString(), window.credenciais.usuario, "61 – SERVICO LEITURA E ENTREGA", "1 – ENTREGA DE CONTA",
     loc, "", "", "", "", texto, "pendente", "", "", "", "", links.join(" ")];
@@ -2553,7 +2247,7 @@ async function carregarPendenciasAprovacao() {
 }
 
 // ===== BACKUP ANTES DE ATUALIZAR O APP: exporta todas as abas da planilha num arquivo =====
-const ABAS_BACKUP = ["Usuarios","Acessos","PedidoSS","HoraExtra","Rotina","Urgencias","EPI","AgersaEvidencia","Agersa","Ferramentas","RILC","RILCResposta","Conserto","Equipamentos","Niveis","Leituras","Quimicos","Almoxarifado","PedidoMaterial","Historico","Abastecimento","Medicao","EstadoSS","ServicosUrgentes","EncerrarSS","ExecucaoCampo","Metas","Ocorrencia","SSAbertas","AcaoSS"];
+const ABAS_BACKUP = ["Usuarios","Acessos","PedidoSS","HoraExtra","Rotina","Urgencias","EPI","AgersaEvidencia","Agersa","Ferramentas","RILC","RILCResposta","Conserto","Equipamentos","Niveis","Leituras","Quimicos","Almoxarifado","PedidoMaterial","Historico","Abastecimento","Medicao","EstadoSS"];
 function telaBackup() {
   return `<h2>Gerar relatório (backup)</h2>
     <div class="nota">Gera um arquivo com todos os dados da planilha. Guarde esse arquivo antes de atualizar a versão do painel. Ele contém os dados de usuários, então não envie para ninguém.</div>
@@ -2586,307 +2280,86 @@ async function gerarBackup() {
 
 // ===== OCORRÊNCIA OPERACIONAL: a equipe pede; a gerência abre no sistema e devolve o número; a equipe marca quando finalizou =====
 // colunas da aba Ocorrencia: 1 data_hora, 2 usuario, 3 localidade, 4 endereco, 5 tipo, 6 descricao, 7 situacao, 8 oc_numero, 9 respondido_por, 10 finalizado_em
-const OC_TIPOS = ["Falta de energia (Coelba)", "Vazamento de rede", "Vazamento de adutora", "Manutenção na ETA", "Manutenção na captação", "Manutenção de bomba / booster", "Limpeza de reservatório", "Baixo nível dos reservatórios", "Outro"];
-const OC_UNIDADES = ["Rede de distribuição", "ETA", "Captação", "Booster / elevatória", "Reservatório", "Adutora"];
-const OC_OBS = ["Equipe já está no local", "Aguardando a Coelba religar a energia", "Aguardando material", "Aguardando a UNBM", "Manobra de registro em andamento", "Abastecimento voltando aos poucos"];
-const OC_AFETADAS_MOZONDO = ["Catolândia", "Baianópolis", "Buriti Cortado", "Mozondó"];
-const OC_LOGRADOUROS = {"São Desidério": {"1 - CENTRO": ["AVENIDA GOIAS", "AVENIDA J K", "PRACA ALENCAR", "PRACA AUGUSTO TORRES", "PRACA DA IGREJA", "PRACA JUAREZ DE SOUZA", "PRACA MERCADO", "RUA 22 DE FEVEREIRO", "RUA 3 DE MAIO", "RUA 7 DE SETEMBRO", "RUA ABELARDO ALENCAR", "RUA ABELARDO AUGUSTO DE SOUZA", "RUA ADAZILIA DE CASTRO LIMA", "RUA ADAZILIO PEREIRA BRITO", "RUA ALBERTO PORTO", "RUA ANTONIO BALBINO", "RUA ANTONIO LOPES DE MENEZES", "RUA ANTONIO LUIZ DE SOUZA", "RUA ANTONIO RODRIGUES DE SOUZA", "RUA BEIRO RIO", "RUA BENTO ALVES NEVES", "RUA DA TORRE", "RUA DAS MANGUEIRAS", "RUA DAS PALMEIRAS", "RUA DO CAIS", "RUA DO COLISEU", "RUA ESPERIDIAO FERREIRA FILHO", "RUA ESPIRITO SANTO", "RUA FAZ PAULISTA", "RUA FELIX JOSE CARDOSO", "RUA FLORENTINO AUGUSTO DE SOUZA", "RUA HELIODORO XAVIER DOS SANTOS", "RUA IOZO ALMEIDA", "RUA JOAO F MONTALVAO", "RUA JOAO NEVES", "RUA JOAO PEREIRA GOMES", "RUA JOAO SEVERIANO NETO", "RUA JOSE BARBOSA DE OLIVEIRA", "RUA JULIAO JOSE DE SANTANA", "RUA LOURO DO ANGICO", "RUA MANOEL RODRIGUES DE CARVALHO", "RUA MESTRE PEDRO", "RUA MINISTRO ANTONIO BALBINO", "RUA NOSSA SENHORA APARECIDA", "RUA OCIVAL RODRIGUES DE SOUZA", "RUA OTACILIO JESUINO DE OLIVEIRA", "RUA PEDRO FERNANDES DOURADO", "RUA PLACIDO JOSE DE SANTANA", "RUA SALVIANO SOARES", "RUA SALVIANO SOARES DE SOUZA", "RUA SEBASTIAO R DE CARVALHO", "RUA SILVIO JOSE DE SANTANA", "RUA UMBELINA CAMPOS", "RUA VALERIO DE BRITO", "TRAVESSA ALBERTO PORTO", "TRAVESSA DAS MANGUEIRAS", "TRAVESSA ESPERIDAO F FILHO", "TRAVESSA ESPERIDIAO FERREIRA FILHO", "TRAVESSA GOIAS", "TRAVESSA J K", "TRAVESSA JK", "TRAVESSA JOAO DE SOUZA PORTELA", "TRAVESSA JOAO SEVERIANO NETO", "TRAVESSA REGINALDO CESAR DOS SANTOS", "TRAVESSA VALERIO DE BRITO"], "2 - VILA DO PADRE": ["RUA DOM RICARDO"], "3 - BARRAGEM": ["RUA BARRAGEM", "RUA CHACARA RIACHO DO SALOBRO", "RUA SAO FRANCISCO"], "4 - TANGARA": ["RUA ANTONIO MOREIRA DOS SANTOS", "RUA APOLINARIO DIAS GUIMARAES", "RUA AVELINO MUNIZ", "RUA CAZUZA", "RUA CERZALINO MORENO", "RUA IZABEL MONTALVAO", "RUA JOAO BARBOSA SOBRINHO", "RUA JOAO DE SOUZA ALMEIDA", "RUA JOAO PAULO II", "RUA MANOEL MACEDO CIRILO", "RUA MANOEL REGIS PORTO", "RUA MARTINIANO", "RUA MOISES C SOBRINHO", "RUA SINESIO DA SILVA NUNES", "RUA WALDINALVA DE C NUNES", "TRAVESSA A C M", "TRAVESSA BETIM", "TRAVESSA JOAO BARBOSA SOBRINHO"], "5 - FELISBERTO": ["AVENIDA A C M", "RODOVIA BA 463", "RUA ABDIAS RODRIGUES DE SOUZA", "RUA ANTONIA PARTEIRA", "RUA ANTONIO MOREIRA DOS SANTOS", "RUA CUSTODIA GUIMARAES DE SOUZA", "RUA EUZIRA NASCIMENTO SOUZA", "RUA JOAO CAITANO BRINQUEDO", "RUA JOAO DE SOUZA ALMEIDA", "RUA JOSE RODRIGUES DE CARVALHO", "RUA OTAVIANO CORREIA ROCHA", "RUA VANDERLIN RAFAEL DE SOUZA"], "6 - APARECIDA": ["AVENIDA APARECIDA", "AVENIDA JK", "RUA ANTONIO", "RUA ANTONIO LUIZ DE SOUZA", "RUA BEIRA RIO", "RUA DA PAZ", "RUA DA TERRA", "RUA ESPIRITO SANTO", "RUA FRANCISCO DE ASSIS", "RUA JOAO PAULO II", "RUA JOSE", "RUA NOSSA SENHORA APARECIDA", "RUA NOSSA SENHORA DE FATIMA", "RUA SANTA LUZIA", "RUA SANTA RITA", "RUA SAO JORGE", "RUA SAO PEDRO", "RUA SAO SEBASTIAO", "TRAVESSA DO COLISEU", "TRAVESSA ESPIRITO SANTO", "TRAVESSA NOSSA SENHORA DE FATIMA"], "7 - SANTA APARECIDA": ["RUA JORGE"], "8 - ROCADO VELHO": ["AVENIDA BR 135", "RUA ROCADO VELHO"], "9 - LOT CIDADE NOVA": ["AVENIDA BAHIA", "RUA BELEM", "RUA CEARA", "RUA CUIABA", "RUA FLORIANOPOLIS", "RUA FORTALEZA", "RUA GOIAS", "RUA LEMOS PUEBLO", "RUA PIAUI", "RUA RIO DE JANEIRO", "RUA RU LOURECO FARIAS", "RUA SAO PAULO", "TRAVESSA FLORIANOPOLIS", "TRAVESSA LOURENCO FARIAS"], "10 - ALTO DO CRISTO": ["FAZENDA ALTO ALEGRE", "RUA ALBERTO PORTO", "RUA ANTONILIA MELQUIADES DE S SANT", "RUA DIOLINO HONORIO PEREIRA", "RUA DONA ZIZI", "RUA JOAO DE SOUZA PORTELA", "RUA JOAO SOUZA FILHO", "RUA JOILDA BARBOSA DE OLIVEIRA", "RUA JOSINO INACIO PEREIRA", "RUA MANOEL T DOS SANTOS", "RUA MANOEL TEIXEIRA DOS SANTOS", "RUA MANOEL TEIXEIRA SANTOS", "RUA MARIO DE JESUS", "RUA OTACILIO TAVARES", "RUA RENATO SOARES DE SOUZA", "RUA SILVA JARDIM", "RUA UMEBLINA CAMPO", "RUA WALTER RODRIGUES PEREIRA", "TRAVESSA DONA ZIZI", "TRAVESSA PLACIDO JOSE DE SANTANA", "TRAVESSA UBERLINA CAMPOS"], "11 - BELA VISTA": ["TRAVESSA TV ANTONILIA MELQUIADES DE SOU"], "12 - PORTO RICO": ["RUA PROJETADA 01", "RUA PROJETADA 02", "RUA PROJETADA 03", "RUA PROJETADA 04", "RUA PROJETADA 05", "RUA PROJETADA 06", "RUA PROJETADA 07", "RUA PROJETADA 08", "RUA PROJETADA 09", "RUA PROJETADA 10", "RUA PROJETADA 11", "RUA PROJETADA 12", "RUA PROJETADA 13", "RUA PROJETADA 14", "RUA PROJETADA 15", "RUA PROJETADA 16", "RUA PROJETADA 17", "RUA PROJETADA 18", "RUA PROJETADA 19", "RUA PROJETADA 20", "RUA PROJETADA 21", "RUA PROJETADA 22", "RUA PROJETADA 23", "RUA PROJETADA 24", "RUA PROJETADA 25", "RUA PROJETADA 26", "RUA PROJETADA 27", "RUA PROJETADA 28", "RUA PROJETADA 29", "RUA PROJETADA 30", "RUA PROJETADA 31", "RUA PROJETADA 32", "RUA PROJETADA 33", "RUA PROJETADA 34", "RUA PROJETADA 35"], "15 - POV MORRÃO": ["POVOADO MORRAO"], "16 - VAQUEJADA": ["TRAVESSA 01"], "17 - DAVI SANTANA": ["RUA 01"], "18 - PONTE DE TERRA": ["RUA BAIXA VERDE", "RUA BELO MONTE", "RUA DO ALTO", "RUA PRINCIPAL PONTE DE TERRA", "RUA SANTA LUZIA"], "19 - CIDADE ALTA": ["AVENIDA BRASIL", "RUA BELO HORIZONTE", "RUA CURITIBA", "RUA DAS ANDORINHAS", "RUA DAS GAIVOTAS", "RUA DAS PATATIVAS", "RUA DOS BEIJA FLORES", "RUA DOS CARCARAS", "RUA DOS FLAMINGOS", "RUA DOS JURITIS", "RUA DOS MAINAS", "RUA DOS PELICANOS", "RUA DOS PINTASSILGOS", "RUA DOS ROUXINOIS", "RUA DOS SANHACOS", "RUA DOS SURIRIS", "RUA DOS TANGARAS", "RUA DOS TUCANOS", "RUA DOS VERDILHOES", "RUA DOUTOR VALERIO DE BRITO", "RUA LOURENCO DE FARIAS", "RUA PARA", "RUA PORTO ALEGRE", "RUA RIO DE JANEIRO", "RUA RU FORTALEZA", "TRAVESSA TRAV DR VALERIO DE BRITO I", "TRAVESSA TRAV DR VALERIO DE BRITO III", "TRAVESSA TRAV DR VALERIO DE BRITO IV", "TRAVESSA TRAV DR VALERIO DE BRITO V", "TRAVESSA TV DR VALERIO DE BRITO VI", "TRAVESSA VALERIO DE BRITO II"], "20 - JUAZEIRO": ["RUA DA PAZ", "RUA JOAO DE SOUZA ALMEIDA", "RUA SAO FRANCISCO", "RUA SINESIO DA SILVA NUNES"], "21 - CIDADE SANTA": ["RUA APOCALIPSE", "RUA BOGOTA", "RUA CALVARIO", "RUA CRISTO REI", "RUA JERUSALEM", "RUA MONTE DAS OLIVEIRAS", "RUA MONTE SINAI", "RUA NAZARE", "RUA RIO JORDAO"], "22 - POV PALMEIRAS": ["POVOADO PALMEIRAS"]}, "Catolândia": {"1 - CENTRO": ["AVENIDA CUSTODIA PORTO", "AVENIDA JOSE DAS CHAGAS PORTO", "AVENIDA MARCELINO DAS CHAGAS PORTO", "AVENIDA PRINCIPAL", "PRACA APARECIDA", "PRACA CATAO", "PRACA GETULIO VARGAS", "PRACA JOAO MOREIRA PIRES", "PRACA MERCADO", "PRACA MUNICIPAL", "PRACA REINALDO ANTONIO PIMENTEL", "PRACA URANIO CARVALHO PIMENTEL", "RUA ABILIO PORTO FILHO", "RUA ANTONIO ARAUJO", "RUA CEZARIO BATISTA", "RUA CRISPIM DE JESUS VIDA", "RUA DA QUADRA", "RUA DIVA L ALMEIDA", "RUA DO SOSSEGO", "RUA HERMENEGILDO FE FIGUEIREDO", "RUA JOAO ALVES FEITOSA", "RUA JOSE ALVES CARNEIRO", "RUA JOSE MOREIRA DOS S PINTO", "RUA JURACY DE LIMA PINTO", "RUA NOVA", "RUA REINALDO ANTONIO PIMENTEL", "RUA RUY BARBOSA", "RUA VICENTE RODRIGUES PORTO", "TRAVESSA ALMIR DE LIMA PINTO", "TRAVESSA JOANA ANGELICA", "TRAVESSA PADRE ARMINDO"], "2 - LOT STA HELENA": ["RUA A SANTA HELENA", "RUA B SANTA HELENA", "RUA JOAO ELEOTERIO DE OLIVEIRA", "RUA JURACY DE LIMA DE OLIVEIRA"], "3 - LOT SANTANA": ["RUA A SANTANA II", "RUA B SANTANA II", "RUA C SANTANA II", "RUA D SANTANA II", "TRAVESSA ALFREDO DA ROCHA LIMA"], "18 - LAGOA DO SIMAO": ["POVOADO LAGOA DO JAIRO"], "19 - POV MOSONDO": ["FAZENDA BARREIRO NOVO", "RUA 01 MOSONDO", "RUA 02 MOSONDO", "RUA 03 MOSONDO", "RUA 04 MOZONDO"], "30 - ZONA RURAL": ["FAZENDA AROEIRA", "FAZENDA BARRA DO POCAO", "FAZENDA BOA VISTA", "FAZENDA RIACHINHO", "FAZENDA SANTANA", "FAZENDA SAO JOSE", "FAZENDA TAMBURIO", "FAZENDA TIMBO", "POVOADO AGUA B DO ARLINDO", "POVOADO AGUA B DO CALIXTO", "POVOADO AREIAO", "POVOADO BOQUEIRAO", "POVOADO BURITI CORTADO", "POVOADO CABECEIRA", "POVOADO CANTO GRANDE", "POVOADO CAPIVARA", "POVOADO FUNIL", "POVOADO JOAO RODRIGUES", "POVOADO LAGOA DO SIMAO", "POVOADO POCO DA PEDRA", "POVOADO SAO MARCOS", "POVOADO TAMANDUA", "POVOADO TIRIRICA"], "31 - PASSAGEM PEDRA": ["POVOADO PASSAGEM DE PEDRA"], "40 - SANTANA II": ["RUA JOAO ALVES FEITOSA", "RUA JOAQUIM PEREIRA DOS SANTOS", "RUA JOSE MOREIRA DOS SANTOS PINTO", "RUA JURACY DE LIMA PINTO", "RUA LAUDELINO DE SOUZA REIS", "RUA LUIZ MENDES DOS SANTOS", "RUA PROFESSORA DALVA DE LIMA PINTO", "TRAVESSA ALMIR DA ROCHA LIMA", "TRAVESSA DALVA DE LIMA PINTO"]}, "Buriti Cortado": {"1 - CENTRO": ["POVOADO BURITI CORTADO"]}, "Mozondó": {"1 - CENTRO": ["POVOADO BARRA", "RUA 1", "RUA 2", "RUA 3", "RUA 4", "RUA FAZ BARREIRO NOVO"]}, "Angico": {"2 - VILA ANGICO": ["RUA A", "RUA B", "RUA DIVANESIA MARIA DE SOUZA", "RUA G", "RUA JOANA BARBOSA DE CARVALHO", "RUA JOAO DE SANTANA CARVALHO", "RUA JOSE APRIGIO"]}, "Baianópolis": {"1 - CENTRO": ["AVENIDA ANTONIO C. MAGALHAES", "AVENIDA CASTELO BRANCO", "PRACA ANA AVELINA", "PRACA DO MERCADO", "PRACA JUAREZ DE SOUZA", "PRACA MUNICIPAL", "PRACA SENHOR DO BONFIM", "RUA 1 DE MAIO", "RUA 13 DE MAIO", "RUA 15 DE NOVEMBRO", "RUA 2 DE JULHO", "RUA 7 DE ABRIL", "RUA 7 DE SETEMBRO", "RUA ANTONIO GONCALVES PORTO", "RUA ELSO ARNO WEBER", "RUA EURICO DUTRA", "RUA JOAO FRANCISCO", "RUA LUIZ E. MAGALHAES", "RUA ROGERIO REGO", "RUA SABINO DOURADO", "RUA VICENTE SOARES", "TRAVESSA DO MERCADO", "TRAVESSA DO RIO BRANCO"], "2 - MARIO BORGES": ["RUA 2 DE JULHO", "RUA ANGELO FEBRONIO DOS SANTOS", "RUA CORCINO GOMES DA SILVA", "RUA DANIEL ALVES PEREIRA", "RUA ELPIDIO JOAQUIM PEREIRA", "RUA JAILTON DE LIMA PINTO", "RUA JOAO BRASILEIRO", "RUA JUVENAL DOMINGOS PASSOS", "RUA MAXIMINIO CIRILO DA SILVA", "RUA MAXIMINO SIRILO DA SILVA", "RUA VICENTE SOARES"], "3 - SOSSEGO": ["RUA ELSO ARNO WEBER", "RUA FLOR DE LIZ"], "4 - RUFINO ALVES": ["RUA ALMIRO SOARES DE OLIVEIRA", "RUA JOAO FRANCISCO", "RUA JOSE B. BARROS", "RUA JOSE BENEDITO BARROS", "RUA MANOEL RODRIGUES", "RUA PROFESSOR SOUZA", "RUA RUFINO A. MENDONCA", "RUA SOUZA"], "5 - VITORIA": ["RUA ABENILIO BENICIO DE SOUZA", "RUA BALBINO FEBRONIO DOS SANTOS", "RUA FELIPE VIEIRA DE SOUZA", "RUA JOAO FEBRONIO DOS SANTOS", "RUA JOSE ALVES SOBRINHO", "RUA JULIAO PEREIRA DA SILVA", "RUA LIDIA GOMES DA SILVA", "RUA LUIZ CARLOS ANDRADE", "RUA MATEUS FRANCISCO GUALBERTO", "RUA OTACILIO FRANCISCO DA SILVA", "RUA PEDRO ALVES MENDONCA", "RUA WILLIBALDO THEODORO", "TRAVESSA ONILDO SOAES DE OLIVEIRA"], "6 - VARZEA GRANDE": ["RUA EST VARZEA GRANDE"], "7 - VICENTE GUALBER": ["RUA MATEUS GUALBERTO", "RUA SABASTIANA ERMACOLA"], "10 - BURITI CORTADO": ["POVOADO BURITI CORTADO"], "11 - ALTO BELA VISTA": ["AVENIDA PRINCIPAL", "PRACA EXPEDITO", "RODOVIA BA 464", "RUA D", "RUA DOMINGOS SOARES DE OLIVEIRA", "RUA JOAO PEREIRA BARBOSA", "RUA MARIA MADALENA DA SILVEIRA", "RUA NERCINO BATISTA DA SILVEIRA", "RUA RAMIRO ALVES DOS SANTOS", "RUA TAPIRACANGA", "RUA UNIAO", "TRAVESSA TAPIRACANGA"], "12 - IPANEMA": ["AVENIDA PRINCIPAL", "RUA C", "RUA CUSTODIA ROSA DOS SANTOS", "RUA F", "RUA G", "RUA H", "RUA I", "RUA JOAO PEREIRA BARBOSA", "RUA K", "RUA L", "RUA M", "RUA UNIAO"], "13 - BENEDITO GOMES": ["RUA B"], "14 - BARRA S MARCOS": ["RUA 01"]}};
-const OC_BAIRROS = {
-  "São Desidério": ["1 - CENTRO", "3 - BARRAGEM", "4 - TANGARA", "6 - APARECIDA", "12 - PORTO RICO", "19 - CIDADE ALTA", "21 - CIDADE SANTA"],
-  "Catolândia": ["1 - CENTRO", "30 - ZONA RURAL", "40 - SANTANA II"],
-  "Baianópolis": ["ALTO BELA VISTA"]
-};
 function telaOcorAbrir() {
-  const locs = LOCALIDADES_HORA_EXTRA;
   return `<h2>Pedir abertura de ocorrência operacional</h2>
     <div class="nota">O escritório abre a ocorrência no sistema e devolve o número. Você acompanha em "Minhas ocorrências".</div>
-    <h3>Onde aconteceu o problema</h3>
-    <select id="oc_loc" class="campo" onchange="ocAtualizarLocal()"><option value="">Localidade…</option>${locs.map(l => `<option>${l}</option>`).join("")}</select>
-    <div id="oc_bairro_box"><select id="oc_bairro" class="campo" disabled><option value="">Escolha a localidade primeiro</option></select></div>
-    <div id="oc_end_box"><select id="oc_end" class="campo" disabled><option value="">Escolha o bairro primeiro</option></select></div>
-    <select id="oc_unid" class="campo" onchange="ocAtualizarLocal()"><option value="">Onde foi o problema…</option>${OC_UNIDADES.map(u => `<option>${u}</option>`).join("")}</select>
-    <select id="oc_tipo" class="campo" onchange="ocAtualizarHorario()"><option value="">Tipo de ocorrência…</option>${OC_TIPOS.map(t => `<option>${t}</option>`).join("")}</select>
-    <h3>Quem ficou sem água</h3>
-    <div class="nota">Localidades afetadas (marque todas que ficaram sem água):</div>
-    ${locs.map(l => `<label style="display:block"><input type="checkbox" class="oc_af" value="${l}" onchange="ocBairrosAfetados()"> ${l}</label>`).join("")}
-    <label style="display:block;margin-top:8px"><input type="checkbox" id="oc_todosb" onchange="ocBairrosAfetados()"> Todos os bairros (problema na ETA ou na captação)</label>
-    <div id="oc_bairrosaf" style="margin-top:6px"></div>
-    <h3>Horário</h3>
-    <div class="nota"><b>Início</b></div>
-    <div style="display:flex;gap:8px"><input id="oc_ini_d" type="date" class="campo" style="flex:1" onchange="ocAtualizarHorario()"><input id="oc_ini_h" type="time" class="campo" style="flex:1" onchange="ocAtualizarHorario()"></div>
-    <button class="acao" style="background:#0a6e8a" onclick="ocInicioAgora()">Começou agora</button>
-    <div class="nota"><b>Previsão de fim</b></div>
-    <div style="display:flex;gap:8px"><input id="oc_fim_d" type="date" class="campo" style="flex:1"><input id="oc_fim_h" type="time" class="campo" style="flex:1"></div>
-    <div class="nota">Tempo de regularização (horas)</div><input id="oc_reg" type="number" min="1" class="campo" placeholder="Ex.: 12">
-    <div class="nota">Vazamento: o fim fica 6 horas depois do início e a regularização em 12 horas (pode mudar).</div>
-    <h3>Observação</h3>
-    ${OC_OBS.map(o => `<label style="display:block"><input type="checkbox" class="oc_ob" value="${o}"> ${o}</label>`).join("")}
-    <textarea id="oc_desc" class="campo" rows="3" placeholder="Outras informações (quem ligou, desde quando, o que foi feito)"></textarea>
+    <select id="oc_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+    <input id="oc_end" class="campo" placeholder="Endereço do problema">
+    <button class="acao" style="background:#0a6e8a" onclick="usarGPSOcorrencia()">Usar minha localização (GPS)</button>
+    <select id="oc_tipo" class="campo"><option value="">Tipo…</option><option>Falta de água</option><option>Falta de energia na unidade</option><option>Outro</option></select>
+    <textarea id="oc_desc" class="campo" rows="3" placeholder="Descrição (quem ligou, desde quando)"></textarea>
     <button class="acao" onclick="enviarOcorrencia()">Enviar para o escritório abrir</button>`;
-}
-
-// ===== Bairros e logradouros do SCI em todos os formulários (campos marcados com data-end-loc / data-end-bairro / data-end-log) =====
-function endSciMontar(g) {
-  const loc = document.querySelector(`[data-end-loc="${g}"]`);
-  const bIn = document.querySelector(`[data-end-bairro="${g}"]`);
-  const lIn = document.querySelector(`[data-end-log="${g}"]`);
-  if (!loc || !bIn || !lIn) return;
-  const lista = OC_LOGRADOUROS[loc.value];
-  let bSel = document.getElementById("endsel_b_" + g), lSel = document.getElementById("endsel_l_" + g);
-  if (!bSel) { bSel = document.createElement("select"); bSel.id = "endsel_b_" + g; bSel.className = "campo"; bIn.before(bSel);
-    bSel.onchange = () => { bIn.value = bSel.value; endSciRuas(g); }; }
-  if (!lSel) { lSel = document.createElement("select"); lSel.id = "endsel_l_" + g; lSel.className = "campo"; lIn.before(lSel);
-    lSel.onchange = () => { lIn.value = lSel.value; }; }
-  bIn.style.display = "none"; lIn.style.display = "none"; bIn.value = ""; lIn.value = "";
-  if (!lista) { bSel.disabled = true; bSel.innerHTML = `<option value="">Escolha a localidade primeiro</option>`; endSciRuas(g); return; }
-  bSel.disabled = false;
-  bSel.innerHTML = `<option value="">Bairro…</option>${Object.keys(lista).map(b => `<option>${b}</option>`).join("")}`;
-  endSciRuas(g);
-}
-function endSciRuas(g) {
-  const loc = document.querySelector(`[data-end-loc="${g}"]`);
-  const bIn = document.querySelector(`[data-end-bairro="${g}"]`);
-  const lIn = document.querySelector(`[data-end-log="${g}"]`);
-  const lSel = document.getElementById("endsel_l_" + g);
-  const ruas = (OC_LOGRADOUROS[loc.value] || {})[bIn.value];
-  lIn.style.display = "none"; lIn.value = "";
-  if (!ruas) { lSel.disabled = true; lSel.innerHTML = `<option value="">Escolha o bairro primeiro</option>`; return; }
-  lSel.disabled = false;
-  lSel.innerHTML = `<option value="">Logradouro…</option>${ruas.map(r => `<option>${r}</option>`).join("")}`;
-}
-new MutationObserver(() => { document.querySelectorAll("[data-end-loc]").forEach(el => { const g = el.dataset.endLoc; if (!document.getElementById("endsel_b_" + g)) endSciMontar(g); }); }).observe(document.documentElement, { childList: true, subtree: true });
-document.addEventListener("change", e => { const g = e.target && e.target.dataset && e.target.dataset.endLoc; if (g) endSciMontar(g); });
-function ocDataLocal(d) { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 16); }
-function ocAtualizarLocal() {
-  const loc = document.getElementById("oc_loc").value;
-  const unid = document.getElementById("oc_unid").value;
-  const lista = OC_LOGRADOUROS[loc];
-  const bbox = document.getElementById("oc_bairro_box");
-  if (bbox && bbox.dataset.loc !== loc) {
-    bbox.dataset.loc = loc;
-    if (lista) bbox.innerHTML = `<select id="oc_bairro" class="campo" onchange="ocAtualizarLogradouros()"><option value="">Bairro…</option>${Object.keys(lista).map(b => `<option>${b}</option>`).join("")}</select>`;
-    else bbox.innerHTML = `<select id="oc_bairro" class="campo" disabled><option value="">Escolha a localidade primeiro</option></select>`;
-    ocAtualizarLogradouros();
-  }
-  const naEta = unid === "ETA" || unid === "Captação";
-  if (naEta) document.getElementById("oc_todosb").checked = true;
-  const afetadas = (naEta && OC_AFETADAS_MOZONDO.includes(loc)) ? OC_AFETADAS_MOZONDO : (loc ? [loc] : []);
-  document.querySelectorAll(".oc_af").forEach(c => { if (afetadas.includes(c.value)) c.checked = true; });
-  ocBairrosAfetados();
-}
-function ocBairrosAfetados() {
-  const box = document.getElementById("oc_bairrosaf");
-  if (!box) return;
-  const todosGeral = document.getElementById("oc_todosb").checked;
-  const marcados = new Set([...document.querySelectorAll(".oc_baf:checked")].map(c => c.value));
-  const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
-  box.innerHTML = afet.map(l => {
-    const bs = Object.keys(OC_LOGRADOUROS[l] || {});
-    const todosL = todosGeral || (bs.length && bs.every(b => marcados.has(l + ": " + b)));
-    return `<div class="card" style="margin-top:6px"><b>Bairros sem água – ${l}</b>
-      <label style="display:block;margin-top:4px"><input type="checkbox" class="oc_baf_todos" data-loc="${l}" ${todosL ? "checked" : ""} onchange="ocMarcarTodosLoc(this)"> <b>Todos os bairros de ${l}</b></label>
-      ${bs.map(b => { const v = l + ": " + b; return `<label style="display:block"><input type="checkbox" class="oc_baf" data-loc="${l}" value="${v}" ${todosL || marcados.has(v) ? "checked" : ""} onchange="ocConferirTodosLoc('${l}')"> ${b}</label>`; }).join("")}</div>`;
-  }).join("");
-}
-function ocMarcarTodosLoc(el) {
-  document.querySelectorAll(`.oc_baf[data-loc="${el.dataset.loc}"]`).forEach(c => c.checked = el.checked);
-  if (!el.checked) document.getElementById("oc_todosb").checked = false;
-}
-function ocConferirTodosLoc(l) {
-  const cs = [...document.querySelectorAll(`.oc_baf[data-loc="${l}"]`)];
-  const t = document.querySelector(`.oc_baf_todos[data-loc="${l}"]`);
-  if (t) t.checked = cs.length && cs.every(c => c.checked);
-  if (!cs.every(c => c.checked)) document.getElementById("oc_todosb").checked = false;
-}
-function ocTextoBairrosAfetados() {
-  const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
-  return afet.map(l => {
-    const cs = [...document.querySelectorAll(`.oc_baf[data-loc="${l}"]`)];
-    const sel = cs.filter(c => c.checked).map(c => c.value.split(": ").slice(1).join(": "));
-    if (!sel.length) return "";
-    return `${l}: ${cs.length && sel.length === cs.length ? "todos os bairros" : sel.join(", ")}`;
-  }).filter(Boolean).join(" | ");
-}
-function ocAtualizarLogradouros() {
-  const loc = document.getElementById("oc_loc").value;
-  const bairro = (document.getElementById("oc_bairro") || {}).value || "";
-  const ruas = (OC_LOGRADOUROS[loc] || {})[bairro];
-  const ebox = document.getElementById("oc_end_box");
-  if (!ebox) return;
-  if (ruas && ruas.length) ebox.innerHTML = `<select id="oc_end" class="campo"><option value="">Logradouro…</option>${ruas.map(r => `<option>${r}</option>`).join("")}</select>`;
-  else ebox.innerHTML = `<select id="oc_end" class="campo" disabled><option value="">Escolha o bairro primeiro</option></select>`;
-}
-function ocInicioAgora() {
-  const t = ocDataLocal(new Date()).split("T");
-  document.getElementById("oc_ini_d").value = t[0]; document.getElementById("oc_ini_h").value = t[1];
-  ocAtualizarHorario();
-}
-function ocAtualizarHorario() {
-  const d = document.getElementById("oc_ini_d").value, h = document.getElementById("oc_ini_h").value;
-  const tipo = document.getElementById("oc_tipo").value;
-  if (/vazamento/i.test(tipo) && d && h) {
-    const f = new Date(d + "T" + h); f.setHours(f.getHours() + 6);
-    const t = ocDataLocal(f).split("T");
-    document.getElementById("oc_fim_d").value = t[0]; document.getElementById("oc_fim_h").value = t[1];
-    document.getElementById("oc_reg").value = 12;
-  }
 }
 async function usarGPSOcorrencia() {
   const pos = await obterPosicao();
   if (!pos) { alert("Não consegui pegar a localização. Verifique o GPS e a permissão do navegador."); return; }
-  document.getElementById("oc_gps").value = pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
+  document.getElementById("oc_end").value = "GPS: " + pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
 }
-function ocFmt(v) { if (!v) return ""; const [d, h] = v.split("T"); const [a, m, dd] = d.split("-"); return `${dd}/${m}/${a} ${h}`; }
 async function enviarOcorrencia() {
-  const v = id => (document.getElementById(id).value || "").trim();
-  const loc = v("oc_loc"), bairro = v("oc_bairro"), lograd = v("oc_end"), gps = "", unid = v("oc_unid"), tipo = v("oc_tipo");
-  const ini = v("oc_ini_d") && v("oc_ini_h") ? v("oc_ini_d") + "T" + v("oc_ini_h") : "", fim = v("oc_fim_d") && v("oc_fim_h") ? v("oc_fim_d") + "T" + v("oc_fim_h") : "", reg = v("oc_reg"), outras = v("oc_desc");
-  const afet = [...document.querySelectorAll(".oc_af:checked")].map(c => c.value);
-  const todosB = document.getElementById("oc_todosb").checked;
-  const bairrosAf = ocTextoBairrosAfetados();
-  const obs = [...document.querySelectorAll(".oc_ob:checked")].map(c => c.value);
-  const falta = [];
-  if (!loc) falta.push("localidade"); if (!bairro) falta.push("bairro"); if (!lograd) falta.push("logradouro");
-  if (!unid) falta.push("onde foi o problema"); if (!tipo) falta.push("tipo");
-  if (!afet.length) falta.push("localidades afetadas"); if (!bairrosAf) falta.push("bairros afetados");
-  if (!ini) falta.push("início"); if (!fim) falta.push("previsão de fim"); if (!reg) falta.push("tempo de regularização");
-  if (falta.length) { alert("Falta preencher: " + falta.join(", ") + "."); return; }
-  const endereco = `Bairro: ${bairro} | Logradouro: ${lograd}${gps ? " | GPS: " + gps : ""}`;
-  const desc = [`Local do problema: ${unid}`, `Localidades afetadas: ${afet.join(", ")}`, `Bairros afetados: ${bairrosAf}`,
-    `Início: ${ocFmt(ini)}`, `Previsão de fim: ${ocFmt(fim)}`, `Regularização: ${reg} horas`,
-    obs.length ? `Observação: ${obs.join("; ")}` : "", outras ? `Outras informações: ${outras}` : ""].filter(Boolean).join("\n");
+  const loc = document.getElementById("oc_loc").value;
+  const end = document.getElementById("oc_end").value.trim();
+  const tipo = document.getElementById("oc_tipo").value;
+  const desc = document.getElementById("oc_desc").value.trim();
+  if (!loc || !end || !tipo || !desc) { alert("Preencha a localidade, o endereço, o tipo e a descrição."); return; }
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia",
-      linhas: [[new Date().toISOString(), window.credenciais.usuario, loc, endereco, tipo, desc, "solicitada", "", "", ""]] });
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, loc, end, tipo, desc, "solicitada", "", "", ""]] });
     if (res.erro) { alert(res.erro); return; }
     alert("Pedido enviado. O número da ocorrência aparece em Minhas ocorrências.");
     renderAtual();
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
-}
-// Aba Ocorrencia: 1 data_hora | 2 usuario | 3 localidade | 4 endereco | 5 tipo | 6 descricao | 7 situacao (solicitada, aberta, finalizada, encerrada)
-// 8 numero | 9 aberta_por | 10 termino_servico | 11 obs_termino | 12 encerrada_por | 13 data_encerramento | 14 alteracoes
-const OC_OBS_FIM = ["Serviço concluído, abastecimento normalizado", "Energia restabelecida pela Coelba", "Vazamento eliminado", "Manutenção concluída", "Reservatórios recuperando o nível"];
-const OC_OBS_EDITAR = ["Serviço mais demorado que o previsto", "Aguardando a Coelba", "Aguardando material", "Aguardando a UNBM", "Novo vazamento no mesmo local", "Reservatórios ainda recuperando o nível"];
-async function listarOcorrencias() {
-  const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia" });
-  if (res.erro) throw new Error(res.erro);
-  return res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], desc: l[5],
-    situacao: l[6] || "solicitada", num: l[7] || "", abertaPor: l[8] || "", fim: l[9] || "", obsFim: l[10] || "", encPor: l[11] || "", alt: l[13] || "" })).filter(o => o.quando);
-}
-function ocDescHtml(t) { return String(t || "").replace(/\n/g, "<br>"); }
-function ocObsCampos(prefixo, opcoes) {
-  return `<select id="${prefixo}_obs" class="campo"><option value="">Observação…</option>${opcoes.map(o => `<option>${o}</option>`).join("")}<option>Outra (escrever abaixo)</option></select>
-    <textarea id="${prefixo}_txt" class="campo" rows="2" placeholder="Complemento da observação (opcional)"></textarea>`;
-}
-function ocObsValor(prefixo) {
-  const sel = (document.getElementById(prefixo + "_obs") || {}).value || "";
-  const txt = ((document.getElementById(prefixo + "_txt") || {}).value || "").trim();
-  if (!sel) return "";
-  if (sel.startsWith("Outra")) return txt;
-  return txt ? sel + ". " + txt : sel;
-}
-// Funcionário: ocorrências que ele pediu e já foram abertas, para informar o término (aparece em Serviços urgentes)
-// Equipe da ETA de quem abriu a ocorrência: todos recebem em Serviços urgentes, porque podem restabelecer em outro plantão
-function ocMesmaEquipe(quemAbriu) {
-  const eta = etaDoOperador(identidadeAtual());
-  const etaDeQuem = (Object.keys(ETAS_OPERADORES).find(k => ETAS_OPERADORES[k].nomes.some(x => normalizarNome(quemAbriu).includes(x))) || null);
-  const eu = normalizarNome(window.credenciais.usuario);
-  return normalizarNome(quemAbriu) === eu || (!!eta && eta === etaDeQuem);
-}
-async function carregarOcorParaFinalizar(boxId) {
-  const box = document.getElementById(boxId);
-  if (!box) return 0;
-  try {
-    const itens = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && ocMesmaEquipe(o.quem));
-    box.innerHTML = itens.length ? `<h3>Ocorrência operacional: informe o término</h3>` + itens.map(o => { const k = "of" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
-      <b>Ocorrência nº ${o.num}</b> · ${o.tipo} · ${o.loc}<br><span style="font-size:14px">${o.end}<br>${ocDescHtml(o.desc)}${o.alt ? "<br><b>Alterações:</b> " + ocDescHtml(o.alt) : ""}</span>
-      <div class="nota"><b>Término do serviço</b></div>
-      <div style="display:flex;gap:8px"><input id="${k}_d" type="date" class="campo" style="flex:1"><input id="${k}_h" type="time" class="campo" style="flex:1"></div>
-      <button class="acao" style="background:#0a6e8a" onclick="(()=>{const t=ocDataLocal(new Date()).split('T');document.getElementById('${k}_d').value=t[0];document.getElementById('${k}_h').value=t[1];})()">Terminou agora</button>
-      ${ocObsCampos(k, OC_OBS_FIM)}
-      <button class="acao" onclick="finalizarOcorrencia(${o.linha})">Informar término do serviço</button></div>`; }).join("") : "";
-    return itens.length;
-  } catch (e) { box.textContent = ""; return 0; }
-}
-async function finalizarOcorrencia(linha) {
-  const k = "of" + linha;
-  const d = document.getElementById(k + "_d").value, h = document.getElementById(k + "_h").value;
-  const obs = ocObsValor(k);
-  if (!d || !h || !obs) { alert("Informe a data, o horário de término e a observação."); return; }
-  try {
-    const res = await chamarApi({ acao: "finalizarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, termino: ocFmt(d + "T" + h), obs: obs });
-    if (res.erro) { alert(res.erro); return; }
-    alert("Término informado. O escritório vai encerrar a ocorrência no sistema.");
-    renderAtual();
-  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 async function carregarOcorMinhas() {
   const box = document.getElementById("om_lista");
   if (!box) return;
   box.textContent = "Carregando...";
   try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia" });
+    if (res.erro) { box.textContent = res.erro; return; }
     const eu = String(window.credenciais.usuario).toLowerCase();
-    const itens = (await listarOcorrencias()).filter(o => String(o.quem).toLowerCase() === eu).reverse();
-    const nomeSit = { solicitada: "Aguardando o escritório abrir", aberta: "Aberta – informe o término em Serviços urgentes", finalizada: "Término informado – aguardando encerrar no sistema", encerrada: "Encerrada no sistema" };
-    box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${o.situacao === "encerrada" ? "#2e7d32" : "#c62828"}">
-      <b>${o.tipo}</b> · ${o.loc}${o.num ? " · nº <b>" + o.num + "</b>" : ""}<br><span style="font-size:14px">${o.end} · pedido em ${formatarQuando(o.quando)}<br>${nomeSit[o.situacao] || o.situacao}${o.fim ? " · término " + o.fim : ""}</span></div>`).join("") : "<p>Nenhuma ocorrência.</p>";
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], situacao: l[6] || "solicitada", num: l[7] || "", fin: l[9] || "" }))
+      .filter(o => String(o.quem).toLowerCase() === eu).reverse();
+    if (!itens.length) { box.innerHTML = "<p>Nenhuma ocorrência.</p>"; return; }
+    box.innerHTML = itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${o.situacao === "finalizada" ? "#2e7d32" : "#c62828"}">
+      <b>${o.tipo}</b> · ${o.loc}<br><span style="font-size:14px">${o.end} · pedido em ${formatarQuando(o.quando)}</span><br>
+      <span style="font-size:14px">${o.num ? "Ocorrência nº <b>" + o.num + "</b>" : "Aguardando o escritório abrir"}${o.situacao === "finalizada" ? " · serviço finalizado em " + formatarQuando(o.fin) : ""}</span>
+      ${o.num && o.situacao !== "finalizada" ? `<br><button class="acao" onclick="finalizarOcorrencia(${o.linha})">Serviço finalizado</button>` : ""}
+    </div>`).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
-// Gestão (Deyse, Thiago, Oseias, Igor): abrir, editar e encerrar
+async function finalizarOcorrencia(linha) {
+  try {
+    const res = await chamarApi({ acao: "finalizarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
+    if (res.erro) { alert(res.erro); return; }
+    carregarOcorMinhas();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
+// Gerência e atendente: pedidos de ocorrência para abrir no sistema
 async function carregarOcorrenciasGerente(boxId = "oc_ger") {
   const box = document.getElementById(boxId);
   if (!box) return;
   box.textContent = "Carregando...";
   try {
-    const todas = await listarOcorrencias();
-    const abrir = todas.filter(o => o.situacao === "solicitada").reverse();
-    const encerrar = todas.filter(o => o.situacao === "finalizada").reverse();
-    const abertas = todas.filter(o => o.situacao === "aberta").reverse();
-    const cab = o => `<b>${o.tipo}</b> · ${o.loc} · pedido por ${o.quem} em ${formatarQuando(o.quando)}${o.num ? "<br>Ocorrência nº <b>" + o.num + "</b>" : ""}<br><span style="font-size:14px">${o.end}<br>${ocDescHtml(o.desc)}${o.alt ? "<br><b>Alterações:</b> " + ocDescHtml(o.alt) : ""}</span>`;
-    box.innerHTML =
-      `<h3>Para abrir no SCI (${abrir.length})</h3>` + (abrir.length ? abrir.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">${cab(o)}
-        <input id="oc_n_${o.linha}" class="campo" placeholder="Número da ocorrência aberta">
-        <button class="acao" onclick="responderOcorrencia(${o.linha}, '${boxId}')">Devolver número para a equipe</button></div>`).join("") : "<p>Nenhuma.</p>") +
-      `<h3>Para encerrar no SCI (${encerrar.length})</h3>` + (encerrar.length ? encerrar.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #f9a825">${cab(o)}
-        <br><b>Término do serviço:</b> ${o.fim}<br><b>Observação:</b> ${o.obsFim}
-        <button class="acao" onclick="encerrarOcorrencia(${o.linha}, '${boxId}')">Encerrada no SCI</button></div>`).join("") : "<p>Nenhuma.</p>") +
-      `<h3>Abertas, aguardando o término (${abertas.length})</h3>` + (abertas.length ? abertas.map(o => { const k = "oe" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0a6e8a">${cab(o)}
-        <details style="margin-top:6px"><summary><b>Editar ocorrência (prazo passou)</b></summary>
-          <div class="nota"><b>Nova previsão de término</b></div>
-          <div style="display:flex;gap:8px"><input id="${k}_d" type="date" class="campo" style="flex:1"><input id="${k}_h" type="time" class="campo" style="flex:1"></div>
-          ${ocObsCampos(k, OC_OBS_EDITAR)}
-          <button class="acao" onclick="editarOcorrencia(${o.linha}, '${boxId}')">Salvar alteração</button></details></div>`; }).join("") : "<p>Nenhuma.</p>");
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Ocorrencia" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], loc: l[2], end: l[3], tipo: l[4], desc: l[5], situacao: l[6] || "solicitada", num: l[7] || "" }))
+      .filter(o => o.situacao === "solicitada").reverse();
+    box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
+      <b>${o.tipo}</b> · ${o.loc} · pedido por ${o.quem}<br><span style="font-size:14px">${o.end} · ${o.desc}</span>
+      <input id="oc_n_${o.linha}" class="campo" placeholder="Número da ocorrência aberta">
+      <button class="acao" onclick="responderOcorrencia(${o.linha})">Devolver número para a equipe</button>
+    </div>`).join("") : "<p>Nenhuma ocorrência pendente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
-async function responderOcorrencia(linha, boxId = "oc_ger") {
+async function responderOcorrencia(linha) {
   const numero = (document.getElementById("oc_n_" + linha) || {}).value || "";
   if (!numero.trim()) { alert("Digite o número da ocorrência."); return; }
   try {
     const res = await chamarApi({ acao: "responderOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim() });
     if (res.erro) { alert(res.erro); return; }
     alert("Número devolvido para a equipe.");
-    carregarOcorrenciasGerente(boxId);
+    carregarOcorrenciasGerente();
   } catch (e) { alert("Não consegui responder. Verifique a internet."); }
-}
-async function encerrarOcorrencia(linha, boxId = "oc_ger") {
-  try {
-    const res = await chamarApi({ acao: "encerrarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
-    if (res.erro) { alert(res.erro); return; }
-    carregarOcorrenciasGerente(boxId);
-  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
-}
-async function editarOcorrencia(linha, boxId = "oc_ger") {
-  const k = "oe" + linha;
-  const d = document.getElementById(k + "_d").value, h = document.getElementById(k + "_h").value;
-  const obs = ocObsValor(k);
-  if (!d || !h) { alert("Informe a nova data e o horário de término."); return; }
-  if (!obs) { alert("A observação é obrigatória."); return; }
-  try {
-    const res = await chamarApi({ acao: "editarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, novoFim: ocFmt(d + "T" + h), obs: obs });
-    if (res.erro) { alert(res.erro); return; }
-    alert("Alteração salva. Lembre de alterar também no SCI.");
-    carregarOcorrenciasGerente(boxId);
-  } catch (e) { alert("Não consegui salvar. Verifique a internet."); }
 }
 
 // ===== SS PARA ACOMPANHAR: SS que vencem em 24 horas e SS abertas nos últimos 3 meses. A equipe escolhe e diz se manda ao Digiteam =====
@@ -2956,19 +2429,17 @@ async function carregarAcoesSS(boxId = "pa_acoes") {
 // ===== SS PARA ENCERRAR PELO ESCRITÓRIO: a equipe informa a SS executada; o escritório encerra no sistema e marca =====
 // Aba EncerrarSS: data_hora | usuario | ss | servico | localidade | observacao | situacao | encerrada_por | data_encerramento
 function podeVerEncerrarEscritorio() {
-  const quem = identidadeAtual();
+  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
   return ["deyse", "thiago", "oseias", "igor", "alan", "genildo"].some(n => quem.includes(n));
 }
 function telaEncerrarEscritorio() {
-  return `<h2>Encerrar SS como executada</h2>
+  return `<h2>SS para encerrar pelo escritório</h2>
     <div class="nota">Informe a SS que foi executada e precisa ser encerrada pelo escritório.</div>
     <input id="ee_ss" class="campo" placeholder="Número da SS">
     <input id="ee_serv" class="campo" placeholder="Serviço executado">
     <select id="ee_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
     <textarea id="ee_obs" class="campo" rows="2" placeholder="Observação (o que foi feito)"></textarea>
     <button class="acao" onclick="enviarEncerrarEscritorio()">Enviar para o escritório encerrar</button>
-    <button id="ee_btn_anexar" class="acao" style="background:#6a1b9a" onclick="carregarAnexarDocumento()">Anexar documento à SS já encerrada</button>
-    <div id="ee_anexar"></div>
     <h3>Pendentes</h3><div id="ee_lista">Carregando...</div>`;
 }
 async function enviarEncerrarEscritorio() {
@@ -2994,36 +2465,13 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EncerrarSS" });
     if (res.erro) { box.textContent = res.erro; return; }
-    const todasEE = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], ss: l[2], serv: l[3], loc: l[4], obs: l[5], situacao: l[6] || "pendente", por: l[7] || "", fotos: l[9] || "" }));
-    const qAnexar = todasEE.filter(x => x.situacao === "anexar").length;
-    const bAn = document.getElementById("ee_btn_anexar"); if (bAn) bAn.textContent = "Anexar documento à SS já encerrada (" + qAnexar + ")";
-    const itens = todasEE.filter(x => x.situacao === "pendente").reverse();
-    box.innerHTML = itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
-      <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
-      ${x.obs ? `<br><span style="font-size:14px;color:#b71c1c;font-weight:600">${x.obs}</span>` : ""}
-      ${gerencia && /\[VENCIDA\]/.test(String(x.obs)) ? `<br><input id="ee_nova_${x.linha}" class="campo" placeholder="Número da NOVA SS gerada">
-        <button class="acao" style="background:#c62828" onclick="registrarNovaSSVencida(${x.linha}, '${String(x.ss).replace(/^'/, "")}', '${String(x.serv).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">Cancelada e nova SS gerada</button>`
-        : gerencia ? `<br><button class="acao" onclick="marcarEncerrada(${x.linha})">Concluída no sistema</button>` : ""}
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], ss: l[2], serv: l[3], loc: l[4], obs: l[5], situacao: l[6] || "pendente", por: l[7] || "" }))
+      .filter(x => x.situacao === "pendente").reverse();
+    box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
+      <b>SS ${x.ss}</b> · ${x.serv} · ${x.loc}<br><span style="font-size:14px">${x.obs || ""} · enviado por ${x.quem} em ${formatarQuando(x.quando)}</span>
+      ${gerencia ? `<br><button class="acao" onclick="marcarEncerrada(${x.linha})">Marcar como encerrada</button>` : ""}
     </div>`).join("") : "<p>Nenhuma SS pendente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
-// SS vencida: o escritório cancela, gera outra e informa aqui. A nova volta para a lista do Digiteam com o alerta.
-async function registrarNovaSSVencida(linha, ssAntiga, tipo, loc) {
-  const nova = ((document.getElementById("ee_nova_" + linha) || {}).value || "").replace(/\D/g, "");
-  if (!nova) { alert("Digite o número da nova SS gerada."); return; }
-  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-  try {
-    const sa = await chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" });
-    const antiga = (sa.dados || []).slice(1).find(l => String(l[0]).replace(/^'/, "") === ssAntiga) || [];
-    const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Bahia" });
-    const nome = [String(antiga[6] || ""), "SUBSTITUI A SS " + ssAntiga + " (vencida)"].filter(Boolean).join(" | ");
-    const r1 = await chamarApi({ acao: "gravarVarias", ...cred, aba: "SSAbertas", linhas: [["'" + nova, antiga[1] || tipo, antiga[2] || loc, hoje, "", "Aberta", nome, antiga[7] || ""]] });
-    if (r1.erro) { alert(r1.erro); return; }
-    const r2 = await chamarApi({ acao: "marcarEncerrada", ...cred, linha: linha });
-    if (r2.erro) { alert(r2.erro); return; }
-    alert("SS " + nova + " lançada no lugar da " + ssAntiga + ". Ela já aparece para o funcionário pedir no Digiteam.");
-    carregarEncerrarEscritorio();
-  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 async function marcarEncerrada(linha) {
   try {
@@ -3035,160 +2483,64 @@ async function marcarEncerrada(linha) {
 
 // ===== LISTA DE SS PARA A EQUIPE: vencendo em 24 ou 48 horas e todas em aberto. Quem está na rua marca e escolhe a ação =====
 // Aba SSAbertas (exportada do SCI pela gerência): ss | tipo | localidade | abertura | vencimento | situacao | nome | matricula
-async function enviarAnaliseConsumo() {
-  const tipo = document.getElementById("ac_tipo").value;
-  const valor = document.getElementById("ac_campo").value.trim();
-  if (!valor) { alert(tipo === "hd" ? "Informe o número do HD." : "Informe a matrícula."); return; }
-  const linha = [new Date().toISOString(), window.credenciais.usuario, "Análise de consumo", "Tela da leitura dos últimos meses",
-    "", "", "", tipo === "matricula" ? valor : "", tipo === "hd" ? valor : "", "", "pendente", "", "", "", "", ""];
-  try {
-    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS", linhas: [linha] });
-    if (res.erro) { alert(res.erro); return; }
-    alert("Pedido enviado para a Deyse.");
-    document.getElementById("ac_campo").value = "";
-  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
-}
-function mostrarCamposUNBA() {
-  const t = document.getElementById("un_tipo").value;
-  const loc = `<label>Localidade <input id="un_loc" class="campo"></label><label>Bairro <input id="un_bairro" class="campo"></label><label>Logradouro <input id="un_log" class="campo"></label>`;
-  if (t === "tubos") {
-    document.getElementById("un_campos").innerHTML = loc + `<label>Quantos metros precisa <input id="un_metros" type="number" class="campo"></label><label>Quantas ligações foram solicitadas <input id="un_ligacoes" type="number" class="campo"></label><button class="acao" onclick="enviarPedidoUNBA()">Enviar pedido</button>`;
-  } else if (t === "diversos") {
-    document.getElementById("un_campos").innerHTML = loc + `<label>Escreva o pedido <textarea id="un_texto" class="campo" rows="3"></textarea></label><label>É urgente? <select id="un_urg" class="campo"><option value="nao">Não</option><option value="sim">Sim</option></select></label><label>Se for urgente, explique o motivo <textarea id="un_motivo" class="campo" rows="2"></textarea></label><button class="acao" onclick="enviarPedidoUNBA()">Enviar pedido</button>`;
-  } else document.getElementById("un_campos").innerHTML = "";
-}
-async function enviarPedidoUNBA() {
-  const t = document.getElementById("un_tipo").value;
-  const loc = document.getElementById("un_loc").value.trim(), bairro = document.getElementById("un_bairro").value.trim(), log = document.getElementById("un_log").value.trim();
-  if (!loc || !bairro || !log) { alert("Informe localidade, bairro e logradouro."); return; }
-  let tipo, detalhe, obs = "";
-  if (t === "tubos") {
-    const m = document.getElementById("un_metros").value, l = document.getElementById("un_ligacoes").value;
-    if (!m || !l) { alert("Informe os metros e a quantidade de ligações."); return; }
-    tipo = "Pedido à UNBA – tubos"; detalhe = `Metros: ${m} · Ligações solicitadas: ${l}`;
-  } else {
-    const txt = document.getElementById("un_texto").value.trim(), urg = document.getElementById("un_urg").value, mot = document.getElementById("un_motivo").value.trim();
-    if (!txt) { alert("Escreva o pedido."); return; }
-    if (urg === "sim" && !mot) { alert("Explique o motivo da urgência."); return; }
-    tipo = "Pedido à UNBA – serviço diverso"; detalhe = txt; obs = `Urgente: ${urg === "sim" ? "sim – " + mot : "não"}`;
-  }
-  const linha = [new Date().toISOString(), window.credenciais.usuario, tipo, detalhe, loc, bairro, log, "", "", obs, "pendente", "", "", "", "", ""];
-  try {
-    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS", linhas: [linha] });
-    if (res.erro) { alert(res.erro); return; }
-    alert("Pedido enviado para a Deyse.");
-    renderAtual();
-  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
-}
 function telaSSLista(titulo) {
   return `<h2>${titulo}</h2>
     <select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option><option>Só gerar</option></select>
     <button class="acao" onclick="enviarSSLista()">Enviar as marcadas</button>
     <div id="sl_lista">Carregando...</div>`;
 }
-// ===== PRAZOS DAS SS (a partir da data de abertura) =====
-// Transferência de ramal/HD 72h · corte a pedido 48h · ligação nova 10 dias úteis · religação 24h · vazamento (qualquer) 24h
-function regraPrazoSS(tipo) {
-  const t = String(tipo || "").toUpperCase();
-  if (/\bVAZ/.test(t)) return { horas: 24, texto: "24h (vazamento)" };
-  if (/RELIG|RESTAB/.test(t)) return { horas: 24, texto: "24h (religação)" };
-  if (/TRANS/.test(t)) return { horas: 72, texto: "72h (transferência de ramal/HD)" };
-  if (/CORTE/.test(t) && /PEDIDO/.test(t)) return { horas: 48, texto: "48h (corte a pedido)" };
-  if (/LIG(ACAO)?\s*NOVA|LIGACAO DE AGUA|NOVA LIG/.test(t)) return { uteis: 10, texto: "10 dias úteis (ligação nova)" };
-  return null;
-}
-function prazoSS(tipo, abertura) {
-  const r = regraPrazoSS(tipo);
-  const m = String(abertura || "").match(/(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
-  if (!r || !m) return null;
-  const ini = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4] || 0), Number(m[5] || 0));
-  let fim = new Date(ini);
-  if (r.horas) fim = new Date(ini.getTime() + r.horas * 3600e3 + (m[4] ? 0 : 24 * 3600e3 - 60e3)); // sem hora: conta a partir do fim do dia da abertura
-  else { let d = 0; while (d < r.uteis) { fim.setDate(fim.getDate() + 1); if (fim.getDay() !== 0 && fim.getDay() !== 6) d++; } fim.setHours(23, 59); }
-  return { vencida: new Date() > fim, fim, texto: r.texto };
-}
-function alertaPrazoHTML(p, digiteam) {
-  if (!p) return "";
-  const f = p.fim.toLocaleDateString("pt-BR");
-  return p.vencida
-    ? `<div style="background:#c62828;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ VENCIDA – perdeu o prazo de ${p.texto} em ${f}.${digiteam ? " Não mandar no Digiteam: deve ser encerrada e aberto outro protocolo." : ""}</div>`
-    : `<div style="font-size:13px;color:#7a5a00">Prazo: ${p.texto} · vence em ${f}</div>`;
-}
 async function carregarSSLista(filtro) {
   const box = document.getElementById("sl_lista");
   if (!box) return;
   const agora = new Date();
   try {
-    window.ssListaFiltro = filtro;
-    const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-    const [res, ex, encV] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })),
-      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] }))]);
-    // SS vencidas já mandadas ao escritório para cancelar não aparecem mais aqui
-    const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
     if (res.erro) { box.textContent = res.erro; return; }
-    // SS que alguém já deu OK (executada) somem desta lista
-    const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
-    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), aberturaTxt: String(l[3] || ""), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
-      // "Programada" = já está no Digiteam de alguém: não aparece
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
-      // cada funcionário vê só as SS da(s) localidade(s) dele; a gerência vê todas
-      .filter(x => (window.MODO_GERENTE && !emPrevia()) || localidadesAgersaDoUsuario().includes(String(x.loc).trim()));
+    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu/i.test(x.situacao));
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
     lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
     const fmt = d => d ? d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
-    // Botões por tipo de serviço, com a quantidade em aberto; ao escolher um tipo, todas daquele tipo já vêm marcadas
-    const nomeT = t => String(t || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
-    const contT = {}; lista.forEach(x => { const t = nomeT(x.tipo); contT[t] = (contT[t] || 0) + 1; });
-    const tipoSel = window.slTipo || "";
-    const bt = (rot, val) => `<button onclick="window.slTipo='${val}';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid #0b5394;background:${tipoSel === val ? "#0b5394" : "#fff"};color:${tipoSel === val ? "#fff" : "#0b5394"}">${rot}</button>`;
-    const barraT = lista.length ? `<div style="margin-bottom:8px">${bt("Todas (" + lista.length + ")", "")}${Object.entries(contT).sort((a, b) => b[1] - a[1]).map(([t, q]) => bt(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}</div>` : "";
-    if (tipoSel) lista = lista.filter(x => nomeT(x.tipo) === tipoSel);
-    const marcarTodas = tipoSel ? `<label style="display:block;margin:6px 0;font-weight:600"><input type="checkbox" checked onchange="document.querySelectorAll('.sl_sel').forEach(c => c.checked = this.checked)"> Marcar todas as ${lista.length} de ${tipoSel}</label>` : "";
-    box.innerHTML = barraT + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
-        <label><input type="checkbox" class="sl_sel" ${tipoSel ? "checked" : ""} value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
-        ${/SUBSTITUI A SS/i.test(x.nome) ? `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ ${String(x.nome).match(/SUBSTITUI A SS[^|]*/i)[0]} – o prazo da antiga foi perdido. Esta nova NÃO PODE perder o prazo.</div>` : ""}
-        ${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt), true)}
-        <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}<br>Aberta em ${fmt(x.abertura)}</span>
-        <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
-      </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>");
+    box.innerHTML = lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
+        <label><input type="checkbox" class="sl_sel" value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
+        <span style="font-size:14px">${x.nome} · matrícula ${x.mat} · ${x.loc}<br>Aberta em ${fmt(x.abertura)} · vence em ${fmt(x.vencimento)}</span>
+      </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 async function enviarSSLista() {
   const marcadas = [...document.querySelectorAll(".sl_sel:checked")];
   if (!marcadas.length) { alert("Marque pelo menos uma SS."); return; }
   const acao = document.getElementById("sl_acao").value;
-  const lote = new Date().toISOString();
-  const linhas = marcadas.map(c => [lote, window.credenciais.usuario, c.value, c.dataset.tipo, c.dataset.loc, "", acao, "pendente"]);
+  const linhas = marcadas.map(c => [new Date().toISOString(), window.credenciais.usuario, c.value, c.dataset.tipo, c.dataset.loc, "", acao, "pendente"]);
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS", linhas: linhas });
     if (res.erro) { alert(res.erro); return; }
     alert(linhas.length + " SS enviada(s) para a gerência: " + acao + ".");
-    carregarSSLista(window.ssListaFiltro || null);
+    carregarSSLista(null);
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
 }
 
 // Menu enxuto para quem está na rua (Luzenildo, Francisco, Carlito, Joaquim, Igor, Ivo e Janio Gualberto)
-// Principal: vazamentos, abrir SS e mandar no Digitim, SS vencendo em 24h/48h, SS em aberto (3 meses). O resto em Outros.
-const SS_NOMES_MENU = ["Vazamento de rede", "Vazamento de ramal"];
+const SS_NOMES_MENU = ["Vazamento de rede", "Vazamento de ramal", "Pedir abertura de SS", "Abrir e encerrar SS", "SS para acompanhar",
+  "Vencimentos (24h e 48h)", "Todas as SS abertas (90 dias)", "SCI", "SS para encerrar pelo escritório", "Pedido de SS"];
 function menuSimplesDe(perfil) {
   const orig = PERFIS[perfil] || [];
   const outros = orig.find(i => i.nome === "Outros");
-  const todos = [...orig.filter(i => i.nome !== "Outros"), ...(outros ? outros.sub : [])];
-  const vistos = new Set();
-  const resto = todos.filter(i => {
-    if (SS_NOMES_MENU.includes(i.nome)) return false;
-    const chave = i.nome + "|" + (i.tela || "");
-    if (vistos.has(chave)) return false;
-    vistos.add(chave);
-    return true;
-  });
+  const manter = orig.filter(i => i.nome !== "Outros" && !SS_NOMES_MENU.includes(i.nome));
   return [
-    {nome: "Abrir SS de vazamento de rede", tela: "ssVazRede"},
-    {nome: "Abrir SS de vazamento de ramal", tela: "ssVazRamal"},
-    {nome: "Abrir SS de vazamento de hidrômetro", tela: "ssVazHid"},
-    {nome: "Abrir SS e mandar no Digitim", tela: "solicitarSS"},
-    {nome: "Outros", sub: resto}
+    {nome: "Vazamento", sub: [
+      {nome: "Vazamento de rede", tela: "ssVazRede"},
+      {nome: "Vazamento de ramal", tela: "ssVazRamal"},
+      {nome: "Vazamento de hidrômetro", tela: "ssVazHid"}
+    ]},
+    {nome: "Abrir SS", tela: "pedidoSS"},
+    {nome: "Abrir e encerrar SS", tela: "pedidoSSEncerrar"},
+    {nome: "SS a vencer em até 24 horas", tela: "ssVenc24"},
+    {nome: "SS a vencer em até 48 horas", tela: "ssVenc48"},
+    {nome: "Todas as SS em aberto", tela: "ssTodas"},
+    {nome: "SS para encerrar pelo escritório", tela: "encerrarEscritorio"},
+    {nome: "Outros", sub: [...manter, ...(outros ? outros.sub : [])]}
   ];
 }
 // Operadores de Mozondó e Angico: níveis do macro, ocorrência, reclamação Coelba; o resto em Outros
@@ -3207,105 +2559,19 @@ function menuOperadorDe(perfil) {
   principal.push({nome: "Outros", sub: resto});
   return principal;
 }
-const GRUPO_CAMPO = ["luzenildo", "joaquim", "francisco", "carlito", "ivo", "janiogualberto", "isaque", "isaac"];
-const GRUPO_GESTAO = ["deyse", "thiago", "alan", "genildo", "igor", "oseias"];
-function menuBaseDoPerfil(n) {
+function menuDoPerfil() {
+  const n = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
   const simples = ["luzenildo", "francisco", "carlito", "joaquim", "igor", "ivocarlos", "janiogualberto"].some(x => n.includes(x));
   if (simples) return menuSimplesDe(perfilAtual);
   if (String(perfilAtual).startsWith("Operador Mozondó") || String(perfilAtual).startsWith("Operador Angico")) return menuOperadorDe(perfilAtual);
   return PERFIS[perfilAtual];
-}
-function achatarMenu(m) {
-  return (m || []).flatMap(i => (i.nome === "Outros" && i.sub) ? i.sub : [i]);
-}
-function emPrevia() {
-  return !!(window.MODO_GERENTE && window.pessoaPrevia && normalizarNome(window.pessoaPrevia) !== "deyse");
-}
-function identidadeAtual() {
-  if (emPrevia()) return normalizarNome(window.pessoaPrevia);
-  return normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
-}
-// ===== Perfil de OPERADOR DE ETA (próprio ou terceirizado): a mesma tela principal para todos; muda só o almoxarifado, os níveis e a escala de cada ETA =====
-const ETAS_OPERADORES = {
-  mozondo: { nomes: ["alan", "genildo", "juvenson", "valdesandro", "sandro"], perfil: "Operador Mozondó (Genildo)", almox: ["ETA Mozondó"] },
-  sd: { nomes: ["igor", "oseias", "acacio", "janiolima", "eduardo"], perfil: "Operador ETA São Desidério (exemplo: Igor)", perfilProprio: "Operador ETA São Desidério próprio (exemplo: Acácio)", almox: ["ETA São Desidério", "Escritório São Desidério"] },
-  angico: { nomes: ["ramon", "renato"], perfil: "Operador Angico (Ramon ou Renato)", almox: ["ETA Angico"] }
-};
-// Só quem tem computador: encerrar SS como executada
-const COM_COMPUTADOR = ["alan", "genildo", "oseias", "igor"];
-// Quem recebe e abre os pedidos de ocorrência operacional no SCI
-const QUEM_ABRE_OCORRENCIA = ["deyse", "thiago", "igor", "oseias"];
-function etaDoOperador(n) {
-  for (const k of Object.keys(ETAS_OPERADORES)) if (ETAS_OPERADORES[k].nomes.some(x => n.includes(x))) return k;
-  if (!window.MODO_GERENTE) {
-    const p = String(perfilAtual);
-    if (p.startsWith("Operador Mozondó")) return "mozondo";
-    if (p.startsWith("Operador Angico")) return "angico";
-    if (p.startsWith("Operador ETA São Desidério")) return "sd";
-  }
-  return null;
-}
-function menuOperadorETA(n, eta) {
-  const cfg = ETAS_OPERADORES[eta];
-  const proprio = eta === "sd" && ["acacio", "janiolima", "eduardo"].some(x => n.includes(x));
-  const doPerfil = achatarMenu(PERFIS[proprio ? cfg.perfilProprio : cfg.perfil] || []);
-  const base = achatarMenu(PERFIS["Operador ETA São Desidério (exemplo: Igor)"] || []);
-  const doEta = achatarMenu(PERFIS[cfg.perfil] || []);
-  const achar = (lista, nomes) => lista.find(i => nomes.includes(i.nome));
-  const pegar = nomes => achar(doPerfil, nomes) || achar(doEta, nomes) || achar(base, nomes);
-  const niveis = achar(doEta, ["Níveis dos reservatórios", "Níveis e macro ETA"]);
-  const escala = achar(doEta, ["Escala de turno"]);
-  const principal = [];
-  if (COM_COMPUTADOR.some(x => n.includes(x))) principal.push({nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"});
-  if (QUEM_ABRE_OCORRENCIA.some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
-  cfg.almox.forEach(l => principal.push({nome: "Almoxarifado – " + l, tela: "almoxarifadoCatalogo", local: l}));
-  if (niveis) principal.push({nome: "Níveis e macros", sub: niveis.sub});
-  principal.push({nome: "Ocorrência operacional", sub: [{nome: "Solicitar abertura", tela: "ocorAbrir"}, {nome: "Minhas ocorrências", tela: "ocorMinhas"}]});
-  principal.push({nome: "Reclamação Coelba", tela: "coelba"});
-  principal.push({nome: "EPI", tela: "epi"});
-  principal.push({nome: "Urgências", tela: "urgencias"});
-  const quimico = achar(doEta, ["Estoque diário produto químico"]) || pegar(["Estoque diário produto químico"]);
-  if (quimico) principal.push(quimico);
-  if (escala) principal.push(escala);
-  ["Hora extra", "RILC (compra em loja)", "Reforma ou conserto de equipamento", "Demandas Agersa", "Rotina do dia 1"].forEach(nm => { const it = pegar([nm]); if (it) principal.push(it); });
-  const usadosTela = new Set(["encerrarEscritorio", "ocorPedidos", "almoxarifadoCatalogo", "ocorAbrir", "ocorMinhas", "coelba", "epi", "urgencias"]);
-  const usadosNome = new Set(principal.map(i => i.nome).concat(["Níveis dos reservatórios", "Níveis e macro ETA", "Almoxarifado", "SS para encerrar pelo escritório"]));
-  const resto = doPerfil.filter(i => !usadosTela.has(i.tela) && !usadosNome.has(i.nome));
-  if (COM_COMPUTADOR.some(x => n.includes(x))) resto.push({nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"});
-  principal.push({nome: "Outros", sub: resto});
-  return principal;
-}
-function menuDoPerfil() {
-  const n = identidadeAtual();
-  const eta = etaDoOperador(n);
-  if (eta) return menuOperadorETA(n, eta);
-  // Equipe de campo: pendência para executar, almoxarifado de cada localidade e Outros
-  if (GRUPO_CAMPO.some(x => n.includes(x))) {
-    const locais = Object.keys(QUEM_MOVIMENTA_ALMOX).filter(l => QUEM_MOVIMENTA_ALMOX[l].some(nm => normalizarNome(nm) && n.includes(normalizarNome(nm))));
-    const botoesAlmox = locais.map(l => ({nome: "Almoxarifado – " + l, tela: "almoxarifadoCatalogo", local: l}));
-    const outros = achatarMenu(menuBaseDoPerfil(n)).filter(i => i.tela !== "almoxarifadoCatalogo" && i.nome !== "Almoxarifado");
-    return [{nome: "Pendência de SS para executar", tela: "pendExecutar"}, ...botoesAlmox, {nome: "Outros", sub: outros}];
-  }
-  // Gestão: pendências de SS a digitar, almoxarifado e Outros
-  if (GRUPO_GESTAO.some(x => n.includes(x)) || (window.MODO_GERENTE && !emPrevia())) {
-    const resto = achatarMenu(menuBaseDoPerfil(n)).filter(i => !["almoxarifadoCatalogo", "encerrarEscritorio"].includes(i.tela) && i.nome !== "Almoxarifado");
-    const outros = [...resto, {nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}];
-    if ((window.MODO_GERENTE && !emPrevia()) || n.includes("thiago")) outros.push({nome: "Matrículas sem localização", tela: "semLocalizacao"});
-    const principal = [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}];
-    if ((window.MODO_GERENTE && !emPrevia()) || QUEM_ABRE_OCORRENCIA.some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
-    return [...principal, {nome: "Almoxarifado", tela: "almoxarifadoCatalogo"}, {nome: "Outros", sub: outros.filter(i => i.tela !== "ocorPedidos")}];
-  }
-  // Demais perfis: como antes
-  let menu = menuBaseDoPerfil(n);
-  if (String(perfilAtual).startsWith("Operador Mozondó") || String(perfilAtual).startsWith("Operador Angico")) menu = menuBaseDoPerfil(n);
-  return menu;
 }
 
 // ===== SERVIÇOS URGENTES: a gerência adiciona; cada pessoa vê a quantidade no botão e marca como feito =====
 // Aba ServicosUrgentes: data_hora | usuario | para | descricao | situacao | feito_por | data_feito
 window.qtdUrgentes = 0;
 function nomesDoUsuario() {
-  return identidadeAtual();
+  return normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
 }
 function servicoParaMim(para) {
   const p = normalizarNome(para);
@@ -3317,13 +2583,11 @@ async function carregarQtdUrgentes() {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
     if (res.erro) { window.qtdUrgentes = 0; return; }
-    let qOc = 0;
-    try { qOc = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && ocMesmaEquipe(o.quem)).length; } catch (e) {}
-    window.qtdUrgentes = res.dados.slice(1).filter(l => l[4] !== "feito" && servicoParaMim(l[2])).length + qOc;
+    window.qtdUrgentes = res.dados.slice(1).filter(l => l[4] !== "feito" && servicoParaMim(l[2])).length;
   } catch (e) { window.qtdUrgentes = 0; }
 }
 function telaServicosUrgentes() {
-  const form = (window.MODO_GERENTE && !emPrevia()) ? `
+  const form = window.MODO_GERENTE ? `
     <h3>Adicionar serviço urgente</h3>
     <textarea id="su_desc" class="campo" rows="2" placeholder="O que precisa ser feito"></textarea>
     <div class="nota">Para quem (marque um ou mais, ou marque Todos):</div>
@@ -3331,7 +2595,7 @@ function telaServicosUrgentes() {
     ${PESSOAS.filter(p => p[0] !== "Deyse").map(p => `<label style="display:block"><input type="checkbox" class="su_p" value="${p[0]}"> ${p[0]}</label>`).join("")}
     <button class="acao" onclick="adicionarServicoUrgente()">Adicionar serviço urgente</button>
     <h3>Lista</h3>` : "";
-  return `<h2>Serviços urgentes</h2><div id="su_ocor"></div>${form}<div id="su_lista">Carregando...</div>`;
+  return `<h2>Serviços urgentes</h2>${form}<div id="su_lista">Carregando...</div>`;
 }
 async function adicionarServicoUrgente() {
   const desc = document.getElementById("su_desc").value.trim();
@@ -3354,12 +2618,11 @@ async function carregarServicosUrgentes() {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
     if (res.erro) { box.textContent = res.erro; return; }
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], para: l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "" }))
-      .filter(x => (window.MODO_GERENTE && !emPrevia()) || servicoParaMim(x.para)).reverse();
-    const qOc = await carregarOcorParaFinalizar("su_ocor");
-    window.qtdUrgentes = itens.filter(x => x.situacao !== "feito" && servicoParaMim(x.para)).length + qOc;
+      .filter(x => window.MODO_GERENTE || servicoParaMim(x.para)).reverse();
+    window.qtdUrgentes = itens.filter(x => x.situacao !== "feito" && servicoParaMim(x.para)).length;
     box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${x.situacao === "feito" ? "#2e7d32" : "#c62828"}">
       <b>${x.desc}</b><br><span style="font-size:14px">Para: ${x.para} · adicionado por ${x.quem} em ${formatarQuando(x.quando)}</span>
-      ${x.situacao === "feito" ? `<br><span style="font-size:14px">Feito por ${x.feito}</span>` : (!(window.MODO_GERENTE && !emPrevia()) && servicoParaMim(x.para) ? `<br><button class="acao" onclick="concluirServicoUrgente(${x.linha})">Marcar como feito</button>` : "")}
+      ${x.situacao === "feito" ? `<br><span style="font-size:14px">Feito por ${x.feito}</span>` : (!window.MODO_GERENTE && servicoParaMim(x.para) ? `<br><button class="acao" onclick="concluirServicoUrgente(${x.linha})">Marcar como feito</button>` : "")}
     </div>`).join("") : "<p>Nenhum serviço urgente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
@@ -3429,7 +2692,7 @@ async function salvarMeta(i) {
 
 // SS com Estado preenchido: só a gerência e o Thiago, o Oseias e o Igor veem
 function podeVerEstadoSS() {
-  const quem = identidadeAtual();
+  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
   return ["deyse", "thiago", "oseias", "igor"].some(n => quem.includes(n));
 }
 function telaEstadoSS() {
@@ -3471,8 +2734,7 @@ async function salvarEstadoSS() {
 
 // Quem atende cada localidade na Agersa (recebe a demanda)
 const AGERSA_EQUIPE = {
-  // Cada localidade só para a equipe de campo dela (pedido da Deyse em 04/11)
-  "São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco"],
+  "São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo"],
   "Angico": ["Ramon", "Renato"],
   "Catolândia": ["Isaque"],
   "Baianópolis": ["Ivo Carlos", "Jânio Gualberto"],
@@ -3521,16 +2783,15 @@ async function carregarAgersaGerente() {
       chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AgersaEvidencia" })
     ]);
     if (dem.erro || fot.erro) { box.textContent = dem.erro || fot.erro; return; }
-    const demandas = dem.dados.slice(1).map((l, i) => ({ linha: i + 2, local: l[2], demanda: l[3], resp: l[4], situacao: l[5], quando: l[0] }))
-      .filter(d => !/cancelad/i.test(String(d.situacao || ""))).filter(d => !filtro || d.local === filtro);
-    window.agersaDemandas = demandas;
+    const demandas = dem.dados.slice(1).map((l, i) => ({ local: l[2], demanda: l[3], resp: l[4], situacao: l[5], quando: l[0] }))
+      .filter(d => !filtro || d.local === filtro);
     const fotos = fot.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], local: l[2], demanda: l[3], url: l[4], situacao: l[5] || "aguardando validação", por: l[6] || "" }))
       .filter(f => !filtro || f.local === filtro);
     const contaFotos = d => fotos.filter(f => f.local === d.local && f.demanda === d.demanda);
-    const demHTML = demandas.length ? `<table><tr><th>Localidade</th><th>Demanda</th><th>Responsável</th><th>Situação</th><th>Fotos</th><th>Validadas</th><th></th></tr>` +
+    const demHTML = demandas.length ? `<table><tr><th>Localidade</th><th>Demanda</th><th>Responsável</th><th>Situação</th><th>Fotos</th><th>Validadas</th></tr>` +
       demandas.map(d => {
         const f = contaFotos(d);
-        return `<tr><td>${d.local}</td><td>${d.demanda}</td><td>${d.resp || "--"}</td><td>${d.situacao || "--"}</td><td>${f.length}</td><td>${f.filter(x => x.situacao === "validada").length}</td><td>${window.MODO_GERENTE && !emPrevia() ? `<button onclick="cancelarDemandaAgersa(${d.linha})" style="background:#c62828;color:#fff;border:none;border-radius:6px;padding:4px 8px">Cancelar</button>` : ""}</td></tr>`;
+        return `<tr><td>${d.local}</td><td>${d.demanda}</td><td>${d.resp || "--"}</td><td>${d.situacao || "--"}</td><td>${f.length}</td><td>${f.filter(x => x.situacao === "validada").length}</td></tr>`;
       }).join("") + "</table>" : "<p>Nenhuma demanda.</p>";
     const fotosHTML = fotos.length ? fotos.slice().reverse().map(f => {
       const cor = f.situacao === "validada" ? "#2e7d32" : f.situacao === "não validada" ? "#c62828" : "#f9a825";
@@ -3538,8 +2799,8 @@ async function carregarAgersaGerente() {
         <b>${f.demanda}</b> · ${f.local}<br>
         <span style="font-size:14px">Enviada por ${f.quem} em ${formatarQuando(f.quando)} · ${f.situacao}${f.por ? " por " + f.por : ""}</span><br>
         <a href="${f.url}" target="_blank">Ver foto</a>
-        <button class="acao" style="margin:6px 0 0 0;padding:6px" onclick="validarFotoAgersa(${f.linha}, 'validada')">Validado</button>
-        <button class="acao" style="margin:6px 0 0 6px;padding:6px;background:#555" onclick="validarFotoAgersa(${f.linha}, 'não validada')">Recusado</button>
+        <button class="acao" style="margin:6px 0 0 0;padding:6px" onclick="validarFotoAgersa(${f.linha}, 'validada')">Validar</button>
+        <button class="acao" style="margin:6px 0 0 6px;padding:6px;background:#555" onclick="validarFotoAgersa(${f.linha}, 'não validada')">Não validar</button>
       </div>`;
     }).join("") : "<p>Nenhuma foto enviada.</p>";
     box.innerHTML = `<h3>Demandas</h3>${demHTML}<h3>Fotos de evidência</h3>${fotosHTML}`;
@@ -3562,7 +2823,7 @@ async function carregarAgersa() {
     // colunas: data_hora, usuario, localidade, demanda, responsavel, situacao
     // Ramon e Renato veem só as demandas do Angico e da Captação São Desidério
     const ehAngico = String(perfilAtual || "").startsWith("Operador Angico");
-    const minhas = res.dados.slice(1).filter(l => !/cancelad/i.test(String(l[5] || ""))).filter(l => ehAngico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]));
+    const minhas = res.dados.slice(1).filter(l => ehAngico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]));
     box.innerHTML = minhas.length === 0 ? '<div class="nota">Nenhuma demanda da sua localidade.</div>' :
       minhas.map(l => `
         <div class="card" style="margin-bottom:10px">
@@ -3583,7 +2844,7 @@ async function carregarAgersa() {
         const val = dos.filter(f => f[5] === "validada").length;
         const nao = dos.filter(f => f[5] === "não validada").length;
         const el = document.getElementById("ag_status_" + i);
-        if (el) el.textContent = "Fotos enviadas: " + dos.length + " · validadas: " + val + " · recusadas: " + nao + " · aguardando: " + (dos.length - val - nao);
+        if (el) el.textContent = "Fotos enviadas: " + dos.length + " · validadas: " + val + " · não validadas: " + nao + " · aguardando: " + (dos.length - val - nao);
       });
     }
   } catch (e) { box.innerHTML = '<div class="nota">Não consegui carregar. Verifique a internet.</div>'; }
@@ -3592,7 +2853,6 @@ async function carregarAgersa() {
 async function enviarEvidenciaAgersa(indice, local, demanda) {
   const arquivos = document.getElementById("ag_foto_" + indice).files;
   if (!arquivos.length) { alert("Escolha as fotos."); return; }
-  if (arquivos.length < 5) { alert("Envie pelo menos 5 fotos evidenciando o serviço. Você escolheu " + arquivos.length + "."); return; }
   try {
     for (const arquivo of arquivos) {
       const base64 = await lerArquivoBase64(arquivo);
@@ -3706,49 +2966,24 @@ const CAMPOS_ENCERRAMENTO = {
     ["Ponto de referência", "texto"], ["Usuário presente", ["Sim", "Não"]]]},
   "43-1": {titulo: "Vazamento na rede", campos: [
     ["Material da rede", ["PVC", "PEAD", "Ferro fundido", "Amianto", "De FoFo", "PBA", "Corrugado", "Cerâmica"]],
-    ["Diâmetro (mm)", "numero"], ["Profundidade (cm)", "numero"], ["Localização do vazamento", ["Rua", "Passeio", "Quintal", "Fundo", "Lateral"]],
-    ["Ponto de referência", "texto"], ["Pavimento da rua", ["Asfalto", "Concreto", "Paralelepípedo", "Intertravado", "Terra", "Sem pavimento"]],
-    ["Pavimento da calçada", ["Corrente", "Cimentado", "Concreto", "Grama", "Jardim", "Paralelepípedo", "Pedra portuguesa", "Piso cerâmico", "Intertravado", "Terra", "Sem pavimento"]],
-    ["Vazamento causado por obras?", ["Sim", "Não"], "pergunta_obra"],
-    ["Origem do vazamento", ["Obra da prefeitura", "Obra da Embasa", "Obra particular", "Coelba", "Bahiagás", "Outros"], "obra"]]},
+    ["Diâmetro", "texto"], ["Profundidade", "texto"], ["Localização do vazamento", "texto"],
+    ["Ponto de referência", "texto"], ["Pavimento da rua", "texto"], ["Pavimento da calçada", "texto"],
+    ["Causado por obras", "texto"]]},
   "43-2": {titulo: "Vazamento no ramal", campos: [
-    ["Material do ramal", ["PEAD", "PVC"]], ["Diâmetro (mm)", "texto"], ["Localização do vazamento", ["Rua", "Passeio"], null, "Passeio"],
+    ["Material do ramal", "texto"], ["Diâmetro", "texto"], ["Localização do vazamento", "texto"],
     ["Ponto de referência", "texto"], ["Usuário presente", ["Sim", "Não"]]]}
 };
-// Origem do vazamento só aparece quando "Causado por obras?" = Sim
-function marcaOrigemObra(sel) {
-  const wrap = document.getElementById("enc_origem_wrap");
-  if (!wrap) return;
-  const sim = sel.value === "Sim";
-  wrap.style.display = sim ? "" : "none";
-  if (!sim) { const o = wrap.querySelector("select"); if (o) o.value = ""; }
-}
 function blocoEncerramento(chave) {
   const c = CAMPOS_ENCERRAMENTO[chave];
   if (!c) return "";
   return `<div class="card" style="border-left:6px solid #0a6e8a"><b>Dados obrigatórios para encerrar: ${c.titulo}</b>
-    ${c.campos.map(([nome, tipo, condicao, padrao], i) => {
-      const campo = Array.isArray(tipo)
-        ? `<select id="enc_${i}" class="campo"${condicao === "pergunta_obra" ? ` onchange="marcaOrigemObra(this)"` : ""}><option value="">${nome}…</option>${tipo.map(o => `<option${o === padrao ? " selected" : ""}>${o}</option>`).join("")}</select>`
-        : tipo === "numero"
-        ? `<input id="enc_${i}" class="campo" type="number" inputmode="decimal" min="0" step="any" placeholder="${nome}">`
-        : `<input id="enc_${i}" class="campo" placeholder="${nome}">`;
-      if (condicao === "obra") return `<div id="enc_origem_wrap" style="display:none">${campo}</div>`;
-      return campo;
-    }).join("")}
+    ${c.campos.map(([nome, tipo], i) => Array.isArray(tipo)
+      ? `<select id="enc_${i}" class="campo"><option value="">${nome}…</option>${tipo.map(o => `<option>${o}</option>`).join("")}</select>`
+      : `<input id="enc_${i}" class="campo" placeholder="${nome}">`).join("")}
   </div>`;
 }
 function telaPedidoSS(encerrar = false) {
-  window.fotosEnc = [];
-  const fotos = encerrar ? `<div class="card"><b>Horário do serviço</b><br>
-      Início: <input type="time" id="enc_ini" class="campo"><br>
-      Fim: <input type="time" id="enc_fim" class="campo"></div>
-    <div class="card"><b>Fotos do local (até 10)</b> – a coordenada GPS entra na foto automaticamente<br>
-      <button class="acao" onclick="document.getElementById('enc_cam').click()">Tirar foto agora</button>
-      <button class="acao" style="background:#555" onclick="document.getElementById('enc_gal').click()">Anexar foto do celular</button>
-      <input type="file" id="enc_cam" accept="image/*" capture="environment" style="display:none" onchange="addFotoEnc(this)">
-      <input type="file" id="enc_gal" accept="image/*" multiple style="display:none" onchange="addFotoEnc(this)">
-      <div id="enc_fotos_lista" class="nota">Nenhuma foto ainda (0 de 10)</div></div>` : "";
+  const fotos = encerrar ? `<div class="card"><b>1. Foto do local</b> (a coordenada GPS entra na foto automaticamente)<br><input type="file" id="enc_fotos" accept="image/*" multiple class="campo"></div>` : "";
   return `<h2>${encerrar ? "Abrir e encerrar SS" : "Pedir abertura de SS"}</h2>
     ${fotos}
     <div class="nota"><b>Ao pedir, a SS entra nas pendências do SCI e aguarda oportunidade para ser executada.</b> Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos.</div>
@@ -3756,24 +2991,14 @@ function telaPedidoSS(encerrar = false) {
     <button class="acao" style="background:#0a6e8a" onclick="usarGPSSS()">Usar minha localização (GPS)</button>
     <select id="ps_tipo" class="campo" onchange="encherEspSS()"><option value="">Tipo de serviço…</option>${Object.keys(TIPOS_SS).map(c => `<option value="${c}">${c} – ${TIPOS_SS[c][0]}</option>`).join("")}</select>
     <select id="ps_esp" class="campo" disabled onchange="mostrarEncerramento()"><option value="">Escolha o tipo primeiro</option></select>
-    <select id="ps_loc" class="campo" data-end-loc="ps"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
-    <input id="ps_bairro" class="campo" data-end-bairro="ps" placeholder="Bairro">
-    <input id="ps_log" class="campo" data-end-log="ps" placeholder="Logradouro / referência">
+    <select id="ps_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
+    <input id="ps_bairro" class="campo" placeholder="Bairro">
+    <input id="ps_log" class="campo" placeholder="Logradouro / referência">
     <input id="ps_mat" class="campo" placeholder="Matrícula (se souber)">
     <input id="ps_hd" class="campo" placeholder="Nº do hidrômetro (se souber)">
     <textarea id="ps_obs" class="campo" rows="3" placeholder="Observação (o que foi observado no local)"></textarea>
     <div id="ps_enc"></div>
     <button class="acao" onclick="enviarPedidoSS(${encerrar})">${encerrar ? "Enviar pedido de abertura e encerramento" : "Enviar pedido de SS"}</button>`;
-}
-function addFotoEnc(input) {
-  window.fotosEnc = window.fotosEnc || [];
-  const arquivos = Array.from(input.files || []);
-  let excedeu = false;
-  arquivos.forEach(a => { if (window.fotosEnc.length < 10) window.fotosEnc.push(a); else excedeu = true; });
-  input.value = "";
-  const lista = document.getElementById("enc_fotos_lista");
-  if (lista) lista.textContent = window.fotosEnc.length + " foto(s) de 10" + (window.fotosEnc.length ? ": " + window.fotosEnc.map(f => f.name).join(", ") : "");
-  if (excedeu) alert("O limite é de 10 fotos. As que passaram do limite não foram adicionadas.");
 }
 // Localização do aparelho (GPS). Usada no endereço e carimbada na foto da SS.
 function obterPosicao() {
@@ -3789,7 +3014,7 @@ async function usarGPSSS() {
   const pos = await obterPosicao();
   if (!pos) { alert("Não consegui pegar a localização. Verifique se o GPS e a permissão do navegador estão ligados."); return; }
   window.ssGps = pos;
-  const psl = document.getElementById("ps_log"); psl.value = (psl.value && !/^GPS:/.test(psl.value) ? psl.value + " | " : "") + "GPS: " + pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
+  document.getElementById("ps_log").value = "GPS: " + pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
   alert("Localização preenchida.");
 }
 // Carimba latitude e longitude na própria foto antes de enviar
@@ -3860,11 +3085,7 @@ async function enviarPedidoSS(encerrar = false) {
     } else {
       obsFinal = "[ABRIR E ENCERRAR] " + obs;
     }
-    const hIni = (document.getElementById("enc_ini") || {}).value || "";
-    const hFim = (document.getElementById("enc_fim") || {}).value || "";
-    if (!hIni || !hFim) { alert("Informe o horário de início e de fim do serviço."); return; }
-    obsFinal += " | Início: " + hIni + " | Fim: " + hFim;
-    const arquivos = window.fotosEnc || [];
+    const arquivos = (document.getElementById("enc_fotos") || {}).files || [];
     if (window.ssGps) obsFinal += " | GPS: " + window.ssGps.lat.toFixed(6) + ", " + window.ssGps.lon.toFixed(6);
     try {
       const links = [];
@@ -3904,291 +3125,8 @@ const DIGITEAM_OPCOES = [
 function selectDigiteam(id) {
   return `<select id="${id}" class="campo"><option value="">Escolha quem recebe no Digiteam…</option>${DIGITEAM_OPCOES.map(([n, m, u]) => `<option value="${n}">${n} – ${m} – ${u}</option>`).join("")}</select>`;
 }
-// Aba ExecucaoCampo: data_hora | ss | tipo | localidade | responsavel | situacao | confirmado_por
-async function carregarPendExecutar() {
-  const box = document.getElementById("pex_lista");
-  if (!box) return;
-  box.textContent = "Carregando...";
-  try {
-    const [res, base] = await Promise.all([
-      chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo" }),
-      carregarBaseLocalizacao()
-    ]);
-    if (res.erro) { box.textContent = res.erro; return; }
-    const cab = res.dados[0] || [];
-    const linhas = res.dados.slice(1);
-    const eu = nomesDoUsuario();
-    const executadas = new Set(linhas.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1])));
-    const idxMat = cab.findIndex(h => /matr/i.test(String(h)));
-    const idxLocal = cab.findIndex((h, k) => k >= 7 && /localiza|coordenad|mapa|gps/i.test(String(h)));
-    const matDaSS = {};
-    linhas.forEach(l => { if (idxMat >= 0 && l[idxMat]) matDaSS[String(l[1])] = String(l[idxMat]).trim(); });
-    const gpsPorMat = {};
-    linhas.filter(l => String(l[5]).toLowerCase() === "executada").forEach(l => {
-      const g = String(l[6] || "").match(/GPS:\s*(-?\d+\.\d+),(-?\d+\.\d+)/);
-      const mat = matDaSS[String(l[1])];
-      if (g && mat) gpsPorMat[mat] = g[1] + "," + g[2];
-    });
-    Object.keys(base).forEach(m => { if (!gpsPorMat[m]) gpsPorMat[m] = base[m]; });
-    const diaDe = v => { const d = new Date(v); return isNaN(d) ? "" : d.toLocaleDateString("en-CA", { timeZone: "America/Bahia" }); };
-    const hojeBA = diaDe(new Date());
-    // Coordenada escrita na coluna de localização ("lat,lon") também vale para a ordem de visita
-    const coordTexto = v => { const m = String(v || "").replace(/\s/g, "").match(/^(-?\d+[.,]\d+);?,?(-?\d+[.,]\d+)$/); return m ? m[1].replace(",", ".") + "," + m[2].replace(",", ".") : ""; };
-    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7),
-        vencida: !!diaDe(l[0]) && diaDe(l[0]) < hojeBA, nova: diaDe(l[0]) === hojeBA,
-        gpsCol: idxLocal >= 0 ? coordTexto(l[idxLocal]) : "",
-        gps: (idxMat >= 0 && !(idxLocal >= 0 && String(l[idxLocal] || "").trim())) ? gpsPorMat[String(l[idxMat] || "").trim()] : "" }))
-      .map(x => (x.gps || !x.gpsCol) ? x : Object.assign(x, { gps: x.gpsCol }))
-      .filter(x => x.situacao === "pendente" && !executadas.has(x.ss) && String(x.resp).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n))));
-    // Ordem de visita: SS de São Desidério partindo do escritório, sempre a mais próxima da última parada.
-    // SS sem coordenada vão para o fim do grupo. Demais localidades mantêm a ordem atual.
-    const ORIGENS_ESCRITORIO = { "São Desidério": [-12.3654726, -44.9743524], "Catolândia": [-12.314725, -44.8615625], "Baianópolis": [-12.307875, -44.53859375] };
-    const distKm = (a, b) => { const R = 6371, t = x => x * Math.PI / 180; const dLa = t(b[0] - a[0]), dLo = t(b[1] - a[1]);
-      const h = Math.sin(dLa / 2) ** 2 + Math.cos(t(a[0])) * Math.cos(t(b[0])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
-    const coordDe = x => { const p = String(x.gps || "").split(",").map(Number); return p.length === 2 && p.every(n => isFinite(n)) ? p : null; };
-    const rotaDe = (lista, origem) => {
-      const rota = []; let atual = origem, restantes = lista.filter(x => coordDe(x));
-      while (restantes.length) {
-        let melhor = 0, dm = Infinity;
-        restantes.forEach((x, k) => { const d = distKm(atual, coordDe(x)); if (d < dm) { dm = d; melhor = k; } });
-        const esc = restantes.splice(melhor, 1)[0]; rota.push(esc); atual = coordDe(esc);
-      }
-      return [...rota, ...lista.filter(x => !coordDe(x))];
-    };
-    const ordenadas = [];
-    Object.keys(ORIGENS_ESCRITORIO).forEach(loc => {
-      const grupo = minhas.filter(x => String(x.loc).trim() === loc);
-      ordenadas.push(...rotaDe(grupo, ORIGENS_ESCRITORIO[loc]));
-    });
-    ordenadas.push(...minhas.filter(x => !ORIGENS_ESCRITORIO[String(x.loc).trim()]));
-    if (!ordenadas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
-    // Filtros por tipo de serviço, com a quantidade entre parênteses. "Vazamento no Porto Rico" fica à parte, em vermelho
-    // (vazamento no bairro Porto Rico, por causa da obra de asfalto), para os agentes de São Desidério.
-    const nomeTipo = t => String(t || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
-    const ehPortoRico = x => /\bvaz/i.test(String(x.tipo)) && /porto\s*rico/i.test([x.extras.join(" ")].join(" "));
-    const agenteSD = ["luzenildo", "joaquim", "carlito", "francisco"].some(n => eu.includes(n)) || (window.MODO_GERENTE && !emPrevia());
-    const tiposCont = {};
-    ordenadas.forEach(x => { const t = nomeTipo(x.tipo); tiposCont[t] = (tiposCont[t] || 0) + 1; });
-    const qtdPR = ordenadas.filter(ehPortoRico).length;
-    const filtro = window.pexFiltro || "";
-    const visiveis = filtro === "__PR__" ? ordenadas.filter(ehPortoRico) : filtro ? ordenadas.filter(x => nomeTipo(x.tipo) === filtro) : ordenadas;
-    const btn = (rotulo, valor, cor) => `<button onclick="window.pexFiltro='${valor}';carregarPendExecutar()" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid ${cor || "#0b5394"};background:${filtro === valor ? (cor || "#0b5394") : "#fff"};color:${filtro === valor ? "#fff" : (cor || "#0b5394")}">${rotulo}</button>`;
-    const barra = `<div style="margin-bottom:8px">
-      ${agenteSD ? `<button onclick="window.pexFiltro='__PR__';carregarPendExecutar()" style="display:block;width:100%;margin:3px 0 8px;padding:12px;border-radius:10px;font-size:16px;font-weight:bold;border:none;background:#c62828;color:#fff;${filtro === "__PR__" ? "outline:3px solid #7f0000" : ""}">Vazamento no Porto Rico (${qtdPR})</button>` : ""}
-      ${btn("Todas as SS (" + ordenadas.length + ")", "")}
-      ${Object.entries(tiposCont).sort((a, b) => b[1] - a[1]).map(([t, q]) => btn(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}
-    </div>`;
-    box.innerHTML = barra + `<div class="nota">${visiveis.length} SS ${filtro === "__PR__" ? "de vazamento no Porto Rico" : filtro ? "de " + filtro : "pendente(s)"}</div>` + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
-      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.nova ? ` <span style="background:#2e7d32;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:bold">NOVA HOJE</span>` : ""}${(() => { const ka = cab.indexOf("abertura"); const p = prazoSS(x.tipo, ka >= 7 ? x.extras[ka - 7] : ""); return p ? alertaPrazoHTML(p, false) : (x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""); })()}
-      ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
-      ${(() => { const k = cab.findIndex(h => /hidrom/i.test(String(h))); return String(x.loc).trim() === "São Desidério" && !(k >= 0 && String(x.extras[k - 7] || "").trim()) ? `<div style="font-size:14px;color:#b71c1c">Sem número do HD</div>` : ""; })()}
-      ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
-      <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço (opcional)</b><br>
-        <button onclick="document.getElementById('pexcam_${x.ss}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:600">📷 Tirar foto</button>
-        <button onclick="document.getElementById('pexgal_${x.ss}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#fff;color:#555;font-weight:600">Anexar do celular</button>
-        <input type="file" id="pexcam_${x.ss}" accept="image/*" capture="environment" style="display:none" onchange="addFotoPex('${x.ss}', this)">
-        <input type="file" id="pexgal_${x.ss}" accept="image/*" multiple style="display:none" onchange="addFotoPex('${x.ss}', this)">
-        <div id="pexfotos_${x.ss}" class="nota">${((window.fotosPex || {})[x.ss] || []).length} foto(s)</div></div>
-      <button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
-    </div>`).join("");
-  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
-// Fotos do serviço executado (SS pendente): ficam guardadas por SS até o OK
-function addFotoPex(ss, input) {
-  window.fotosPex = window.fotosPex || {};
-  const lista = window.fotosPex[ss] = window.fotosPex[ss] || [];
-  Array.from(input.files || []).forEach(a => { if (lista.length < 10) lista.push(a); });
-  input.value = "";
-  const el = document.getElementById("pexfotos_" + ss);
-  if (el) el.textContent = lista.length + " foto(s): " + lista.map(f => f.name).join(", ");
-}
-// Encerrar SS > Anexar documento à SS já encerrada: SS executadas com foto (EncerrarSS com situacao "anexar", fotos na coluna 10)
-async function carregarAnexarDocumento() {
-  const box = document.getElementById("ee_anexar");
-  if (!box) return;
-  if (box.dataset.aberto === "1") { box.dataset.aberto = ""; box.innerHTML = ""; return; }
-  box.dataset.aberto = "1"; box.textContent = "Carregando...";
-  try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EncerrarSS" });
-    if (res.erro) { box.textContent = res.erro; return; }
-    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], ss: String(l[2]).replace(/^'/, ""), serv: l[3], loc: l[4], situacao: l[6] || "", fotos: String(l[9] || "") }))
-      .filter(x => x.situacao === "anexar").reverse();
-    box.innerHTML = `<h3>Anexar documento à SS já encerrada</h3>` + (itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #6a1b9a">
-      <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv} · ${x.loc}</span><br>
-      <span style="font-size:14px">Executada por ${x.quem} em ${formatarQuando(x.quando)}</span><br>
-      <div style="font-size:14px">Fotos: ${x.fotos.split(" ").filter(Boolean).map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>
-      <button class="acao" onclick="marcarAnexado(${x.linha})">Documento anexado no sistema</button>
-    </div>`).join("") : "<p>Nenhuma SS com foto para anexar.</p>");
-  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
-async function marcarAnexado(linha) {
-  try {
-    const res = await chamarApi({ acao: "marcarEncerrada", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
-    if (res.erro) { alert(res.erro); return; }
-    const box = document.getElementById("ee_anexar"); if (box) box.dataset.aberto = "";
-    carregarAnexarDocumento(); carregarEncerrarEscritorio();
-  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
-}
-// Localidades em que o funcionário não precisa de mapa (não mostra "Sem localização")
-const LOCALIDADES_SEM_MAPA = ["Catolândia"];
-// Aba BaseLocalizacao: matricula | coordenadas | fonte | data  (coordenadas no formato "lat,lon")
-async function carregarBaseLocalizacao() {
-  const base = {};
-  try {
-    const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "BaseLocalizacao" });
-    if (r.erro) return base;
-    r.dados.slice(1).forEach(l => {
-      const m = String(l[0] || "").trim();
-      const c = String(l[1] || "").match(/(-?\d+[.,]\d+)\s*[,; ]\s*(-?\d+[.,]\d+)/);
-      if (m && c) base[m] = c[1].replace(",", ".") + "," + c[2].replace(",", ".");
-    });
-  } catch (e) {}
-  return base;
-}
-async function carregarSemLocalizacao() {
-  const box = document.getElementById("sl2_lista");
-  if (!box) return;
-  box.textContent = "Carregando...";
-  try {
-    const [res, base] = await Promise.all([
-      chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo" }),
-      carregarBaseLocalizacao()
-    ]);
-    if (res.erro) { box.textContent = res.erro; return; }
-    const cab = res.dados[0] || [];
-    const linhas = res.dados.slice(1);
-    const idxMat = cab.findIndex(h => /matr/i.test(String(h)));
-    const idxLocal = cab.findIndex((h, k) => k >= 7 && /localiza|coordenad|mapa|gps/i.test(String(h)));
-    if (idxMat < 0) { box.innerHTML = "<p>A aba ExecucaoCampo ainda não tem coluna de matrícula.</p>"; return; }
-    linhas.filter(l => String(l[5]).toLowerCase() === "executada").forEach(l => {
-      const g = String(l[6] || "").match(/GPS:\s*(-?\d+\.\d+),(-?\d+\.\d+)/);
-      const pend = linhas.find(p => String(p[1]) === String(l[1]) && p[idxMat]);
-      if (g && pend) base[String(pend[idxMat]).trim()] = g[1] + "," + g[2];
-    });
-    const executadas = new Set(linhas.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1])));
-    const faltam = {};
-    linhas.filter(l => String(l[5]).toLowerCase() === "pendente" && !executadas.has(String(l[1]))).forEach(l => {
-      const m = String(l[idxMat] || "").trim();
-      const temNaLinha = idxLocal >= 0 && String(l[idxLocal] || "").trim();
-      if (m && !temNaLinha && !base[m] && !LOCALIDADES_SEM_MAPA.includes(String(l[3]).trim())) (faltam[m] = faltam[m] || []).push(String(l[1]));
-    });
-    const mats = Object.keys(faltam);
-    box.innerHTML = mats.length ? `<div class="nota">${mats.length} matrícula(s) sem localização nas SS pendentes</div>
-      <textarea class="campo" rows="8" readonly>${mats.join("\n")}</textarea>
-      ${mats.map(m => `<div class="card" style="margin-bottom:6px">Matrícula <b>${m}</b> · SS ${faltam[m].join(", ")}</div>`).join("")}` : "<p>Todas as SS pendentes têm localização.</p>";
-  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
-// Mostra uma coluna extra da aba ExecucaoCampo; localização vira link para o mapa
-function campoExtraSS(nome, valor) {
-  const v = String(valor == null ? "" : valor).trim();
-  if (!v || !nome) return "";
-  const rotulo = /hidrom/i.test(nome) ? "Nº do HD" : /^abertura$/i.test(nome) ? "Aberta em" : String(nome).replace(/_/g, " ");
-  if (/localiza|coordenad|mapa|gps/i.test(nome)) {
-    const c = v.match(/(-?\d+[.,]\d+)\s*[,; ]\s*(-?\d+[.,]\d+)/);
-    const url = /^https?:/i.test(v) ? v : (c ? "https://www.google.com/maps?q=" + c[1].replace(",", ".") + "," + c[2].replace(",", ".") : "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(v));
-    return `<div style="font-size:14px;margin-top:4px"><a href="${url}" target="_blank">📍 Abrir localização no mapa</a></div>`;
-  }
-  if (/tel|fone|celular/i.test(nome)) {
-    const num = v.replace(/\D/g, "");
-    if (num.length >= 8) return `<div style="font-size:14px">${rotulo}: <a href="tel:${num}">📞 ${v}</a></div>`;
-  }
-  return `<div style="font-size:14px">${rotulo}: ${v}</div>`;
-}
-async function marcarExecutada(ss, tipo, loc) {
-  try {
-    const pos = await obterPosicao();
-    const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-    // fotos do serviço (opcionais): carimbadas com a localização e enviadas antes do OK
-    const fotos = (window.fotosPex || {})[ss] || [];
-    const links = [];
-    for (const arq of fotos) {
-      const base64 = await carimbarFoto(arq, pos);
-      const r = await chamarApi({ acao: "salvarFoto", ...cred, base64: base64, tipo: arq.type, nome: arq.name });
-      if (r.erro) { alert("Não consegui enviar a foto: " + r.erro); return; }
-      links.push(r.url);
-    }
-    const confirmado = window.credenciais.usuario + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "") + (links.length ? " | Fotos: " + links.join(" ") : "");
-    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo",
-      linhas: [[new Date().toISOString(), "'" + ss, tipo, loc, nomesDoUsuario(), "executada", confirmado]] });
-    if (res.erro) { alert(res.erro); return; }
-    if (links.length) {
-      // com foto: vai para Encerrar SS > Anexar documento à SS já encerrada
-      await chamarApi({ acao: "gravarVarias", ...cred, aba: "EncerrarSS",
-        linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + ss, tipo, loc, "[ANEXAR DOCUMENTO] fotos do serviço executado", "anexar", "", "", links.join(" ")]] });
-      delete window.fotosPex[ss];
-    }
-    // recarrega a tela que estiver aberta (SS pendente ou listas de SS em aberto)
-    if (document.getElementById("sl_lista")) carregarSSLista(window.ssListaFiltro || null); else carregarPendExecutar();
-  } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
-}
-async function carregarPendAbrirEncerrar() {
-  const box = document.getElementById("pae_lista");
-  if (!box) return;
-  box.textContent = "Carregando...";
-  try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
-    if (res.erro) { box.textContent = res.erro; return; }
-    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], obs: l[9] || "", situacao: l[10] || "pendente", fotos: l[15] || "" }))
-      .filter(x => /\[ABRIR E ENCERRAR\]/.test(x.obs) && x.situacao === "pendente");
-    if (!itens.length) { box.innerHTML = "<p>Nenhuma SS de abrir e encerrar pendente.</p>"; return; }
-    box.innerHTML = itens.reverse().map(p => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
-      <b>${p.tipo}</b><br><span style="font-size:14px">${p.esp} · ${p.loc} · pedido por ${p.quem} em ${formatarQuando(p.quando)}</span>
-      <pre style="white-space:pre-wrap;font-size:13px">${p.obs}</pre>
-      ${p.fotos ? "<div style=\"font-size:14px\">Fotos: " + p.fotos.split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") + "</div>" : ""}
-      <input id="pae_n_${p.linha}" class="campo" placeholder="Número da SS gerada">
-      <label>Foto anexada no sistema? <select id="pae_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
-      <button class="acao" onclick="concluirAbrirEncerrar(${p.linha})">Marcar como concluída</button>
-    </div>`).join("");
-  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
-async function concluirAbrirEncerrar(linha) {
-  const numero = (document.getElementById("pae_n_" + linha) || {}).value || "";
-  if (!numero.trim()) { alert("Digite o número da SS."); return; }
-  const foto = (document.getElementById("pae_f_" + linha) || {}).value || "";
-  if (foto !== "Sim") { alert("Só conclui depois de anexar as fotos no sistema. Marque 'Sim' em Foto anexada."); return; }
-  try {
-    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: "", concluida: "Sim", foto: "", fotoAnexada: "Sim" });
-    if (res.erro) { alert(res.erro); return; }
-    carregarPendAbrirEncerrar();
-  } catch (e) { alert("Não consegui marcar. Verifique a internet."); }
-}
 function telaPedidosSS() {
-  return `<h2>Pedidos de SS</h2><div id="pss_digi"></div><div id="pss_lista">Carregando...</div>`;
-}
-// Pedidos de SS para o Digiteam (aba AcaoSS), agrupados por pedido: quem pediu, tipo, localidade e quantidade.
-// Ao marcar "Mandado no Digiteam", grava uma linha "feito" com o mesmo pedido (nada é apagado).
-async function carregarPedidosDigiteam() {
-  const box = document.getElementById("pss_digi");
-  if (!box) return;
-  try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS" });
-    if (res.erro) { box.textContent = res.erro; return; }
-    const linhas = res.dados.slice(1);
-    const feitos = new Set(linhas.filter(l => l[7] === "feito").map(l => String(l[6]).replace(/^feito:/, "")));
-    const grupos = {};
-    linhas.filter(l => l[7] === "pendente" && /Digiteam/i.test(String(l[6])) && !/Não mandar/i.test(String(l[6]))).forEach(l => {
-      const tipo = String(l[3] || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
-      const id = String(l[0]) + "|" + l[1] + "|" + tipo + "|" + l[4];
-      if (feitos.has(id)) return;
-      (grupos[id] = grupos[id] || { quando: l[0], quem: l[1], tipo, loc: l[4], ss: [] }).ss.push(String(l[2]).replace(/^'/, ""));
-    });
-    const lista = Object.entries(grupos).reverse();
-    window.digiGrupos = Object.fromEntries(lista);
-    box.innerHTML = lista.length ? `<h3>Pedidos para o Digiteam (${lista.length})</h3>` + lista.map(([id, g], k) => `<div class="card" style="margin-bottom:10px;border-left:6px solid #ef6c00">
-      <b>${g.quem} pediu ${g.ss.length} SS de ${g.tipo}</b><br><span style="font-size:14px">${g.loc} · em ${formatarQuando(g.quando)}</span>
-      <div style="font-size:13px;margin-top:4px">SS: ${g.ss.join(", ")}</div>
-      <button class="acao" onclick="marcarDigiteamFeito(${k})">Mandado no Digiteam</button></div>`).join("") : "";
-  } catch (e) { box.textContent = ""; }
-}
-async function marcarDigiteamFeito(k) {
-  const [id, g] = Object.entries(window.digiGrupos || {})[k] || [];
-  if (!id || !confirm("Confirmar que as " + g.ss.length + " SS de " + g.tipo + " foram mandadas no Digiteam de " + g.quem + "?")) return;
-  try {
-    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS",
-      linhas: [[new Date().toISOString(), window.credenciais.usuario, "", g.tipo, g.loc, "", "feito:" + id, "feito"]] });
-    if (res.erro) { alert(res.erro); return; }
-    carregarPedidosDigiteam();
-  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+  return `<h2>Pedidos de SS</h2><div id="pss_lista">Carregando...</div>`;
 }
 async function carregarPedidosSS(boxId = "pss_lista") {
   const box = document.getElementById(boxId);
@@ -4197,17 +3135,7 @@ async function carregarPedidosSS(boxId = "pss_lista") {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
     if (res.erro) { box.textContent = res.erro; return; }
-    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "", concl: l[16] || "", fotoAnex: l[17] || "" }))
-      // Some da tela quando a SS é respondida com o número. Abrir e encerrar só some quando estiver concluída e com a foto anexada.
-      .filter(p => p.situacao === "pendente" || (/ENCERRAR/.test(p.obs || "") && p.situacao === "respondida" && !(p.concl && p.fotoAnex)))
-      .map(p => p.situacao === "respondida" ? Object.assign(p, { situacao: "pendente", jaTemSS: p.ss }) : p);
-    // Pedido à UNBA e Análise de consumo: só a Deyse vê
-    const quemPss = normalizarNome(window.credenciais.usuario);
-    const ehDeyse = quemPss.includes("deyse");
-    const ehThiago = quemPss.includes("thiago") || quemPss.includes("tiago");
-    const soSCI = /SCI|Segunda via|Análise de consumo|Débito|Digiteam|conta|matrícula/i;
-    const visiveis = itens.filter(p => ehDeyse ? true : ehThiago ? (soSCI.test(p.tipo || "") && !/^Pedido à UNBA/.test(p.tipo || "")) : !/^Pedido à UNBA|^Análise de consumo/.test(p.tipo || ""));
-    itens.length = 0; itens.push(...visiveis);
+    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "" }));
     itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
     window.pssCache = {};
     itens.forEach(p => { window.pssCache[p.linha] = p; });
@@ -4220,27 +3148,17 @@ async function carregarPedidosSS(boxId = "pss_lista") {
         <b>${p.tipo}</b><br><span style="font-size:14px">${p.esp} · ${p.loc} · pedido por ${p.quem} em ${formatarQuando(p.quando)}</span>
         <pre style="white-space:pre-wrap;font-size:13px">${ficha}</pre>
         ${p.fotos ? "<div style=\"font-size:14px\">Fotos para adicionar: " + p.fotos.split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") + "</div>" : ""}
-        ${pend ? `${p.jaTemSS ? `<div class="nota">SS nº <b>${String(p.jaTemSS).replace(/^'/, "")}</b> já informada. Falta concluir e anexar a foto.</div>` : ""}<input id="pss_n_${p.linha}" class="campo" placeholder="Número da SS gerada" value="${p.jaTemSS ? String(p.jaTemSS).replace(/^'/, "") : ""}">
+        ${pend ? `<input id="pss_n_${p.linha}" class="campo" placeholder="Número da SS gerada">
           ${selectDigiteam("pss_d_" + p.linha)}
           ${/ENCERRAR/.test(p.obs) ? `<label style="display:block;margin:6px 0"><input type="checkbox" id="pss_e_${p.linha}"> Ainda não foi encerrada: mandar para encerrar pelo escritório</label>` : ""}
-          ${/ENCERRAR/.test(p.obs) ? `<label>Concluída? <select id="pss_c_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
-          <label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>` : `<div class="nota">Pedido só para gerar: basta o número da SS (sem foto).</div>`}
+          <label>Concluída? <select id="pss_c_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
+          <label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
           <button class="acao" onclick="responderSS(${p.linha}, false)">Responder com a SS (sem Digiteam)</button>
-          <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>
-          ${window.MODO_GERENTE && !emPrevia() ? `<button class="acao" style="background:#c62828" onclick="cancelarPedidoSS(${p.linha})">Cancelar pedido (duplicado ou errado)</button>` : ""}`
+          <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>`
           : `<div>SS nº <b>${p.ss}</b> · respondida por ${p.por}${p.dg ? " · enviada ao Digiteam de <b>" + p.dg + "</b>" : ""}</div>`}
       </div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
-async function cancelarPedidoSS(linha) {
-  const p = (window.pssCache || {})[linha];
-  if (!p || !confirm("Cancelar este pedido de SS?\n\n" + p.tipo + " · " + p.loc + "\nPedido por " + p.quem)) return;
-  try {
-    const res = await chamarApi({ acao: "cancelarPedidoSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, quem: p.quem, tipo: p.tipo });
-    if (res.erro) { alert(res.erro); return; }
-    carregarPedidosSS();
-  } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 async function responderSS(linha, mandarDigiteam) {
   const numero = (document.getElementById("pss_n_" + linha) || {}).value || "";
@@ -4250,7 +3168,7 @@ async function responderSS(linha, mandarDigiteam) {
   try {
     const concluida = (document.getElementById("pss_c_" + linha) || {}).value || "";
     const foto = (document.getElementById("pss_f_" + linha) || {}).value || "";
-    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: mandarDigiteam ? dg : "", concluida: concluida, foto: "", fotoAnexada: foto === "Sim" ? "Sim" : "" });
+    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: mandarDigiteam ? dg : "", concluida: concluida, foto: foto });
     if (res.erro) { alert(res.erro); return; }
     const pendente = (document.getElementById("pss_e_" + linha) || {}).checked;
     if (pendente) {
@@ -4266,7 +3184,7 @@ async function responderSS(linha, mandarDigiteam) {
 // ===== ALMOXARIFADO: menu com as operações; cada uma abre na área abaixo =====
 function telaAlmoxarifado() {
   return `<h2>Almoxarifado – São Desidério</h2>
-    <select id="ac_local" class="campo" onchange="abrirAlmox(window.almoxAtual || 'saldo')">${(() => { const ls = locaisAlmoxDaPessoa(); const pre = ls.includes(window.almoxLocalPreset) ? window.almoxLocalPreset : (ls.length === 1 ? ls[0] : ""); return `<option value="">Local do almoxarifado…</option>` + ls.map(l => `<option ${pre === l ? "selected" : ""}>${l}</option>`).join(""); })()}</select>
+    <select id="ac_local" class="campo" onchange="abrirAlmox(window.almoxAtual || 'saldo')"><option value="">Local do almoxarifado…</option>${LOCAIS_ALMOX.map(l => `<option>${l}</option>`).join("")}</select>
     <div class="nota">Qualquer pessoa consulta o saldo e faz pedido. Retirar e adicionar só para a equipe do local.</div>
     <button class="acao" onclick="abrirAlmox('saldo')">Consultar saldo por item</button>
     <button class="acao" onclick="abrirAlmox('geral')">Verificar estoque geral</button>
@@ -4297,19 +3215,10 @@ function abrirAlmox(op) {
       <input id="ac_obs" class="campo" placeholder="Observação">
       <button class="acao" onclick="movimentarCatalogo()">Registrar</button>`;
   } else if (op === "pedido") {
-    window.pedidoCarrinho = {};
-    area.innerHTML = `<h3>Solicitar material (vários itens de uma vez)</h3>
-      <div class="nota">Digite a quantidade nos itens que precisa. Pode marcar quantos quiser e enviar tudo junto num pedido só.</div>
-      <input id="pm_busca" class="campo" placeholder="Buscar item pelo nome ou código" oninput="filtrarPedidoMaterial()">
-      <div id="pm_resumo" class="nota" style="font-weight:600">Nenhum item escolhido</div>
-      <div id="pm_lista" style="max-height:420px;overflow-y:auto;border:1px solid #ddd;border-radius:8px;padding:4px">
-        ${CATALOGO_ALMOX.map(([c, d]) => `<div class="pm_item" data-busca="${normalizarNome(c + " " + d)}" style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid #eee">
-          <span style="flex:1;font-size:14px">${c} – ${d}</span>
-          <input type="number" min="0" inputmode="numeric" placeholder="Qtd" style="width:72px;padding:6px" oninput="marcarPedidoMaterial('${c}', this.value)">
-        </div>`).join("")}
-      </div>
-      <textarea id="pm_obs" class="campo" rows="2" placeholder="Observação do pedido (opcional)"></textarea>
-      <button class="acao" onclick="enviarPedidoMaterialVarios()">Enviar pedido</button>`;
+    area.innerHTML = `<h3>Solicitar material</h3>
+      <select id="ac_mat" class="campo">${opcoesMat}</select>
+      <input id="ac_pqtd" class="campo" type="number" min="1" placeholder="Quantidade a pedir">
+      <button class="acao" onclick="pedirCatalogo()">Gerar pedido</button>`;
   }
 }
 // Saldo a partir da planilha: a última contagem é o ponto de partida; retiradas e entradas depois dela ajustam.
@@ -4388,36 +3297,6 @@ async function movimentarCatalogo() {
   } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 
-function filtrarPedidoMaterial() {
-  const q = normalizarNome(document.getElementById("pm_busca").value);
-  document.querySelectorAll("#pm_lista .pm_item").forEach(el => { el.style.display = !q || el.dataset.busca.includes(q) ? "" : "none"; });
-}
-function marcarPedidoMaterial(cod, valor) {
-  const q = parseFloat(valor);
-  if (q > 0) window.pedidoCarrinho[cod] = q; else delete window.pedidoCarrinho[cod];
-  const n = Object.keys(window.pedidoCarrinho).length;
-  const r = document.getElementById("pm_resumo");
-  if (r) r.textContent = n ? n + " item(ns) no pedido" : "Nenhum item escolhido";
-}
-async function enviarPedidoMaterialVarios() {
-  const local = document.getElementById("ac_local").value;
-  const itens = Object.entries(window.pedidoCarrinho || {});
-  if (!local) { alert("Escolha o local do almoxarifado no topo da tela."); return; }
-  if (!itens.length) { alert("Digite a quantidade de pelo menos um item."); return; }
-  const obs = (document.getElementById("pm_obs") || {}).value || "";
-  const agora = new Date().toISOString();
-  const linhas = itens.map(([cod, qtd]) => {
-    const item = itemCatalogo(cod);
-    return [agora, window.credenciais.usuario, local, cod + " – " + item[1] + (obs ? " (obs: " + obs + ")" : ""), qtd, "pendente"];
-  });
-  if (!confirm("Enviar pedido com " + linhas.length + " item(ns) para " + local + "?")) return;
-  try {
-    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoMaterial", linhas });
-    if (res.erro) { alert(res.erro); return; }
-    alert("Pedido enviado com " + linhas.length + " item(ns). A gerência recebe tudo num e-mail só.");
-    abrirAlmox("pedido");
-  } catch (e) { alert("Não consegui enviar. Verifique a internet."); }
-}
 async function pedirCatalogo() {
   const cod = document.getElementById("ac_mat").value;
   const qtd = document.getElementById("ac_pqtd").value;
@@ -4804,72 +3683,37 @@ async function enviarTudoEpi() {
   }
 }
 
-// ===== PEDIDOS DE EPI =====
-// Aba EPI: data_hora | usuario | item | tamanho | quantidade | situacao | enviado_por | data_envio | data_assinatura | destino | encerrado_por | data_encerramento
-// situacao: pendente (pedido) -> enviado (gerência enviou ao funcionário) -> assinado (funcionário recebeu e assinou a ficha) -> encerrado (gerência recebeu a ficha)
-const EPI_ETAPAS = {
-  pendente: "Pedido recebido, aguardando envio",
-  enviado: "Enviado a você: receba, assine a ficha e confirme",
-  assinado: "Ficha assinada, aguardando a gerência receber a ficha",
-  encerrado: "Encerrado"
-};
-const EPI_COR = { pendente: "#c62828", enviado: "#f9a825", assinado: "#0a6e8a", encerrado: "#2e7d32" };
-// Um pedido = todas as linhas com mesmo usuário e mesma data_hora (vários itens)
-async function listarEpiGrupos() {
-  const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EPI" });
-  if (res.erro) throw new Error(res.erro);
-  const grupos = {};
-  res.dados.forEach((l, i) => {
-    if (i === 0 || !l[1]) return;
-    const chave = String(l[1]).toLowerCase() + "|" + String(l[0]);
-    if (!grupos[chave]) grupos[chave] = { chave, data: l[0], quem: l[1], destino: l[9] || "", situacao: l[5] || "pendente", linhas: [], itens: [], enviadoPor: l[6] || "", fim: l[11] || "" };
-    grupos[chave].linhas.push(i + 1);
-    grupos[chave].itens.push(`${l[2]} · tamanho ${l[3]} · qtd ${l[4]}`);
-    if (l[5]) grupos[chave].situacao = l[5];
-  });
-  return Object.values(grupos).sort((x, y) => String(y.data) < String(x.data) ? -1 : 1);
-}
-function epiCard(g, papel) {
-  const cor = EPI_COR[g.situacao] || "#c62828";
-  let botao = "";
-  if (papel === "gestao") {
-    if (g.situacao === "pendente") botao = `<button class="acao" onclick="atualizarEpi(${g.linhas[0]}, 'enviado')">Marcar como enviado ao funcionário</button>`;
-    if (g.situacao === "assinado") botao = `<button class="acao" onclick="atualizarEpi(${g.linhas[0]}, 'encerrado')">Ficha recebida: encerrar chamado</button>`;
-  } else if (g.situacao === "enviado") {
-    botao = `<button class="acao" onclick="atualizarEpi(${g.linhas[0]}, 'assinado')">Recebi e assinei a ficha</button>`;
-  }
-  const quem = papel === "gestao" ? `<b>${g.quem}</b> · ` : "";
-  return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${cor}">${quem}<b>${g.destino || "—"}</b><br>` +
-    `<span style="font-size:14px">${g.itens.join("<br>")}</span><br>` +
-    `<span style="font-size:14px">Pedido em ${formatarQuando(g.data)} · <b>${EPI_ETAPAS[g.situacao] || g.situacao}</b></span>${botao}</div>`;
-}
-// Funcionário: histórico dos próprios pedidos (dentro do botão EPI)
-async function carregarEpiMeus(boxId = "epi_meus") {
-  const box = document.getElementById(boxId);
-  if (!box) return;
-  box.textContent = "Carregando...";
-  try {
-    const eu = String(window.credenciais.usuario).toLowerCase();
-    const grupos = (await listarEpiGrupos()).filter(g => g.quem.toLowerCase() === eu);
-    box.innerHTML = grupos.length ? grupos.map(g => epiCard(g, "eu")).join("") : "<p>Nenhum pedido de EPI.</p>";
-  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
+// ===== PEDIDOS DE EPI: o funcionário vê só os seus; a gerência vê todos =====
+// colunas da aba EPI: data_hora, usuario, item, tamanho, quantidade, situacao, entregue_por, data_entrega, data_recebimento
 async function carregarMeusPedidos() {
   const box = document.getElementById("mp_lista");
   if (!box) return;
   box.textContent = "Carregando...";
   try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EPI" });
+    if (res.erro) { box.textContent = res.erro; return; }
     const eu = String(window.credenciais.usuario).toLowerCase();
-    const grupos = (await listarEpiGrupos()).filter(g => g.quem.toLowerCase() === eu);
-    let html = "<h3>Pedidos de EPI</h3>" + (grupos.length ? grupos.map(g => epiCard(g, "eu")).join("") : "<p>Nenhum pedido de EPI.</p>");
+    const itens = [];
+    res.dados.forEach((l, i) => {
+      if (i === 0 || String(l[1]).toLowerCase() !== eu) return;
+      itens.push({ linha: i + 1, data: l[0], item: l[2], tam: l[3], qtd: l[4], situacao: l[5] || "pendente" });
+    });
+    let html = itens.length ? itens.reverse().map(p => {
+      const tag = p.situacao === "recebido" ? '<span class="tag t-ok">Recebido</span>'
+        : p.situacao === "entregue" ? '<span class="tag t-alerta">Entregue: confirme o recebimento</span>'
+        : '<span class="tag t-alerta">Pendente</span>';
+      const botao = p.situacao === "entregue" ? `<button class="acao" onclick="atualizarEpi(${p.linha}, 'recebido')">Confirmar recebido</button>` : "";
+      return `<div class="card" style="margin-bottom:8px"><b>${p.item}</b> · tamanho ${p.tam} · qtd ${p.qtd}<br>` +
+        `<span style="font-size:14px">Pedido em ${formatarQuando(p.data)} · ${tag}</span>${botao}</div>`;
+    }).join("") : "<p>Nenhum pedido de EPI.</p>";
     const rs = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
     html += "<h3>Pedidos de SS</h3>";
     const ssMinhas = rs.erro ? [] : rs.dados.slice(1).filter(l => String(l[1]).toLowerCase() === eu);
     html += ssMinhas.length ? ssMinhas.reverse().map(l => {
-      const resp = /respondida|concluida/.test(String(l[10])) && l[11];
-      if (l[10] === "cancelado") return `<div class="card" style="margin-bottom:8px;opacity:.7"><b>${l[2]}</b> · ${l[4]}<br><span style="font-size:14px">Pedido em ${formatarQuando(l[0])} · <span class="tag t-venc">Cancelado pela gerência (duplicado ou errado)</span></span></div>`;
+      const resp = l[10] === "respondida" && l[11];
       return `<div class="card" style="margin-bottom:8px"><b>${l[2]}</b> · ${l[4]}<br><span style="font-size:14px">Pedido em ${formatarQuando(l[0])} · ${resp ? "SS nº <b>" + l[11] + "</b>" + (l[14] ? " · enviada ao Digiteam de " + l[14] : "") + (l[16] ? " · concluída: " + l[16] : "") + (l[17] ? " · foto anexada: " + l[17] : "") : '<span class="tag t-alerta">Nas pendências do SCI, aguardando oportunidade</span>'}</span></div>`;
     }).join("") : "<p>Nenhum pedido de SS.</p>";
+    // RILC: resposta da gerência para quem pediu
     const rr = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "RILC" });
     html += "<h3>Compras em loja (RILC)</h3>";
     const rilcMinhas = rr.erro ? [] : rr.dados.slice(1).filter(l => String(l[1]).toLowerCase() === eu);
@@ -4880,33 +3724,41 @@ async function carregarMeusPedidos() {
     box.innerHTML = html;
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
-// Gestão: todos os pedidos, com o botão da próxima etapa
 async function carregarEpiGerente(boxId = "epi_lista") {
   const box = document.getElementById(boxId);
   if (!box) return;
   box.textContent = "Carregando...";
   try {
-    const grupos = await listarEpiGrupos();
-    window.episGrupos = grupos;
-    const abertos = grupos.filter(g => g.situacao !== "encerrado");
-    const fechados = grupos.filter(g => g.situacao === "encerrado");
-    box.innerHTML = `<h3>Em aberto (${abertos.length})</h3>` + (abertos.length ? abertos.map(g => epiCard(g, "gestao")).join("") : "<p>Nenhum.</p>") +
-      `<h3>Encerrados (${fechados.length})</h3>` + (fechados.length ? fechados.map(g => epiCard(g, "gestao")).join("") : "<p>Nenhum.</p>");
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EPI" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const itens = [];
+    res.dados.forEach((l, i) => {
+      if (i === 0) return;
+      itens.push({ linha: i + 1, data: l[0], quem: l[1], item: l[2], tam: l[3], qtd: l[4], situacao: l[5] || "pendente", por: l[6] });
+    });
+    if (!itens.length) { box.innerHTML = "<p>Nenhum pedido de EPI.</p>"; return; }
+    itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
+    window.episItens = itens;
+    box.innerHTML = itens.reverse().map(p => {
+      const pendente = p.situacao === "pendente";
+      const tag = p.situacao === "recebido" ? `<span class="tag t-ok">Recebido</span>`
+        : p.situacao === "entregue" ? `<span class="tag t-alerta">Entregue por ${p.por || "—"}, aguardando recebimento</span>`
+        : `<span class="tag t-alerta">Pendente</span>`;
+      const botao = pendente ? `<button class="acao" onclick="atualizarEpi(${p.linha}, 'entregue')">Marcar como entregue</button>` : "";
+      return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${pendente ? "#c62828" : "#2e7d32"}"><input type="checkbox" class="epi_sel" value="${p.linha}"> <b>${p.quem}</b> · ${p.item} · tamanho ${p.tam} · qtd ${p.qtd}<br>` +
+        `<span style="font-size:14px">Pedido em ${formatarQuando(p.data)} · ${tag}</span>${botao}</div>`;
+    }).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
-// E-mail único com os pedidos em aberto, separados por destino (consórcio ou EMBASA)
+// E-mail com os pedidos de EPI marcados (copiar ou abrir no e-mail)
 function gerarEmailEpi() {
-  const filtro = (document.getElementById("epi_destino") || {}).value || "Todos";
-  const abertos = (window.episGrupos || []).filter(g => g.situacao !== "encerrado" && (filtro === "Todos" || g.destino === filtro));
-  if (!abertos.length) { alert("Não há pedidos em aberto para esse destino."); return; }
+  const marcados = [...document.querySelectorAll(".epi_sel:checked")].map(c => Number(c.value));
+  const itens = (window.episItens || []).filter(p => marcados.includes(p.linha));
+  if (!itens.length) { alert("Marque pelo menos um pedido."); return; }
   const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  const assunto = "Pedidos de EPI em aberto – " + hoje;
-  const blocos = [...new Set(abertos.map(g => g.destino || "Sem destino"))].map(d => {
-    const linhas = abertos.filter(g => (g.destino || "Sem destino") === d).map(g =>
-      `• ${g.quem} (pedido em ${formatarQuando(g.data)}):\n` + g.itens.map(i => "    - " + i).join("\n"));
-    return d.toUpperCase() + ":\n" + linhas.join("\n");
-  });
-  const corpo = "Segue a relação de pedidos de EPI em aberto:\n\n" + blocos.join("\n\n") + "\n\nAtt.,\n" + (window.nomeUsuario || "");
+  const assunto = "Pedidos de EPI – " + hoje;
+  const linhas = itens.map(p => `• ${p.quem}: ${p.item} – tamanho ${p.tam} – quantidade ${p.qtd} (pedido em ${formatarQuando(p.data)})`);
+  const corpo = "Segue a relação de pedidos de EPI:\n\n" + linhas.join("\n") + "\n\nAtt.,\n" + (window.nomeUsuario || "");
   document.getElementById("epi_email").value = "Assunto: " + assunto + "\n\n" + corpo;
   const link = document.getElementById("epi_mailto");
   link.href = "mailto:" + encodeURIComponent(document.getElementById("epi_para").value.trim()) + "?subject=" + encodeURIComponent(assunto) + "&body=" + encodeURIComponent(corpo);
@@ -4921,8 +3773,7 @@ async function atualizarEpi(linha, etapa) {
   try {
     const res = await chamarApi({ acao: "atualizarEpi", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, etapa: etapa });
     if (res.erro) { alert(res.erro); return; }
-    if (etapa === "assinado") carregarEpiMeus(); else carregarEpiGerente();
-    if (etapa === "assinado" && typeof carregarMeusPedidos === "function") carregarMeusPedidos();
+    if (etapa === "entregue") carregarEpiGerente(); else carregarMeusPedidos();
   } catch (e) { alert("Não consegui atualizar. Verifique a internet."); }
 }
 
@@ -5319,39 +4170,12 @@ const NIVEL_HIST = {
   angico: { titulo: "ETA Angico", reservatorios: ["RAD Angico"], inicio: 5, fim: 17 },
   mozondo: { titulo: "ETA Mozondó", reservatorios: ["Reservatórios ETA Mozondó (um nível, vale para os dois)"], inicio: 0, fim: 22 }
 };
-// Macros de cada ETA no histórico: [nome gravado na aba Leituras, nome mostrado]
-const MACRO_HIST = {
-  sd: [["SD – Macro saída da ETA", "Saída da ETA São Desidério"]],
-  angico: [["ANG – Saída da ETA", "Saída da ETA Angico"]],
-  mozondo: [["Macro saída da ETA", "Mozondó (saída da ETA)"], ["Macro Buriti Cortado", "Buriti Cortado"]]
-};
-async function carregarMacrosHist(chave, data) {
-  const box = document.getElementById("nh_macros");
-  if (!box) return;
-  box.textContent = "Carregando...";
-  const fmtData = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" });
-  try {
-    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Leituras" });
-    if (res.erro) { box.textContent = res.erro; return; }
-    const doDia = {};
-    res.dados.slice(1).forEach(l => {
-      const q = new Date(l[0]);
-      const dia = isNaN(q) ? String(l[0]).slice(0, 10) : fmtData.format(q);
-      if (dia === data) doDia[l[2]] = { leitura: l[3], consumo: l[4], operador: l[1] };
-    });
-    box.innerHTML = `<table><tr><th>Macro</th><th>Leitura 7h (m³)</th><th>Consumo 24h (m³)</th><th>Operador</th></tr>` +
-      MACRO_HIST[chave].map(([k, nome]) => { const v = doDia[k]; return `<tr><td>${nome}</td><td>${v && v.leitura !== "" ? v.leitura : "—"}</td><td>${v && v.consumo !== "" ? v.consumo : "—"}</td><td>${v ? v.operador : ""}</td></tr>`; }).join("") + `</table>`;
-  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
 function hojeISO() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 }
 function telaNivelHist(chave) {
-  return `<h2>Histórico de níveis e macros – ${NIVEL_HIST[chave].titulo}</h2>
+  return `<h2>Histórico de níveis – ${NIVEL_HIST[chave].titulo}</h2>
     <input type="date" id="nh_data" class="campo" value="${hojeISO()}" onchange="carregarNiveis('${chave}')">
-    <h3>Macros (leitura e consumo das últimas 24 horas)</h3>
-    <div id="nh_macros">Carregando...</div>
-    <h3>Níveis dos reservatórios</h3>
     <div id="nh_lista">Carregando...</div>`;
 }
 async function carregarNiveis(chave) {
@@ -5360,7 +4184,6 @@ async function carregarNiveis(chave) {
   const box = document.getElementById("nh_lista");
   if (!box) return;
   box.textContent = "Carregando...";
-  if (MACRO_HIST[chave]) carregarMacrosHist(chave, data);
   const fmtData = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" });
   const fmtHora = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false });
   try {
@@ -5401,20 +4224,15 @@ async function editarNivel(chave, linha, atual) {
   } catch (e) { alert("Não consegui editar. Verifique a internet."); }
 }
 
-// ===== ESQUECI A SENHA: a pessoa escolhe o próprio nome; a gerência e o Thiago recebem o pedido e resetam a senha =====
-const NOMES_ESQUECI_SENHA = ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Isaque", "Ivo Carlos", "Jânio Gualberto",
-  "Igor", "Oseias", "Acácio", "Eduardo", "Jânio Lima", "Genildo", "Alan", "Juvenson", "Valdesandro", "Ramon", "Renato", "Thiago"];
-function esqueciSenha() {
+// ===== ESQUECI A SENHA (pede à gerência uma senha nova) =====
+async function esqueciSenha() {
+  const usuario = document.getElementById("lg_usuario").value.trim();
   const msg = document.getElementById("lg_msg");
-  msg.innerHTML = "<b>Escolha seu nome:</b><br>" + NOMES_ESQUECI_SENHA.map(n =>
-    `<button class="acao" style="margin:4px 0;padding:8px;width:100%" onclick="pedirNovaSenhaPara('${n.replace(/'/g, "")}')">${n}</button>`).join("");
-}
-async function pedirNovaSenhaPara(nome) {
-  const msg = document.getElementById("lg_msg");
+  if (!usuario) { msg.textContent = "Digite seu usuário no campo acima e clique de novo em Esqueci a senha."; return; }
   msg.textContent = "Enviando pedido...";
   try {
-    const res = await chamarApi({ acao: "pedirNovaSenha", usuario: nome });
-    msg.textContent = res && res.erro ? res.erro : "Pedido enviado. A gerência vai resetar a senha e te passar pelo app.";
+    await chamarApi({ acao: "pedirNovaSenha", usuario: usuario });
+    msg.textContent = "Pedido enviado. A gerência vai te passar uma senha nova.";
   } catch (e) {
     msg.textContent = "Não consegui enviar o pedido. Verifique a internet.";
   }
@@ -5447,7 +4265,7 @@ async function confirmarTrocaSenha() {
 }
 
 // ===== LOGIN (ligado à planilha pelo Apps Script) =====
-const URL_API = "https://script.google.com/macros/s/AKfycbxyePlBgyfdn3Fh8Eiz1nDGGlVAwPKVgwS9TY2R0A-m7FZ3Vp76ghK5xbzKSaxYuGsR/exec";
+const URL_API = "https://script.google.com/macros/s/AKfycbwdtUFwHZbW0Ms7KSzFyZ63upUVD-jGafPzszRXZMJI50Xatcr-ew7PjVQTnQ-DC1Fh/exec";
 // Lista de pessoas que a gerência pode abrir (nome, perfil de painel)
 const PESSOAS = [
   ["Luzenildo", "Agente de campo (exemplo: Luzenildo)"],
@@ -5488,71 +4306,6 @@ async function chamarApi(corpo) {
   return r.json();
 }
 
-// SS em aberto por localidade, com contagem por tipo de serviço (planejamento do Digiteam)
-// Fontes: ExecucaoCampo (situacao "pendente") e SSAbertas (ss | tipo | localidade | abertura | vencimento | situacao)
-async function carregarSSAbertoLocal() {
-  const box = document.getElementById("sal_lista");
-  if (!box) return;
-  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-  try {
-    const [ex, sa] = await Promise.all([
-      chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }),
-      chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] }))
-    ]);
-    if (ex.erro) { box.textContent = ex.erro; return; }
-    const exec = (ex.dados || []).slice(1);
-    const executadas = new Set(exec.filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
-    const porSS = {};
-    exec.filter(l => String(l[5]).toLowerCase() === "pendente").forEach(l => {
-      const ss = String(l[1]).replace(/^'/, "");
-      if (ss && !executadas.has(ss)) porSS[ss] = { tipo: String(l[2] || "Sem tipo"), loc: String(l[3] || "Sem localidade").trim() };
-    });
-    (sa.dados || []).slice(1).forEach(l => {
-      const ss = String(l[0] || "").replace(/^'/, "");
-      if (!ss || !/^\d{6,}$/.test(ss) || executadas.has(ss) || /encerrad|cancelad|conclu/i.test(String(l[5] || ""))) return;
-      if (!porSS[ss]) porSS[ss] = { tipo: String(l[1] || "Sem tipo"), loc: String(l[2] || "Sem localidade").trim() };
-    });
-    const grupos = {};
-    Object.values(porSS).forEach(x => { (grupos[x.loc] = grupos[x.loc] || {}); grupos[x.loc][x.tipo] = (grupos[x.loc][x.tipo] || 0) + 1; });
-    const locs = Object.keys(grupos).sort();
-    if (!locs.length) { box.innerHTML = "<p>Nenhuma SS em aberto.</p>"; return; }
-    box.innerHTML = locs.map(loc => {
-      const tipos = Object.entries(grupos[loc]).sort((a, b) => b[1] - a[1]);
-      const total = tipos.reduce((s, t) => s + t[1], 0);
-      return `<div class="card" style="margin-bottom:10px"><b>${loc}</b> – ${total} SS
-        <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:14px"><tr><th style="text-align:left">Tipo de serviço</th><th style="text-align:right">Qtd</th></tr>
-        ${tipos.map(([t, q]) => `<tr><td style="border-top:1px solid #eee;padding:4px 0">${t}</td><td style="border-top:1px solid #eee;text-align:right">${q}</td></tr>`).join("")}</table></div>`;
-    }).join("");
-  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
-}
-// Gerência: cancela demanda Agersa lançada errado (some da lista de todos; a linha fica na planilha como "cancelada")
-async function cancelarDemandaAgersa(linha) {
-  const d = (window.agersaDemandas || []).find(x => x.linha === linha);
-  if (!d || !confirm("Cancelar esta demanda Agersa?\n\n" + d.demanda)) return;
-  try {
-    const res = await chamarApi({ acao: "cancelarAgersa", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, demanda: d.demanda });
-    if (res.erro) { alert(res.erro); return; }
-    renderAtual();
-  } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
-}
-// Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 12h13";
-async function verificarVersao() {
-  const msg = document.getElementById("versaoMsg");
-  msg.textContent = "Verificando...";
-  try {
-    const t = await (await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" })).text();
-    const m = t.match(/const VERSAO_PAINEL = "([^"]+)"/);
-    if (m && m[1] !== VERSAO_PAINEL) {
-      msg.innerHTML = `Nova versão ${m[1]} disponível. <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:600">Atualizar agora</button>`;
-    } else msg.textContent = "Você já está na versão mais recente (" + VERSAO_PAINEL + ").";
-  } catch (e) { msg.textContent = "Não consegui verificar. Veja a internet."; }
-}
-function sairPainel() {
-  if (!confirm("Sair do painel?")) return;
-  window.credenciais = null;
-  location.replace(location.pathname + "?v=" + Date.now());
-}
 async function entrar() {
   const usuario = document.getElementById("lg_usuario").value.trim();
   const senha = document.getElementById("lg_senha").value;
