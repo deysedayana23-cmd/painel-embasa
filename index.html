@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 12h05</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 12h13</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -3001,9 +3001,29 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
     box.innerHTML = itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
       ${x.obs ? `<br><span style="font-size:14px;color:#b71c1c;font-weight:600">${x.obs}</span>` : ""}
-      ${gerencia ? `<br><button class="acao" onclick="marcarEncerrada(${x.linha})">Concluída no sistema</button>` : ""}
+      ${gerencia && /\[VENCIDA\]/.test(String(x.obs)) ? `<br><input id="ee_nova_${x.linha}" class="campo" placeholder="Número da NOVA SS gerada">
+        <button class="acao" style="background:#c62828" onclick="registrarNovaSSVencida(${x.linha}, '${String(x.ss).replace(/^'/, "")}', '${String(x.serv).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">Cancelada e nova SS gerada</button>`
+        : gerencia ? `<br><button class="acao" onclick="marcarEncerrada(${x.linha})">Concluída no sistema</button>` : ""}
     </div>`).join("") : "<p>Nenhuma SS pendente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+// SS vencida: o escritório cancela, gera outra e informa aqui. A nova volta para a lista do Digiteam com o alerta.
+async function registrarNovaSSVencida(linha, ssAntiga, tipo, loc) {
+  const nova = ((document.getElementById("ee_nova_" + linha) || {}).value || "").replace(/\D/g, "");
+  if (!nova) { alert("Digite o número da nova SS gerada."); return; }
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  try {
+    const sa = await chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" });
+    const antiga = (sa.dados || []).slice(1).find(l => String(l[0]).replace(/^'/, "") === ssAntiga) || [];
+    const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Bahia" });
+    const nome = [String(antiga[6] || ""), "SUBSTITUI A SS " + ssAntiga + " (vencida)"].filter(Boolean).join(" | ");
+    const r1 = await chamarApi({ acao: "gravarVarias", ...cred, aba: "SSAbertas", linhas: [["'" + nova, antiga[1] || tipo, antiga[2] || loc, hoje, "", "Aberta", nome, antiga[7] || ""]] });
+    if (r1.erro) { alert(r1.erro); return; }
+    const r2 = await chamarApi({ acao: "marcarEncerrada", ...cred, linha: linha });
+    if (r2.erro) { alert(r2.erro); return; }
+    alert("SS " + nova + " lançada no lugar da " + ssAntiga + ". Ela já aparece para o funcionário pedir no Digiteam.");
+    carregarEncerrarEscritorio();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 async function marcarEncerrada(linha) {
   try {
@@ -3066,6 +3086,34 @@ function telaSSLista(titulo) {
     <button class="acao" onclick="enviarSSLista()">Enviar as marcadas</button>
     <div id="sl_lista">Carregando...</div>`;
 }
+// ===== PRAZOS DAS SS (a partir da data de abertura) =====
+// Transferência de ramal/HD 72h · corte a pedido 48h · ligação nova 10 dias úteis · religação 24h · vazamento (qualquer) 24h
+function regraPrazoSS(tipo) {
+  const t = String(tipo || "").toUpperCase();
+  if (/\bVAZ/.test(t)) return { horas: 24, texto: "24h (vazamento)" };
+  if (/RELIG|RESTAB/.test(t)) return { horas: 24, texto: "24h (religação)" };
+  if (/TRANS/.test(t)) return { horas: 72, texto: "72h (transferência de ramal/HD)" };
+  if (/CORTE/.test(t) && /PEDIDO/.test(t)) return { horas: 48, texto: "48h (corte a pedido)" };
+  if (/LIG(ACAO)?\s*NOVA|LIGACAO DE AGUA|NOVA LIG/.test(t)) return { uteis: 10, texto: "10 dias úteis (ligação nova)" };
+  return null;
+}
+function prazoSS(tipo, abertura) {
+  const r = regraPrazoSS(tipo);
+  const m = String(abertura || "").match(/(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+  if (!r || !m) return null;
+  const ini = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]), Number(m[4] || 0), Number(m[5] || 0));
+  let fim = new Date(ini);
+  if (r.horas) fim = new Date(ini.getTime() + r.horas * 3600e3 + (m[4] ? 0 : 24 * 3600e3 - 60e3)); // sem hora: conta a partir do fim do dia da abertura
+  else { let d = 0; while (d < r.uteis) { fim.setDate(fim.getDate() + 1); if (fim.getDay() !== 0 && fim.getDay() !== 6) d++; } fim.setHours(23, 59); }
+  return { vencida: new Date() > fim, fim, texto: r.texto };
+}
+function alertaPrazoHTML(p, digiteam) {
+  if (!p) return "";
+  const f = p.fim.toLocaleDateString("pt-BR");
+  return p.vencida
+    ? `<div style="background:#c62828;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ VENCIDA – perdeu o prazo de ${p.texto} em ${f}.${digiteam ? " Não mandar no Digiteam: deve ser encerrada e aberto outro protocolo." : ""}</div>`
+    : `<div style="font-size:13px;color:#7a5a00">Prazo: ${p.texto} · vence em ${f}</div>`;
+}
 async function carregarSSLista(filtro) {
   const box = document.getElementById("sl_lista");
   if (!box) return;
@@ -3073,13 +3121,16 @@ async function carregarSSLista(filtro) {
   try {
     window.ssListaFiltro = filtro;
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-    const [res, ex] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] }))]);
+    const [res, ex, encV] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })),
+      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] }))]);
+    // SS vencidas já mandadas ao escritório para cancelar não aparecem mais aqui
+    const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     if (res.erro) { box.textContent = res.erro; return; }
     // SS que alguém já deu OK (executada) somem desta lista
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
-    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
+    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), aberturaTxt: String(l[3] || ""), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
       // "Programada" = já está no Digiteam de alguém: não aparece
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
       // cada funcionário vê só as SS da(s) localidade(s) dele; a gerência vê todas
       .filter(x => (window.MODO_GERENTE && !emPrevia()) || localidadesAgersaDoUsuario().includes(String(x.loc).trim()));
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
@@ -3096,7 +3147,9 @@ async function carregarSSLista(filtro) {
     const marcarTodas = tipoSel ? `<label style="display:block;margin:6px 0;font-weight:600"><input type="checkbox" checked onchange="document.querySelectorAll('.sl_sel').forEach(c => c.checked = this.checked)"> Marcar todas as ${lista.length} de ${tipoSel}</label>` : "";
     box.innerHTML = barraT + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
         <label><input type="checkbox" class="sl_sel" ${tipoSel ? "checked" : ""} value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
-        <span style="font-size:14px">${x.nome} · matrícula ${x.mat} · ${x.loc}<br>Aberta em ${fmt(x.abertura)} · vence em ${fmt(x.vencimento)}</span>
+        ${/SUBSTITUI A SS/i.test(x.nome) ? `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ ${String(x.nome).match(/SUBSTITUI A SS[^|]*/i)[0]} – o prazo da antiga foi perdido. Esta nova NÃO PODE perder o prazo.</div>` : ""}
+        ${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt), true)}
+        <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}<br>Aberta em ${fmt(x.abertura)}</span>
         <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
       </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
@@ -3926,7 +3979,7 @@ async function carregarPendExecutar() {
       ${Object.entries(tiposCont).sort((a, b) => b[1] - a[1]).map(([t, q]) => btn(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}
     </div>`;
     box.innerHTML = barra + `<div class="nota">${visiveis.length} SS ${filtro === "__PR__" ? "de vazamento no Porto Rico" : filtro ? "de " + filtro : "pendente(s)"}</div>` + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
-      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.nova ? ` <span style="background:#2e7d32;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:bold">NOVA HOJE</span>` : ""}${x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""}
+      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.nova ? ` <span style="background:#2e7d32;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:bold">NOVA HOJE</span>` : ""}${(() => { const ka = cab.indexOf("abertura"); const p = prazoSS(x.tipo, ka >= 7 ? x.extras[ka - 7] : ""); return p ? alertaPrazoHTML(p, false) : (x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""); })()}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
       ${(() => { const k = cab.findIndex(h => /hidrom/i.test(String(h))); return String(x.loc).trim() === "São Desidério" && !(k >= 0 && String(x.extras[k - 7] || "").trim()) ? `<div style="font-size:14px;color:#b71c1c">Sem número do HD</div>` : ""; })()}
       ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
@@ -5483,7 +5536,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 12h05";
+const VERSAO_PAINEL = "04/11 12h13";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
