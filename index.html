@@ -45,7 +45,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 17h17</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 17h49</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -4414,7 +4414,7 @@ const sspHorasDesde = v => { const d = new Date(v); return isNaN(d) ? 0 : (Date.
 function telaSSPend(chave) {
   const p = sspPapel(chave);
   return `<h2>SS pendentes – ${SSP_LOCAIS[chave]}</h2>
-    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.campo ? "Campo: toque em \"Vou executar\" antes de sair e em \"Executei em campo\" quando terminar. Foto só vai com o GPS ligado. " : ""}A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver).</div>
+    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.digitador ? "A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver)." : "Toque em \"Vou executar\" antes de sair e em \"Executei em campo\" quando terminar. A SS sai da sua lista quando você executar. Foto só vai com o GPS ligado."}</div>
     <div id="ssp_lista">Carregando...</div>`;
 }
 async function sspDados() {
@@ -4542,10 +4542,11 @@ async function carregarSSPend(chave) {
     const p = sspPapel(chave);
     if (!lista.length) { box.innerHTML = "<p>Nenhuma SS pendente.</p>"; return; }
     window.sspFiltro = window.sspFiltro || {};
-    const filtro = window.sspFiltro[chave] || (p.digitador ? "digitacao" : "campo");
+    const filtro = p.digitador ? (window.sspFiltro[chave] || "digitacao") : "campo"; // campo vê só o que falta ir a campo
     const nC = lista.filter(sspFaltaCampo).length, nD = lista.filter(sspFaltaDig).length, nF = lista.filter(sspFaltaFoto).length;
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
-    const barra = `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Falta digitação", nD, "#6a1b9a")}${btnF("fotos", "Falta adicionar fotos", nF, "#ef6c00")}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`;
+    const barra = p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
+      : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`;
     let visiveis = filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : lista;
     // Ordem: vencidas e paradas primeiro; no "Falta ir a campo", ordem de visita a partir do escritório
     const urg = it => (it.prazo && it.prazo.vencida) || !!it.parada;
@@ -4565,8 +4566,10 @@ async function carregarSSPend(chave) {
         if (!it.ss) etapas.push(chip("Aguardando número da SS", laranja));
         if (it.assumida && !it.executada) etapas.push(chip("🚶 Com " + sspEsc(sspNome(it.assumida.quem)), "#1565c0"));
         etapas.push(it.executada ? chip("✔ Executada em campo (" + sspEsc(sspNome(it.executada.quem)) + ")", verde) : chip("Falta executar em campo", vermelho));
-        etapas.push(it.digitada ? chip("✔ Digitada (" + sspEsc(sspNome(it.digitada.quem)) + ")", verde) : chip("Falta digitar", vermelho));
-        if (it.fotos.length) etapas.push(it.fotoAnexada ? chip("✔ Foto anexada à SS", verde) : chip("📷 Foto para anexar à SS", vermelho));
+        if (p.digitador) { // digitação e documentos: só digitadores veem
+          etapas.push(it.digitada ? chip("✔ Digitada (" + sspEsc(sspNome(it.digitada.quem)) + ")", verde) : chip("Falta digitar", vermelho));
+          if (it.fotos.length) etapas.push(it.fotoAnexada ? chip("✔ Foto anexada à SS", verde) : chip("📷 Documento (foto) para anexar à SS", vermelho));
+        }
       }
       const ficha = it.campos.filter(c => sspLimpo(c[1])).map(c => `<div style="font-size:14px">${sspEsc(c[0])}: ${sspEsc(sspLimpo(c[1]))}</div>`).join("");
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
@@ -6041,7 +6044,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 17h17";
+const VERSAO_PAINEL = "04/11 17h49";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
