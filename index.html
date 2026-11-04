@@ -41,7 +41,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 14h40</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 15h15</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -2425,7 +2425,7 @@ async function registrarMedicao() {
       if (r.erro) { alert(r.erro); return; }
       links.push(r.url);
     }
-  } catch (e) { alert("Não consegui enviar as fotos. Verifique a internet."); return; }
+  } catch (e) { alert("Não consegui enviar as fotos: " + (e && e.message ? e.message : "erro desconhecido") + ". Tente de novo."); return; }
   const linha = [new Date().toISOString(), window.credenciais.usuario, servico, "'" + ss, "Não", links.length ? "Sim" : "Não", "Não", links.join(" ")];
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Medicao", linhas: [linha] });
@@ -3823,14 +3823,15 @@ async function usarGPSSS() {
 // Carimba latitude e longitude na própria foto antes de enviar
 function carimbarFoto(arquivo, pos) {
   return new Promise((resolver, rejeitar) => {
-    if (!pos) return lerArquivoBase64(arquivo).then(resolver, rejeitar);
     const url = URL.createObjectURL(arquivo);
     const img = new Image();
     img.onload = () => {
       const c = document.createElement("canvas");
-      c.width = img.width; c.height = img.height;
+      const MAX = 1600, esc = Math.min(1, MAX / Math.max(img.width, img.height));
+      c.width = Math.round(img.width * esc); c.height = Math.round(img.height * esc);
       const ctx = c.getContext("2d");
-      ctx.drawImage(img, 0, 0);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      if (!pos) { URL.revokeObjectURL(url); return resolver(c.toDataURL("image/jpeg", 0.8).split(",")[1]); }
       const altura = Math.max(40, Math.round(c.height * 0.06));
       ctx.fillStyle = "rgba(0,0,0,0.6)";
       ctx.fillRect(0, c.height - altura, c.width, altura);
@@ -3838,7 +3839,7 @@ function carimbarFoto(arquivo, pos) {
       ctx.font = "bold " + Math.round(altura * 0.45) + "px sans-serif";
       ctx.fillText("Lat " + pos.lat.toFixed(6) + "  Lon " + pos.lon.toFixed(6), 12, c.height - altura * 0.35);
       URL.revokeObjectURL(url);
-      resolver(c.toDataURL("image/jpeg", 0.85).split(",")[1]);
+      resolver(c.toDataURL("image/jpeg", 0.8).split(",")[1]);
     };
     img.onerror = () => { URL.revokeObjectURL(url); lerArquivoBase64(arquivo).then(resolver, rejeitar); };
     img.src = url;
@@ -3904,7 +3905,7 @@ async function enviarPedidoSS(encerrar = false) {
         links.push(r.url);
       }
       urls = links.join(" ");
-    } catch (e) { alert("Não consegui enviar as fotos. Verifique a internet."); return; }
+    } catch (e) { alert("Não consegui enviar as fotos: " + (e && e.message ? e.message : "erro desconhecido") + ". Tente de novo."); return; }
   }
   obsFinal = "[" + acaoEscolhida.toUpperCase() + "] " + obsFinal;
   const linha = [new Date().toISOString(), window.credenciais.usuario, TIPOS_SS[tipo][0] + " (" + tipo + ")", nomeEsp,
@@ -5511,9 +5512,17 @@ const MAPA_PERFIS = {
   "gerente": "Gerente (você)"
 };
 
-async function chamarApi(corpo) {
-  const r = await fetch(URL_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corpo) });
-  return r.json();
+async function chamarApi(corpo, tentativa = 1) {
+  let r;
+  try {
+    r = await fetch(URL_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corpo) });
+  } catch (e) {
+    if (tentativa < 2) { await new Promise(ok => setTimeout(ok, 1500)); return chamarApi(corpo, tentativa + 1); }
+    throw new Error(navigator.onLine === false ? "o celular está sem internet" : "a conexão falhou (sinal fraco ou foto muito grande)");
+  }
+  const t = await r.text();
+  try { return JSON.parse(t); }
+  catch (e) { throw new Error("o servidor respondeu com erro (código " + r.status + ")"); }
 }
 
 // SS em aberto por localidade, com contagem por tipo de serviço (planejamento do Digiteam)
@@ -5564,7 +5573,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 14h40";
+const VERSAO_PAINEL = "04/11 15h15";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
