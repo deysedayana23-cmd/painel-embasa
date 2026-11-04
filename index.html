@@ -1472,7 +1472,7 @@ function trocarPerfil() {
 
 function mostrarMenu(itens, titulo) {
   if (!pilha.length) itens = [{nome: "Serviços urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
-  itens = itens.filter(i => (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
+  itens = itens.filter(i => (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
@@ -2283,6 +2283,8 @@ async function carregarAlertaPrefeitura() {
       <div style="margin-top:8px"><button class="acao" onclick="document.getElementById('ent_form').style.display=''">Marcar como entregue</button></div>
       <div id="ent_form" style="display:none;margin-top:10px">
         <label>Data da entrega <input type="date" id="ent_data" class="campo" value="${hoje}"></label>
+        <label>Hora da entrega <input type="time" id="ent_hora" class="campo" required></label>
+        <label>Quem recebeu <input type="text" id="ent_quem" class="campo" placeholder="Nome de quem recebeu" required></label>
         <textarea id="ent_obs" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
         <label>Foto do recebido <input type="file" id="ent_fotos" accept="image/*" multiple class="campo"></label>
         <button class="acao" onclick="enviarEntregaPrefeitura('${grupo.loc}')">Salvar e enviar à gerência</button>
@@ -2292,9 +2294,13 @@ async function carregarAlertaPrefeitura() {
 }
 async function enviarEntregaPrefeitura(loc) {
   const data = document.getElementById("ent_data").value;
+  const hora = document.getElementById("ent_hora").value;
+  const quem = document.getElementById("ent_quem").value.trim();
   const obs = document.getElementById("ent_obs").value.trim();
   const arquivos = document.getElementById("ent_fotos").files;
   if (!data) { alert("Informe a data da entrega."); return; }
+  if (!hora) { alert("Informe a hora da entrega."); return; }
+  if (!quem) { alert("Informe quem recebeu."); return; }
   if (!arquivos.length) { alert("Tire e anexe a foto do recebido."); return; }
   let links = [];
   try {
@@ -2306,7 +2312,7 @@ async function enviarEntregaPrefeitura(loc) {
     }
   } catch (e) { alert("Não consegui enviar a foto. Verifique a internet."); return; }
   const dataBR = data.split("-").reverse().join("/");
-  const texto = `Entrega de contas da prefeitura – referência ${REF_PREFEITURA} – entregue em ${dataBR}` + (obs ? " – " + obs : "");
+  const texto = `Entrega de contas da prefeitura – referência ${REF_PREFEITURA} – entregue em ${dataBR} às ${hora} – recebido por ${quem}` + (obs ? " – " + obs : "");
   // colunas: data_hora, usuario, tipo, especificacao, localidade, bairro, logradouro, matricula, hidrometro, observacao, situacao, ss, por, data, digiteam, fotos
   const linha = [new Date().toISOString(), window.credenciais.usuario, "61 – SERVICO LEITURA E ENTREGA", "1 – ENTREGA DE CONTA",
     loc, "", "", "", "", texto, "pendente", "", "", "", "", links.join(" ")];
