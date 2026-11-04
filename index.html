@@ -633,7 +633,9 @@ const TELAS = {
     <input class="campo" placeholder="Nível do reservatório">
     <button class="acao">Gerar texto para o grupo</button>`,
 
-  escalaTurno: () => TELAS.escalaMozondo(),
+  escalaTurno: () => (String(perfilAtual || "").startsWith("Operador Mozondó") || !String(perfilAtual || "").startsWith("Operador ETA"))
+    ? TELAS.escalaMozondo()
+    : `<h2>Escala de turno</h2><div class="nota">A escala de turno de São Desidério ainda não está cadastrada no painel.</div>`,
 
   ferias: () => `
     <h2>Marcação de férias</h2>
@@ -1552,7 +1554,7 @@ function abrir(i) {
     if (chaveNiv) carregarNiveis(chaveNiv);
     if (it.tela === "urgencias") { if (perfilAtual.startsWith("Operador Angico")) carregarUrgenciaAngico(); else carregarUrgencias(); }
     if (it.tela === "consumoQuimico") carregarSaldosQuimicos();
-    if (it.tela === "escalaTurno" || it.tela === "escalaMozondo") {
+    if ((it.tela === "escalaTurno" && (String(perfilAtual || "").startsWith("Operador Mozondó") || !String(perfilAtual || "").startsWith("Operador ETA"))) || it.tela === "escalaMozondo") {
       const [ano, mesNum] = hojeISO().split("-");
       mostrarEscalaMes(Number(ano), Number(mesNum) - 1);
     }
