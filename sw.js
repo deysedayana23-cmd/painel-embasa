@@ -1,3 +1,4 @@
+importScripts("https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js"); // avisos no celular (OneSignal)
 // Painel EMBASA – service worker do aplicativo instalável.
 // Não guarda nada em cache: sempre busca a versão mais nova na internet (as atualizações chegam como hoje).
 // Sem internet, mostra um aviso em vez da página de erro do navegador.
