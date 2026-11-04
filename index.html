@@ -627,8 +627,6 @@ const TELAS = {
 const PERFIS = {
   "Agente de campo (exemplo: Luzenildo)": [
     {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true}, {nome:"SS para acompanhar", tela:"ssPrazo"},
-    {nome:"Vencimentos (24h e 48h)", tela:"vencimentos"},
-    {nome:"Todas as SS abertas (90 dias)", tela:"todasSS"},
     {nome:"SCI", sub:[
       {nome:"Gerar SS e mandar para o Digiteam", tela:"solicitarSS"},
       {nome:"Segunda via", tela:"segundaVia"},
@@ -761,8 +759,6 @@ const PERFIS = {
     {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Cronograma de leitura e contas retidas", tela:"cronograma"},
     {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
-    {nome:"Vencimentos (24h e 48h)", tela:"vencimentos"},
-    {nome:"Todas as SS abertas (90 dias)", tela:"todasSS"}
   ],
   "Gerente (você)": [
     {nome:"Adicionar informações", sub:[{nome:"Metas", tela:"metasAdmin"}]},
@@ -1364,7 +1360,7 @@ PERFIS["Operador Angico (Ramon ou Renato)"] = [
 ];
 // Menu enxuto: o principal fica com o que é de uso diário; o resto vai para "Outros"
 const PRINCIPAL_CAMPO = ["Vazamento de rede", "Vazamento de ramal", "SS para acompanhar", "SS para encerrar pelo escritório", "Pedir abertura de SS", "Abrir e encerrar SS",
-  "Ocorrência operacional", "Vencimentos (24h e 48h)", "Todas as SS abertas (90 dias)", "SCI", "Urgências",
+  "Ocorrência operacional", "SCI", "Urgências",
   "Níveis e macro ETA", "Níveis dos reservatórios", "Estoque diário produto químico"];
 const PRINCIPAL_GERENTE = ["SS para encerrar pelo escritório", "Adicionar informações", "Pendências de aprovação", "Urgências (criar e acompanhar)", "Pedidos de SS (gerar e responder)",
   "Pedidos de SS da equipe", "Relatório de hora extra", "Pedidos de EPI", "Pedidos RILC", "Solicitações de aquisição",
@@ -2772,7 +2768,7 @@ async function enviarSSLista() {
 
 // Menu enxuto para quem está na rua (Luzenildo, Francisco, Carlito, Joaquim, Igor, Ivo e Janio Gualberto)
 // Principal: vazamentos, abrir SS e mandar no Digitim, SS vencendo em 24h/48h, SS em aberto (3 meses). O resto em Outros.
-const SS_NOMES_MENU = ["Vazamento de rede", "Vazamento de ramal", "Vencimentos (24h e 48h)", "Todas as SS abertas (90 dias)"];
+const SS_NOMES_MENU = ["Vazamento de rede", "Vazamento de ramal"];
 function menuSimplesDe(perfil) {
   const orig = PERFIS[perfil] || [];
   const outros = orig.find(i => i.nome === "Outros");
@@ -2790,9 +2786,6 @@ function menuSimplesDe(perfil) {
     {nome: "Abrir SS de vazamento de ramal", tela: "ssVazRamal"},
     {nome: "Abrir SS de vazamento de hidrômetro", tela: "ssVazHid"},
     {nome: "Abrir SS e mandar no Digitim", tela: "solicitarSS"},
-    {nome: "SS vencendo em até 24 horas", tela: "ssVenc24"},
-    {nome: "SS vencendo em até 48 horas", tela: "ssVenc48"},
-    {nome: "SS em aberto no ciclo de 3 meses", tela: "ssTodas"},
     {nome: "Outros", sub: resto}
   ];
 }
