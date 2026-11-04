@@ -40,7 +40,7 @@
 
 <header>
   <h1>Painel EMBASA – Protótipo</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 09h40</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 10h07</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -4039,8 +4039,8 @@ async function carregarPedidosSS(boxId = "pss_lista") {
         ${pend ? `<input id="pss_n_${p.linha}" class="campo" placeholder="Número da SS gerada">
           ${selectDigiteam("pss_d_" + p.linha)}
           ${/ENCERRAR/.test(p.obs) ? `<label style="display:block;margin:6px 0"><input type="checkbox" id="pss_e_${p.linha}"> Ainda não foi encerrada: mandar para encerrar pelo escritório</label>` : ""}
-          <label>Concluída? <select id="pss_c_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
-          <label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
+          ${/ENCERRAR/.test(p.obs) ? `<label>Concluída? <select id="pss_c_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
+          <label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>` : `<div class="nota">Pedido só para gerar: basta o número da SS (sem foto).</div>`}
           <button class="acao" onclick="responderSS(${p.linha}, false)">Responder com a SS (sem Digiteam)</button>
           <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>`
           : `<div>SS nº <b>${p.ss}</b> · respondida por ${p.por}${p.dg ? " · enviada ao Digiteam de <b>" + p.dg + "</b>" : ""}</div>`}
@@ -4056,7 +4056,7 @@ async function responderSS(linha, mandarDigiteam) {
   try {
     const concluida = (document.getElementById("pss_c_" + linha) || {}).value || "";
     const foto = (document.getElementById("pss_f_" + linha) || {}).value || "";
-    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: mandarDigiteam ? dg : "", concluida: concluida, foto: foto });
+    const res = await chamarApi({ acao: "responderSS", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha, numero: numero.trim(), digiteam: mandarDigiteam ? dg : "", concluida: concluida, foto: "", fotoAnexada: foto === "Sim" ? "Sim" : "" });
     if (res.erro) { alert(res.erro); return; }
     const pendente = (document.getElementById("pss_e_" + linha) || {}).checked;
     if (pendente) {
@@ -5341,7 +5341,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "04/11 09h40";
+const VERSAO_PAINEL = "04/11 10h07";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
