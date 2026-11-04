@@ -3819,12 +3819,14 @@ async function carregarPendExecutar() {
       if (g && mat) gpsPorMat[mat] = g[1] + "," + g[2];
     });
     Object.keys(base).forEach(m => { if (!gpsPorMat[m]) gpsPorMat[m] = base[m]; });
-    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7),
+    const diaDe = v => { const d = new Date(v); return isNaN(d) ? "" : d.toLocaleDateString("en-CA", { timeZone: "America/Bahia" }); };
+    const hojeBA = diaDe(new Date());
+    const minhas = linhas.map((l, i) => ({ linha: i + 2, ss: String(l[1]), tipo: l[2], loc: l[3], resp: l[4], situacao: String(l[5]).toLowerCase(), extras: l.slice(7), vencida: !!diaDe(l[0]) && diaDe(l[0]) < hojeBA,
         gps: (idxMat >= 0 && !(idxLocal >= 0 && String(l[idxLocal] || "").trim())) ? gpsPorMat[String(l[idxMat] || "").trim()] : "" }))
       .filter(x => x.situacao === "pendente" && !executadas.has(x.ss) && String(x.resp).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n))));
     if (!minhas.length) { box.innerHTML = "<p>Nenhuma SS para executar.</p>"; return; }
     box.innerHTML = `<div class="nota">${minhas.length} SS pendente(s)</div>` + minhas.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
-      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}
+      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
       ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
       <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
