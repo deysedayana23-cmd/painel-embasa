@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 13h45</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 16h16</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -1663,7 +1663,7 @@ function mostrarMenu(itens, titulo) {
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
-  if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))))));
+  if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(inativasNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens)))))));
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -1727,6 +1727,7 @@ async function atualizarContagemSS() {
   if (window.contagemSSCarregando) return;
   window.contagemSSCarregando = true;
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  if (document.querySelector("#app button.btn") && [...document.querySelectorAll("#app button.btn")].some(b => /^Inativas/.test(b.textContent))) atualizarDataInativas(cred);
   const contar = async (aba, filtro) => {
     try {
       const res = await chamarApi({ acao: "listar", ...cred, aba });
@@ -1793,6 +1794,7 @@ function abrir(i) {
     if (it.tela === "pedidosSS") { carregarPedidosSS(); carregarPedidosDigiteam(); }
     if (it.tela === "pedidosDigi") carregarPedidosDigi();
     if (it.tela === "importarSCI") carregarImportarSCI();
+    if (it.tela === "inativas") carregarInativas();
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
@@ -3238,7 +3240,7 @@ const SCI_DESTINO = { "São Desidério": "Luzenildo, Joaquim, Carlito e Francisc
   "Catolândia": "Isaque (Catolândia, Mozondó e Buriti Cortado)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis, São Marcos e Passagem de Pedra)" };
 const SCI_LOCS_ESPERADAS = { "São Desidério": ["saodesiderio"], "Angico": ["angico"], "Catolândia": ["catolandia", "mozondo", "buriticortado", "baianopolis"], "Baianópolis": ["baianopolis", "catolandia"] };
 // Colunas combinadas (nomes como aparecem no SCI). A ordem no Excel não importa.
-const SCI_COLUNAS = ["SS", "Tipo", "Especificação", "Meio de Solic", "Matrícula", "Localidade", "Bairro", "Logradouro", "Estado", "Nome do Solic", "Geração da SS", "Previsão Inicial", "Núm do Hid", "Obs da SS", "Sit da SS"];
+const SCI_COLUNAS = ["SS", "Tipo", "Especificação", "Meio de Solic", "Matrícula", "Localidade", "Bairro", "Logradouro", "Estado", "Nome do Solic", "Geração da SS", "Previsão Inicial", "Núm do Hid", "Obs da SS", "Sit da SS", "Setor Faturamento"];
 const SCI_OBRIGATORIAS = ["SS", "Tipo", "Especificação", "Meio de Solic", "Localidade", "Estado", "Geração da SS", "Previsão Inicial", "Sit da SS"];
 const SCI_QUEM_ENVIA = ["deyse", "thiago", "tiago", "igor", "oseias"];
 const podeEnviarSCI = () => (window.MODO_GERENTE && !emPrevia()) || SCI_QUEM_ENVIA.some(n => identidadeAtual().includes(n));
@@ -3260,6 +3262,12 @@ Object.assign(TELAS, { importarSCI: () => `<h2>Exportação Excel Pendências pa
     <ol style="margin:6px 0 6px 18px;padding:0;columns:2;column-gap:18px">${SCI_COLUNAS.map(c => `<li>${c}</li>`).join("")}</ol>
     <span style="font-size:13px;color:#555">A coluna OS não precisa. A ordem das colunas não importa.</span><br>
     5. Exporte para Excel e envie no botão da unidade, aqui embaixo.
+  </div>
+  <div class="card" style="margin-bottom:10px;font-size:15px;line-height:1.45">
+    <b>Inativas (um Excel só, com todas as localidades)</b><br>
+    Gerenciais › Cadastro › <b>Consulta Avançada de Matrículas</b>, Situação da Água: <b>Inativa</b> e <b>Cortada não revisada</b>. Colunas:
+    <ol style="margin:6px 0 6px 18px;padding:0;columns:2;column-gap:18px">${INAT_COLUNAS.map(c => `<li>${c}</li>`).join("")}</ol>
+    Envie no último botão, "Excel Inativas".
   </div>
   <div class="nota">Cada Excel é a lista completa daquela equipe: a SS que não vier nele sai do painel. Confira o último envio de cada unidade antes de mandar de novo.</div>
   <div id="sci_status">Carregando...</div>` });
@@ -3291,25 +3299,54 @@ async function carregarImportarSCI() {
       <button class="acao" onclick="document.getElementById('sci_arq_${i}').click()">Enviar Excel de ${g}</button>
       <input type="file" id="sci_arq_${i}" accept=".xls,.xlsx,.htm,.html" style="display:none" onchange="enviarExcelSCI(${i}, this)">
     </div>`;
-  }).join("");
+  }).join("") + (() => { const s = porG["Inativas"], p = proc["Inativas"];
+    return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : "#2e7d32"}">
+      <div style="font-size:18px;font-weight:bold">Excel Inativas (todas as localidades)</div>
+      <div style="font-size:13px;color:#555">Vai para: botão "Inativas" dos agentes, cada equipe vê as suas</div>
+      <div style="font-size:15px;margin:6px 0">${p ? `⏳ Recebido de <b>${sspEsc(sspNome(p.por))}</b> às ${formatarQuando(p.enviado)}. Atualizando (até 1 minuto)…` : s ? `Último envio: <b>${formatarQuando(s.enviado)}</b> por <b>${sspEsc(sspNome(s.por))}</b><br><span style="font-size:13px;color:#555">${sspEsc(s.res)}</span>` : "Ainda não enviado."}</div>
+      <button class="acao" onclick="document.getElementById('sci_arq_inat').click()">Enviar Excel de Inativas</button>
+      <input type="file" id="sci_arq_inat" accept=".xls,.xlsx,.htm,.html" style="display:none" onchange="enviarExcelInativas(this)">
+    </div>`; })();
   clearTimeout(window.sciTimer);
   if (Object.keys(proc).length) window.sciTimer = setTimeout(() => { if (document.getElementById("sci_status")) carregarImportarSCI(); }, 15000);
 }
 // Lê o Excel do SCI (é uma página HTML com a tabela) e devolve { linhas, faltam, dataFiltro, locs }
-function lerExcelSCI(texto) {
+function lerExcelSCI(texto, cols = SCI_COLUNAS, obrig = SCI_OBRIGATORIAS, chaveCol = 0) {
   const doc = new DOMParser().parseFromString(texto, "text/html");
   const tabs = [...doc.querySelectorAll("table")]; if (!tabs.length) return null;
   const tab = doc.getElementById("form-grid-grid") || [...tabs].sort((a, b) => b.rows.length - a.rows.length)[0];
   const ths = [...tab.querySelectorAll("thead th")].map(t => t.textContent.replace(/\s+/g, " ").trim());
   const idx = n => ths.findIndex(t => normalizarNome(t) === normalizarNome(n));
-  const faltam = SCI_OBRIGATORIAS.filter(n => idx(n) < 0);
+  const faltam = obrig.filter(n => idx(n) < 0);
   const linhas = [...tab.querySelectorAll("tbody tr")].map(tr => { const tds = [...tr.children];
-    return SCI_COLUNAS.map(n => { const k = idx(n); return k >= 0 && tds[k] ? tds[k].textContent.replace(/\s+/g, " ").trim() : ""; }); })
-    .filter(l => /^\d{6,}$/.test(l[0]));
+    return cols.map(n => { const k = idx(n); return k >= 0 && tds[k] ? tds[k].textContent.replace(/\s+/g, " ").trim() : ""; }); })
+    .filter(l => /^\d{6,}$/.test(l[chaveCol]));
   const filtro = tabs[0] !== tab ? [...tabs[0].querySelectorAll("td")].map(t => t.textContent.trim()) : [];
   const kd = filtro.indexOf("data");
   const locs = {}; linhas.forEach(l => { const n = normalizarNome(l[5].replace(/^\d+\s*-\s*/, "")); locs[n] = (locs[n] || 0) + 1; });
   return { linhas, faltam, dataFiltro: kd >= 0 ? filtro[kd + 1] || "" : "", locs };
+}
+async function enviarExcelInativas(inp) {
+  const arq = inp.files && inp.files[0]; inp.value = ""; if (!arq) return;
+  let texto = ""; try { texto = await arq.text(); } catch (e) {}
+  const x = /<table/i.test(texto) ? lerExcelSCI(texto, INAT_COLUNAS, INAT_OBRIGATORIAS, 2) : null;
+  if (!x) { alert("Esse arquivo não é o Excel do SCI. Envie o arquivo exatamente como o SCI baixou (Consulta Avançada de Matrículas › Exportar para Excel)."); return; }
+  if (x.faltam.length) { alert("Faltam colunas no Excel: " + x.faltam.join(", ") + ".\n\nNo SCI, marque as colunas da lista desta tela e exporte de novo."); return; }
+  if (!x.linhas.length) { alert("O Excel veio sem nenhuma matrícula."); return; }
+  await sciEnviarLinhas("Inativas", x.linhas, x.linhas.length + " matrículas inativas");
+}
+async function sciEnviarLinhas(g, linhas, rotulo) {
+  const partes = []; let atual = [], tam = 2;
+  linhas.forEach(l => { const t = JSON.stringify(l).length + 1; if (atual.length && tam + t > 30000) { partes.push(atual); atual = []; tam = 2; } atual.push(l); tam += t; });
+  partes.push(atual);
+  const enviado = new Date().toISOString(), lote = enviado + "-" + Math.random().toString(36).slice(2, 6);
+  const box = document.getElementById("sci_status"); if (box) box.insertAdjacentHTML("afterbegin", `<div class="nota">Enviando ${rotulo}…</div>`);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ImportSCI",
+      linhas: partes.map((p, k) => [lote, g, window.credenciais.usuario, enviado, k + 1, partes.length, JSON.stringify(p), "", ""]) });
+    if (res.erro) alert(res.erro); else alert("Recebido: " + rotulo + ". O painel atualiza em até 1 minuto.");
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); }
+  carregarImportarSCI();
 }
 async function enviarExcelSCI(i, inp) {
   const g = SCI_GRUPOS_BOTAO[i], arq = inp.files && inp.files[0]; inp.value = "";
@@ -3336,6 +3373,154 @@ async function enviarExcelSCI(i, inp) {
     alert("Excel de " + g + " recebido: " + x.linhas.length + " SS. O painel atualiza em até 1 minuto.");
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); }
   carregarImportarSCI();
+}
+// ===== INATIVAS: matrículas Inativas / Cortadas não revisadas (Consulta Avançada de Matrículas do SCI) =====
+// Agente: vê as da equipe dele, pede religação (já ligada em campo) ou 2ª via. Digitadores respondem em "SS pendentes".
+// Aba PedidoInativa: data_hora | usuario | matricula | tipo (religacao/2via) | grupo | nome | endereco | leitura | obs | fotos | situacao | ref | pdf
+const INAT_COLUNAS = ["Localidade", "Setor Faturamento", "Matricula", "Nome", "Categoria 1", "Sit.Água", "Bairro", "Logradouro", "Número do hidrômetro", "Quantidade de meses em débito", "Valor do débito histórico", "Data do último corte"];
+const INAT_OBRIGATORIAS = ["Localidade", "Matricula", "Nome", "Sit.Água", "Bairro", "Logradouro"];
+const inatId = l => String(l[0]) + "|" + l[1] + "|" + sspLimpo(l[2]) + "|" + l[3];
+function inatPedidos(dados) {
+  const linhas = (dados || []).slice(1), feitos = {};
+  linhas.filter(l => l[10] === "feito").forEach(l => { feitos[String(l[11])] = { por: l[1], em: l[0], pdf: String(l[12] || "") }; });
+  return linhas.filter(l => l[10] === "pendente").map(l => ({ id: inatId(l), quando: l[0], quem: l[1], mat: sspLimpo(l[2]), tipo: l[3], grupo: l[4], nome: l[5], end: l[6],
+    leitura: l[7], obs: l[8], fotos: String(l[9] || "").split(/\s+/).filter(u => /^https?:/.test(u)), feito: feitos[inatId(l)] || null }));
+}
+function inativasNoMenu(itens) {
+  const ger = window.MODO_GERENTE && !emPrevia();
+  if ((!ger && !grupoSCIDoUsuario()) || itens.some(i => i.tela === "inativas")) return itens;
+  let k = itens.findIndex(i => i.tela === "ssDigiteam" || i.tela === "ssPendAng");
+  const it = { nome: "Inativas" + (window.inatData ? " (atualizada em " + window.inatData + ")" : ""), tela: "inativas", grande: !ger };
+  itens.splice(k >= 0 ? k + 1 : Math.min(1, itens.length), 0, it);
+  return itens;
+}
+async function atualizarDataInativas(cred) {
+  try {
+    const st = await chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" });
+    const l = (st.dados || []).slice(1).find(x => x[0] === "Inativas");
+    window.inatData = l ? formatarQuando(l[1]).replace(/\/\d{4},?/, "") : "";
+    document.querySelectorAll("#app button.btn").forEach(b => { if (/^Inativas/.test(b.textContent)) b.textContent = "Inativas" + (window.inatData ? " (atualizada em " + window.inatData + ")" : ""); });
+  } catch (e) {}
+}
+Object.assign(TELAS, { inativas: () => `<h2>Inativas</h2>
+  <div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Verifique quais matrículas estão ligadas em campo e clique no botão para que seja religada no SCI.</div>
+  <div id="inat_lista">Carregando...</div>` });
+async function carregarInativas() {
+  const box = document.getElementById("inat_lista"); if (!box) return;
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  let ina, ped, st;
+  try {
+    [ina, ped, st] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "Inativas" }), chamarApi({ acao: "listar", ...cred, aba: "PedidoInativa" }), chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }).catch(() => ({ dados: [] }))]);
+    if (ina.erro || ped.erro) { box.textContent = ina.erro || ped.erro; return; }
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
+  const ger = window.MODO_GERENTE && !emPrevia(), meuG = grupoSCIDoUsuario();
+  const pedidos = inatPedidos(ped.dados), eu = normalizarNome(window.credenciais.usuario);
+  const religadas = new Set(pedidos.filter(p => p.tipo === "religacao").map(p => p.mat));
+  let lista = (ina.dados || []).slice(1).map(l => ({ mat: sspLimpo(l[0]), loc: l[1], setor: l[2], nome: l[3], cat: l[4], sit: l[5], bairro: l[6], end: l[7], hid: l[8], meses: l[9], valor: l[10], corte: l[11], grupo: l[12] }))
+    .filter(x => x.mat && !religadas.has(x.mat) && (ger || x.grupo === meuG));
+  window.inatCache = {}; lista.forEach(x => { window.inatCache[x.mat] = x; });
+  const stL = (st.dados || []).slice(1).find(x => x[0] === "Inativas");
+  const topo = `<div class="nota">${stL ? "Lista atualizada em <b>" + formatarQuando(stL[1]) + "</b>." : "Lista ainda não enviada pelo escritório."} ${lista.length} matrícula(s)${ger ? "" : " da sua equipe"}.</div>`;
+  // meus pedidos (2ª via com PDF e religações)
+  const meus = pedidos.filter(p => normalizarNome(p.quem) === eu).sort((a, b) => String(b.quando).localeCompare(String(a.quando))).slice(0, 15);
+  const meusHTML = meus.length ? `<details class="card" style="margin-bottom:10px" ${meus.some(p => p.tipo === "2via" && p.feito && p.feito.pdf) ? "open" : ""}><summary style="font-weight:bold;font-size:16px">Meus pedidos (${meus.length})</summary>${meus.map(p => `<div style="margin-top:8px;font-size:15px;border-top:1px solid #eee;padding-top:6px">
+      <b>${p.tipo === "2via" ? "📄 2ª via" : "🔌 Religação"}</b> · matrícula ${sspEsc(p.mat)} · ${sspEsc(p.nome)}<br>
+      ${p.feito ? (p.tipo === "2via" ? (p.feito.pdf ? `✅ <a href="${sspEsc(p.feito.pdf)}" target="_blank"><b>Abrir PDF da 2ª via</b></a>` : "✅ Respondido") : "✅ Religada no SCI") + ` <span style="font-size:13px;color:#555">(${formatarQuando(p.feito.em)})</span>` : "⏳ Aguardando o escritório"}</div>`).join("")}</details>` : "";
+  // filtros: busca e bairro
+  window.inatBusca = window.inatBusca || "";
+  const busca = normalizarNome(window.inatBusca);
+  const contB = {}; lista.forEach(x => { const b = (ger ? x.grupo + " – " : "") + (x.bairro || "Sem bairro"); contB[b] = (contB[b] || 0) + 1; });
+  const bSel = contB[window.inatBairro] ? window.inatBairro : "";
+  const bb = (rot, val) => `<button onclick="window.inatBairro='${val}';carregarInativas()" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid #2e7d32;background:${bSel === val ? "#2e7d32" : "#fff"};color:${bSel === val ? "#fff" : "#2e7d32"}">${rot}</button>`;
+  const barraB = `<div class="nota"><b>Bairro:</b></div><div style="margin-bottom:8px">${bb("Todos (" + lista.length + ")", "")}${Object.entries(contB).sort((a, b) => b[1] - a[1]).map(([b, q]) => bb(sspEsc(b) + " (" + q + ")", b.replace(/'/g, ""))).join("")}</div>`;
+  let vis = lista;
+  if (bSel) vis = vis.filter(x => (ger ? x.grupo + " – " : "") + (x.bairro || "Sem bairro") === bSel);
+  if (busca) vis = vis.filter(x => normalizarNome([x.mat, x.nome, x.end, x.hid].join(" ")).includes(busca));
+  vis.sort((a, b) => String(a.end).localeCompare(String(b.end)));
+  const MAX = 80, cortado = vis.length > MAX;
+  box.innerHTML = topo + meusHTML +
+    `<input class="campo" placeholder="Buscar por matrícula, nome, rua ou hidrômetro" value="${sspEsc(window.inatBusca)}" onchange="window.inatBusca=this.value;carregarInativas()">` + barraB +
+    (cortado ? `<div class="nota">Mostrando ${MAX} de ${vis.length}. Escolha o bairro ou busque para ver as outras.</div>` : "") +
+    (vis.length ? vis.slice(0, MAX).map(x => { const m = sspEsc(x.mat); return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${/cort/i.test(x.sit) ? "#ef6c00" : "#757575"}">
+      <div style="font-size:17px;font-weight:bold">👤 ${sspEsc(x.nome)}</div>
+      <div style="font-size:15px">📍 ${sspEsc([x.end, x.bairro].filter(Boolean).join(" – "))}${ger || x.loc !== x.grupo ? " · " + sspEsc(x.loc) : ""}</div>
+      <div style="font-size:14px">Matrícula <b>${m}</b>${x.hid ? " · 🔢 HD <b>" + sspEsc(x.hid) + "</b>" : ""} · ${sspEsc(x.sit)}</div>
+      <div style="font-size:13px;color:#555">${x.meses && x.meses !== "0" ? "Débito: " + sspEsc(x.meses) + " mês(es) · " + sspEsc(x.valor) : "Sem débito"}${x.corte ? " · último corte " + sspEsc(x.corte) : ""}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        <button class="acao" style="flex:1 1 45%;margin:0;background:#2e7d32" onclick="document.getElementById('inatf_${m}').style.display='block'">✅ Está ligada – pedir religação</button>
+        <button class="acao" style="flex:1 1 45%;margin:0;background:#0b5394" onclick="pedirInativa('${m}', '2via', this)">📄 Solicitar 2ª via</button>
+      </div>
+      <div id="inatf_${m}" style="display:none;margin-top:8px;background:#f1f8e9;border-radius:8px;padding:8px">
+        <input id="inatl_${m}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (obrigatória)">
+        <textarea id="inato_${m}" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
+        <div style="font-size:14px">Foto (opcional): <input type="file" id="inatp_${m}" accept="image/*" capture="environment"></div>
+        <button class="acao" style="background:#2e7d32" onclick="pedirInativa('${m}', 'religacao', this)">Enviar pedido de religação</button>
+      </div></div>`; }).join("") : "<p>Nenhuma matrícula nesta lista.</p>");
+}
+async function pedirInativa(mat, tipo, btn) {
+  const x = (window.inatCache || {})[mat]; if (!x || (btn && btn.disabled)) return;
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  let leitura = "", obs = "", fotos = "";
+  if (tipo === "religacao") {
+    leitura = String((document.getElementById("inatl_" + mat) || {}).value || "").trim();
+    obs = String((document.getElementById("inato_" + mat) || {}).value || "").trim();
+    if (!leitura) { alert("Informe a leitura do hidrômetro."); return; }
+  } else if (!confirm("Pedir a 2ª via da matrícula " + mat + " (" + x.nome + ")? O escritório manda o PDF aqui e você recebe um aviso.")) return;
+  sspTravar(btn);
+  try {
+    const arq = tipo === "religacao" ? ((document.getElementById("inatp_" + mat) || {}).files || [])[0] : null;
+    if (arq) {
+      const pos = await obterPosicao();
+      const r = await chamarApi({ acao: "salvarFoto", ...cred, base64: await carimbarFoto(arq, pos), tipo: "image/jpeg", nome: arq.name });
+      if (r.erro) { alert("Não consegui enviar a foto: " + r.erro); sspDestravar(btn); return; }
+      fotos = r.url;
+    }
+    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "PedidoInativa",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + mat, tipo, x.grupo, x.nome, [x.end, x.bairro].filter(Boolean).join(" – "), leitura, obs, fotos, "pendente", "", ""]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    alert(tipo === "2via" ? "2ª via pedida. Você recebe um aviso quando o PDF chegar (em \"Meus pedidos\", no alto desta tela)." : "Pedido de religação enviado ao escritório.");
+    carregarInativas();
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
+// ---- Digitadores: pedidos de religação e 2ª via dentro de "SS pendentes" da equipe ----
+const SSP_CHAVE_GRUPO = { sd: "São Desidério", cat: "Catolândia", bai: "Baianópolis", ang: "Angico" };
+const inatPendentesDaChave = (pedidos, chave) => pedidos.filter(p => !p.feito && p.grupo === SSP_CHAVE_GRUPO[chave]);
+function inatPedidosHTML(lista) {
+  if (!lista.length) return "";
+  window.inatPedCache = {}; lista.forEach((p, i) => { window.inatPedCache[i] = p; });
+  return `<div style="background:#2e7d32;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Inativas – religação e 2ª via (${lista.length})</div>` +
+    lista.map((p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">
+      <div style="font-size:18px;font-weight:bold;color:${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">${p.tipo === "2via" ? "📄 2ª via para entregar ao cliente" : "🔌 Religação feita em campo – abrir e encerrar no SCI"}</div>
+      <div style="font-size:16px;font-weight:600">Matrícula ${sspEsc(p.mat)} · ${sspEsc(p.nome)}</div>
+      <div style="font-size:14px">📍 ${sspEsc(p.end)}</div>
+      ${p.tipo === "religacao" ? `<div style="font-size:15px">Leitura: <b>${sspEsc(p.leitura)}</b>${p.obs ? "<br>Obs.: " + sspEsc(p.obs) : ""}</div>` : ""}
+      ${p.fotos.length ? `<div style="font-size:14px">Fotos: ${p.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : ""}
+      <span style="font-size:13px;color:#555">Pedido por ${sspEsc(sspNome(p.quem))} em ${formatarQuando(p.quando)}</span>
+      ${p.tipo === "2via" ? `<div style="margin-top:6px"><input type="file" id="inatpdf_${i}" accept="application/pdf,.pdf"></div><button class="acao" style="background:#0b5394" onclick="responderInativa(${i}, this)">Anexar PDF da 2ª via</button>`
+        : `<button class="acao" style="background:#2e7d32" onclick="responderInativa(${i}, this)">Religada no SCI</button>`}
+    </div>`).join("");
+}
+async function responderInativa(i, btn) {
+  const p = (window.inatPedCache || {})[i]; if (!p || (btn && btn.disabled)) return;
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  let pdf = "";
+  if (p.tipo === "2via") {
+    const arq = ((document.getElementById("inatpdf_" + i) || {}).files || [])[0];
+    if (!arq) { alert("Escolha o PDF da 2ª via."); return; }
+    sspTravar(btn, "Enviando o PDF...");
+    try {
+      const b64 = await new Promise((ok, erro) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.onerror = erro; fr.readAsDataURL(arq); });
+      const r = await chamarApi({ acao: "salvarFoto", ...cred, base64: b64, tipo: "application/pdf", nome: "2via_" + p.mat + ".pdf" });
+      if (r.erro) { alert("Não consegui enviar o PDF: " + r.erro); sspDestravar(btn); return; }
+      pdf = r.url;
+    } catch (e) { alert("Não consegui enviar o PDF. Verifique a internet."); sspDestravar(btn); return; }
+  } else sspTravar(btn);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "PedidoInativa",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + p.mat, p.tipo, p.grupo, p.nome, "", "", "", "", "feito", p.id, pdf]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); sspDestravar(btn); }
 }
 // SS já pedidas ao Digiteam e ainda não mandadas (aba AcaoSS): somem da lista para os outros não pedirem de novo
 function ssJaPedidasDigiteam(dados) {
@@ -4794,9 +4979,11 @@ async function sspContagens() {
   try {
     const d = await sspDados();
     // No menu: campo vê só o que falta executar; digitador vê só o que falta digitar
-    const oc = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador) ? await listarOcorrencias().catch(() => []) : [];
+    const dig = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador);
+    const oc = dig ? await listarOcorrencias().catch(() => []) : [];
+    const pis = dig ? await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoInativa" }).then(r => inatPedidos(r.dados)).catch(() => []) : [];
     Object.keys(SSP_LOCAIS).forEach(k => { const p = sspPapel(k); const l = p.ve ? sspMontar(d, k) : [];
-      out[SSP_CONTA[k]] = l.filter(p.digitador ? sspFaltaDigitador : sspFaltaCampo).length + (p.digitador ? sspOcorrencias(oc, k).length : 0); });
+      out[SSP_CONTA[k]] = l.filter(p.digitador ? sspFaltaDigitador : sspFaltaCampo).length + (p.digitador ? sspOcorrencias(oc, k).length + inatPendentesDaChave(pis, k).length : 0); });
   } catch (e) {}
   return out;
 }
@@ -4818,8 +5005,9 @@ async function carregarSSPend(chave) {
   box.textContent = "Carregando...";
   try {
     const p0 = sspPapel(chave);
-    const [d, base, ocs] = await Promise.all([sspDados(), carregarBaseLocalizacao(), p0.digitador ? listarOcorrencias().catch(() => []) : Promise.resolve([])]);
-    const ocHTML = p0.digitador ? sspOcorrenciasHTML(sspOcorrencias(ocs, chave)) : "";
+    const [d, base, ocs, pis] = await Promise.all([sspDados(), carregarBaseLocalizacao(), p0.digitador ? listarOcorrencias().catch(() => []) : Promise.resolve([]),
+      p0.digitador ? chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoInativa" }).then(r => inatPedidos(r.dados)).catch(() => []) : Promise.resolve([])]);
+    const ocHTML = p0.digitador ? sspOcorrenciasHTML(sspOcorrencias(ocs, chave)) + inatPedidosHTML(inatPendentesDaChave(pis, chave)) : "";
     const lista = sspMontar(d, chave);
     lista.forEach(it => {
       const g = (String(it.gpsCol || "").match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || String((it.campos.find(c => /Logradouro/.test(c[0])) || [])[1] || "").match(/GPS:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || []);
@@ -6521,7 +6709,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 13h45";
+const VERSAO_PAINEL = "05/11 16h16";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
