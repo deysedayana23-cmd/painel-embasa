@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 08h18</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 10h26</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -1663,7 +1663,7 @@ function mostrarMenu(itens, titulo) {
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
-  if (!pilha.length) itens = menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))));
+  if (!pilha.length) itens = pedidosDigiNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens)))));
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -1752,8 +1752,8 @@ async function atualizarContagemSS() {
     contarAgersa(),
     contar("SSAbertas", l => l[0] && ehCorteSS(l[1]) && !/encerrad|cancelad|conclu|saiu/i.test(l[5] || "") && locsCorte.includes(normalizarNome(l[2])))
   ]);
-  const [pendEx, digi, ssp] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens()]);
-  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi }, ssp);
+  const [pendEx, digi, ssp, pedidosDigi] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens(), contarPedidosDigi(cred)]);
+  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi, pedidosDigi }, ssp);
   window.contagemSSCarregando = false;
   const lq = document.getElementById("lembreteSCIq"); if (lq) lq.textContent = window.contagemSS.ssDigiteam;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
@@ -1791,6 +1791,7 @@ function abrir(i) {
     if (it.tela === "horaExtraGerente") carregarHoraExtraRelatorio();
     if (it.tela === "meusAcessos") carregarMeusAcessos();
     if (it.tela === "pedidosSS") { carregarPedidosSS(); carregarPedidosDigiteam(); }
+    if (it.tela === "pedidosDigi") carregarPedidosDigi();
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
@@ -3165,6 +3166,69 @@ function telaSSLista(titulo) {
     <button class="acao" onclick="enviarSSLista()">${ger ? "Enviar as marcadas" : "Pedir no meu Digiteam"}</button>
     <div id="sl_lista">Carregando...</div>`;
 }
+// ===== PEDIDOS AO DIGITEAM (agrupados por pedido: quem pediu + hora do pedido) =====
+// Aba AcaoSS: data_hora | usuario | ss | tipo | localidade | data_para_digiteam | acao | situacao ("pendente" / "feito" com acao "feito:<id do grupo>")
+function lerPedidosDigiteam(acsDados, saDados) {
+  const linhas = (acsDados || []).slice(1);
+  const sa = {}; (saDados || []).slice(1).forEach(l => { sa[String(l[0]).replace(/^'/, "").trim()] = { bairro: String(l[9] || "").replace(/^\d+\s*-\s*/, "").trim(), abertura: String(l[3] || "") }; });
+  const feitos = {}; linhas.filter(l => l[7] === "feito").forEach(l => { feitos[String(l[6]).replace(/^feito:/, "")] = { por: l[1], em: l[0] }; });
+  const lotes = {};
+  linhas.filter(l => l[7] === "pendente" && /Digiteam/i.test(String(l[6])) && !/Não mandar/i.test(String(l[6]))).forEach(l => {
+    const tipo = String(l[3] || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
+    const grupo = String(l[0]) + "|" + l[1] + "|" + tipo + "|" + l[4], chave = String(l[0]) + "|" + l[1];
+    const p = lotes[chave] = lotes[chave] || { chave, quando: l[0], quem: l[1], data: l[5] || "", ss: [], tipos: new Set(), locs: new Set(), bairros: {}, grupos: new Set(), desde: "", feitoPor: "", feitoEm: "" };
+    const ss = String(l[2]).replace(/^'/, "").trim(); p.ss.push(ss); p.tipos.add(tipo); p.locs.add(String(l[4]).trim()); p.grupos.add(grupo);
+    const inf = sa[ss] || {}; if (inf.bairro) p.bairros[inf.bairro] = (p.bairros[inf.bairro] || 0) + 1;
+    const d = dataSS(inf.abertura); if (d && (!p.desdeD || d < p.desdeD)) { p.desdeD = d; p.desde = d.toLocaleDateString("pt-BR"); }
+  });
+  return Object.values(lotes).map(p => { const f = [...p.grupos].map(g => feitos[g]).filter(Boolean); p.feito = f.length === p.grupos.size; if (f.length) { p.feitoPor = f[0].por; p.feitoEm = f[0].em; } return p; })
+    .sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+}
+Object.assign(TELAS, { pedidosDigi: () => `<h2>Pedidos ao Digiteam</h2><div class="nota">Pedidos dos agentes para receber SS no Digiteam. O Claude despacha de hora em hora (horário comercial) e marca aqui. Se despachar na mão, toque em "Marcar como despachado" que o agente é avisado.</div><div id="pdg_lista">Carregando...</div>` });
+Object.assign(CONTAGEM_SS_TELAS, { pedidosDigi: "pedidosDigi" });
+function ehDigitadorPainel() { return (window.MODO_GERENTE && !emPrevia()) || SSP_DIGITADORES.some(n => identidadeAtual().includes(n)); }
+function pedidosDigiNoMenu(itens) {
+  if (!ehDigitadorPainel() || itens.some(i => i.tela === "pedidosDigi")) return itens;
+  itens.unshift({ nome: "Pedidos ao Digiteam", tela: "pedidosDigi", prioridade: true }); // primeiro botão do digitador
+  return itens;
+}
+async function contarPedidosDigi(cred) {
+  if (!ehDigitadorPainel()) return 0;
+  try { const ac = await chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }); return lerPedidosDigiteam(ac.dados, []).filter(p => !p.feito).length; } catch (e) { return 0; }
+}
+async function carregarPedidosDigi() {
+  const box = document.getElementById("pdg_lista"); if (!box) return;
+  try {
+    const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+    const [ac, sa] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }), chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] }))]);
+    const todos = lerPedidosDigiteam(ac.dados, sa.dados); window.pdgLotes = todos;
+    const pend = todos.filter(p => !p.feito), feitos = todos.filter(p => p.feito).slice(0, 15);
+    const card = (p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.feito ? "#2e7d32" : "#6a1b9a"}">
+      <div style="font-size:18px;font-weight:bold">${sspEsc(sspNome(p.quem))} pediu ${p.ss.length} SS</div>
+      <div style="font-size:15px;margin-top:4px">📅 Para: <b>${sspEsc(p.data || "hoje")}</b> · pedido em ${formatarQuando(p.quando)}</div>
+      <div style="font-size:15px">📍 ${sspEsc([...p.locs].join(", "))}${Object.keys(p.bairros).length ? " – " + sspEsc(Object.entries(p.bairros).map(([b, q]) => b + " (" + q + ")").join(", ")) : ""}</div>
+      <div style="font-size:15px">🔧 ${sspEsc([...p.tipos].join(", "))}${p.desde ? " · SS mais antiga: " + sspEsc(p.desde) : ""}</div>
+      <details style="margin-top:4px"><summary>Números das SS</summary><div style="font-size:13px">${p.ss.map(sspEsc).join(", ")}</div></details>
+      ${p.feito ? `<div style="color:#2e7d32;font-weight:600;margin-top:4px">✅ Despachado por ${sspEsc(sspNome(p.feitoPor))} em ${formatarQuando(p.feitoEm)}</div>`
+        : `<button class="acao" style="background:#6a1b9a" onclick="marcarPedidoDigiFeito(${i}, this)">Marcar como despachado</button>`}
+    </div>`;
+    box.innerHTML = `<div style="background:#6a1b9a;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Aguardando despacho (${pend.length})</div>` +
+      (pend.length ? pend.map(p => card(p, todos.indexOf(p))).join("") : "<p>Nenhum pedido aguardando.</p>") +
+      `<h3>Despachados recentemente</h3>` + (feitos.length ? feitos.map(p => card(p, todos.indexOf(p))).join("") : "<p>Nenhum.</p>");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function marcarPedidoDigiFeito(i, btn) {
+  const p = (window.pdgLotes || [])[i]; if (!p || (btn && btn.disabled)) return;
+  if (!confirm("Confirmar que as " + p.ss.length + " SS de " + sspNome(p.quem) + " foram despachadas no Digiteam?")) return;
+  sspTravar(btn);
+  try {
+    const agora = new Date().toISOString();
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS",
+      linhas: [...p.grupos].map(g => [agora, window.credenciais.usuario, "", g.split("|")[2], g.split("|")[3], "", "feito:" + g, "feito"]) });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    carregarPedidosDigi();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); sspDestravar(btn); }
+}
 // SS já pedidas ao Digiteam e ainda não mandadas (aba AcaoSS): somem da lista para os outros não pedirem de novo
 function ssJaPedidasDigiteam(dados) {
   const linhas = (dados || []).slice(1);
@@ -3228,12 +3292,21 @@ async function carregarSSLista(filtro) {
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
     lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
     const fmt = d => d ? d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
+    // Localidade primeiro (só as localidades do agente)
+    const contL = {}; lista.forEach(x => { const l = String(x.loc).trim(); contL[l] = (contL[l] || 0) + 1; });
+    const locSel = contL[window.slLoc] ? window.slLoc : "";
+    const bl = (rot, val) => `<button onclick="window.slLoc='${val}';window.slTipo='';window.slBairro='';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:9px 11px;border-radius:8px;font-weight:700;border:2px solid #6a1b9a;background:${locSel === val ? "#6a1b9a" : "#fff"};color:${locSel === val ? "#fff" : "#6a1b9a"}">${rot}</button>`;
+    const barraL = Object.keys(contL).length > 1 ? `<div class="nota"><b>Localidade:</b></div><div style="margin-bottom:6px">${bl("Todas (" + lista.length + ")", "")}${Object.entries(contL).sort((a, b) => b[1] - a[1]).map(([l, q]) => bl(sspEsc(l) + " (" + q + ")", l.replace(/'/g, ""))).join("")}</div>` : "";
+    if (locSel) lista = lista.filter(x => String(x.loc).trim() === locSel);
+    // Situação dos pedidos do próprio agente
+    const meus = (window.MODO_GERENTE && !emPrevia()) ? [] : lerPedidosDigiteam(acs.dados, res.dados).filter(p => normalizarNome(p.quem) === normalizarNome(window.credenciais.usuario)).slice(0, 5);
+    const meusHTML = meus.length ? `<div class="card" style="margin-bottom:10px"><b>Seus pedidos ao Digiteam</b>${meus.map(p => `<div style="margin-top:6px;font-size:14px">${p.feito ? "✅ <b>Despachado</b>" : "⏳ <b>Aguardando despacho</b>"} · ${p.ss.length} SS · ${sspEsc([...p.tipos].join(", "))} · para ${sspEsc(p.data || "hoje")}</div>`).join("")}</div>` : "";
     // Botões por tipo de serviço, com a quantidade em aberto; ao escolher um tipo, todas daquele tipo já vêm marcadas
     const nomeT = t => String(t || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
     const contT = {}; lista.forEach(x => { const t = nomeT(x.tipo); contT[t] = (contT[t] || 0) + 1; });
     const tipoSel = window.slTipo || "";
     const bt = (rot, val) => `<button onclick="window.slTipo='${val}';window.slBairro='';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid #0b5394;background:${tipoSel === val ? "#0b5394" : "#fff"};color:${tipoSel === val ? "#fff" : "#0b5394"}">${rot}</button>`;
-    const barraT = lista.length ? `<div style="margin-bottom:8px">${bt("Todas (" + lista.length + ")", "")}${Object.entries(contT).sort((a, b) => b[1] - a[1]).map(([t, q]) => bt(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}</div>` : "";
+    const barraT = lista.length ? `<div class="nota"><b>Tipo de serviço:</b></div><div style="margin-bottom:8px">${bt("Todas (" + lista.length + ")", "")}${Object.entries(contT).sort((a, b) => b[1] - a[1]).map(([t, q]) => bt(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}</div>` : "";
     if (tipoSel) lista = lista.filter(x => nomeT(x.tipo) === tipoSel);
     // Escolhido o tipo, botões por bairro (para não mandar tudo de uma vez)
     const contB = {}; if (tipoSel) lista.forEach(x => { const b = x.bairro || "Sem bairro"; contB[b] = (contB[b] || 0) + 1; });
@@ -3243,7 +3316,7 @@ async function carregarSSLista(filtro) {
     if (bairroSel) lista = lista.filter(x => (x.bairro || "Sem bairro") === bairroSel);
     const avisoCorte = tipoSel && /CORTE/.test(tipoSel) ? AVISO_CORTE : "";
     const marcarTodas = tipoSel ? `<label style="display:block;margin:6px 0;font-weight:600"><input type="checkbox" checked onchange="document.querySelectorAll('.sl_sel').forEach(c => c.checked = this.checked)"> Marcar todas as ${lista.length} de ${tipoSel}${bairroSel ? " – " + sspEsc(bairroSel) : ""}</label>` : "";
-    box.innerHTML = barraT + barraB + avisoCorte + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
+    box.innerHTML = meusHTML + barraL + barraT + barraB + avisoCorte + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
         <label><input type="checkbox" class="sl_sel" ${tipoSel ? "checked" : ""} value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
         ${/SUBSTITUI A SS/i.test(x.nome) ? `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ ${String(x.nome).match(/SUBSTITUI A SS[^|]*/i)[0]} – o prazo da antiga foi perdido. Esta nova NÃO PODE perder o prazo.</div>` : ""}
         ${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt), true)}
@@ -6293,7 +6366,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 08h18";
+const VERSAO_PAINEL = "05/11 10h26";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
