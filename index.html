@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h52</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 08h18</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -3160,7 +3160,8 @@ function telaSSLista(titulo) {
   const ger = window.MODO_GERENTE && !emPrevia();
   return `<h2>${titulo}</h2>
     ${ger ? `<select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option><option>Só gerar</option></select>`
-      : `<input type="hidden" id="sl_acao" value="Mandar no Digiteam"><div class="nota"><b>Como pedir:</b> escolha o tipo de serviço e o bairro, confira as SS marcadas e toque em <b>Pedir no meu Digiteam</b>. As SS vão para o seu Digiteam em até 1 hora (horário comercial). SS já pedida por um colega não aparece aqui.</div>`}
+      : `<input type="hidden" id="sl_acao" value="Mandar no Digiteam"><div class="nota"><b>Como pedir:</b> escolha o tipo de serviço e o bairro, confira as SS marcadas e toque em <b>Pedir no meu Digiteam</b>. As SS vão para o seu Digiteam em até 1 hora (horário comercial). SS já pedida por um colega não aparece aqui.</div>
+        <label style="display:block;font-weight:600;margin-top:6px">Data para o Digiteam <input type="date" id="sl_data" class="campo" value="${hojeISO()}"></label>`}
     <button class="acao" onclick="enviarSSLista()">${ger ? "Enviar as marcadas" : "Pedir no meu Digiteam"}</button>
     <div id="sl_lista">Carregando...</div>`;
 }
@@ -3256,7 +3257,9 @@ async function enviarSSLista() {
   if (!marcadas.length) { alert("Marque pelo menos uma SS."); return; }
   const acao = document.getElementById("sl_acao").value;
   const lote = new Date().toISOString();
-  const linhas = marcadas.map(c => [lote, window.credenciais.usuario, c.value, c.dataset.tipo, c.dataset.loc, "", acao, "pendente"]);
+  const dataDigi = (document.getElementById("sl_data") || {}).value || ""; // data do planejamento no Digiteam (coluna "vencimento")
+  if (acao === "Mandar no Digiteam" && document.getElementById("sl_data") && !dataDigi) { alert("Escolha a data para o Digiteam."); return; }
+  const linhas = marcadas.map(c => [lote, window.credenciais.usuario, c.value, c.dataset.tipo, c.dataset.loc, dataDigi ? dataDigi.split("-").reverse().join("/") : "", acao, "pendente"]);
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS", linhas: linhas });
     if (res.erro) { alert(res.erro); return; }
@@ -6290,7 +6293,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 07h52";
+const VERSAO_PAINEL = "05/11 08h18";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
