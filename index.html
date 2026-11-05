@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h46</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h52</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -1707,17 +1707,19 @@ async function contarPendExecutar(cred) {
 }
 async function contarSSDigiteam(cred) {
   try {
-    const [res, ex, encV] = await Promise.all([
+    const [res, ex, encV, acs] = await Promise.all([
       chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }),
       chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })),
-      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] }))
+      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] })),
+      chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }).catch(() => ({ dados: [] }))
     ]);
     if (res.erro) return 0;
+    const jaPedidas = ssJaPedidasDigiteam(acs.dados);
     const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
     const gerente = window.MODO_GERENTE && !emPrevia();
     return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], situacao: l[5] || "" }))
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
       .filter(x => gerente || cortesLocais().includes(String(x.loc).trim())).length;
   } catch (e) { return 0; }
 }
@@ -3155,10 +3157,23 @@ async function enviarPedidoUNBA() {
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor") + ". Verifique a internet."); }
 }
 function telaSSLista(titulo) {
+  const ger = window.MODO_GERENTE && !emPrevia();
   return `<h2>${titulo}</h2>
-    <select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option><option>Só gerar</option></select>
-    <button class="acao" onclick="enviarSSLista()">Enviar as marcadas</button>
+    ${ger ? `<select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option><option>Só gerar</option></select>`
+      : `<input type="hidden" id="sl_acao" value="Mandar no Digiteam"><div class="nota"><b>Como pedir:</b> escolha o tipo de serviço e o bairro, confira as SS marcadas e toque em <b>Pedir no meu Digiteam</b>. As SS vão para o seu Digiteam em até 1 hora (horário comercial). SS já pedida por um colega não aparece aqui.</div>`}
+    <button class="acao" onclick="enviarSSLista()">${ger ? "Enviar as marcadas" : "Pedir no meu Digiteam"}</button>
     <div id="sl_lista">Carregando...</div>`;
+}
+// SS já pedidas ao Digiteam e ainda não mandadas (aba AcaoSS): somem da lista para os outros não pedirem de novo
+function ssJaPedidasDigiteam(dados) {
+  const linhas = (dados || []).slice(1);
+  const feitos = new Set(linhas.filter(l => l[7] === "feito").map(l => String(l[6]).replace(/^feito:/, "")));
+  const ped = new Set();
+  linhas.filter(l => l[7] === "pendente" && /Digiteam/i.test(String(l[6])) && !/Não mandar/i.test(String(l[6]))).forEach(l => {
+    const tipo = String(l[3] || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
+    if (!feitos.has(String(l[0]) + "|" + l[1] + "|" + tipo + "|" + l[4])) ped.add(String(l[2]).replace(/^'/, "").trim());
+  });
+  return ped;
 }
 // ===== PRAZOS DAS SS (a partir da data de abertura) =====
 // Transferência de ramal/HD 72h · corte a pedido 48h · ligação nova 10 dias úteis · religação 24h · vazamento (qualquer) 24h
@@ -3195,8 +3210,9 @@ async function carregarSSLista(filtro) {
   try {
     window.ssListaFiltro = filtro;
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-    const [res, ex, encV] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })),
-      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] }))]);
+    const [res, ex, encV, acs] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })),
+      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] })), chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }).catch(() => ({ dados: [] }))]);
+    const jaPedidas = ssJaPedidasDigiteam(acs.dados);
     // SS vencidas já mandadas ao escritório para cancelar não aparecem mais aqui
     const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     if (res.erro) { box.textContent = res.erro; return; }
@@ -3204,7 +3220,7 @@ async function carregarSSLista(filtro) {
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
     let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), aberturaTxt: String(l[3] || ""), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "", end: l[8] || "", bairro: String(l[9] || "").replace(/^\d+\s*-\s*/, "").trim(), obs: ehCorteSS(l[1]) ? "" : String(l[12] || "").trim() }))
       // "Programada" = já está no Digiteam de alguém: não aparece
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
       // cada funcionário vê só as SS da(s) localidade(s) dele; a gerência vê todas
       .filter(x => (window.MODO_GERENTE && !emPrevia()) || cortesLocais().includes(String(x.loc).trim()));
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
@@ -3244,7 +3260,7 @@ async function enviarSSLista() {
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS", linhas: linhas });
     if (res.erro) { alert(res.erro); return; }
-    alert(linhas.length + " SS enviada(s) para a gerência: " + acao + ".");
+    alert(acao === "Mandar no Digiteam" ? linhas.length + " SS pedida(s). Elas vão para o seu Digiteam em até 1 hora (horário comercial)." : linhas.length + " SS enviada(s) para a gerência: " + acao + ".");
     carregarSSLista(window.ssListaFiltro || null);
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
 }
@@ -6274,7 +6290,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 07h46";
+const VERSAO_PAINEL = "05/11 07h52";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
