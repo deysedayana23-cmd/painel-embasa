@@ -4488,7 +4488,7 @@ function sspMontar(d, chave) {
     if (sit === "respondida" && String(l[0] || "") < SSP_INICIO) return;
     const it = { id: "P" + linha, pedidoLinha: linha, tipo: [l[2], l[3]].filter(Boolean).join(" · "), tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(l[0]), pedidoPor: l[1],
       ss: sspLimpo(l[11]), tipoPedido: digiteam ? "digiteam" : "abrir",
-      campos: [["Bairro", l[5]], ["Logradouro/Ref.", l[6]], ["Matrícula", l[7]], ["Hidrômetro", l[8]], ["Obs.", obs.replace(/^\[[^\]]+\]\s{0,}/, "")]],
+      campos: [["Endereço", l[6]], ["Bairro", l[5]], ["Hidrômetro", l[8]], ["Obs.", obs.replace(/^\[[^\]]+\]\s{0,}/, "")], ["Matrícula", l[7]]],
       fotosPedido: String(l[15] || "").split(/\s+/).filter(u => /^https?:/.test(u)) };
     itens.push(it); if (it.ss) porSS[it.ss] = it;
   });
@@ -4498,8 +4498,8 @@ function sspMontar(d, chave) {
     if (String(l[5] || "").toLowerCase().trim() !== "pendente" || !sspMesmoLocal(l[3], loc)) return;
     const ss = sspLimpo(l[1]); if (!ss || porSS[ss]) return;
     const v = n => ic(n) >= 0 ? l[ic(n)] : "";
-    const it = { id: ss, ss, tipo: l[2], tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(v("abertura")) || sspTxtData(l[0]), tipoPedido: "ss", campos: [["Matrícula", v("matricula")], ["Bairro", v("bairro")], ["Logradouro", v("logradouro")],
-      ["Solicitante", v("solicitante")], ["Telefone", v("telefone")], ["Hidrômetro", v("hidrometro")], ["Obs.", v("obs_ss")]], gpsCol: String(v("localizacao") || ""), mat: sspLimpo(v("matricula")), fotosPedido: [] };
+    const it = { id: ss, ss, tipo: l[2], tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(v("abertura")) || sspTxtData(l[0]), tipoPedido: "ss", campos: [["Cliente", v("cliente")], ["Endereço", v("logradouro")], ["Bairro", v("bairro")],
+      ["Hidrômetro", v("hidrometro")], ["Telefone", v("telefone")], ["Obs.", v("obs_ss")], ["Solicitante", v("solicitante")], ["Matrícula", v("matricula")]], gpsCol: String(v("localizacao") || ""), mat: sspLimpo(v("matricula")), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
   // 3) SS abertas no SCI (aba SSAbertas) que ainda não estão no painel. Corte (tipo 20) fica no fluxo do Digiteam.
@@ -4507,7 +4507,7 @@ function sspMontar(d, chave) {
     const ss = sspLimpo(l[0]); if (!/^\d{6,}$/.test(ss) || porSS[ss]) return;
     if (!sspMesmoLocal(l[2], loc) || /^\s*20\s*-/.test(String(l[1] || "")) || /encerrad|cancelad|conclu/i.test(String(l[5] || ""))) return;
     const it = { id: ss, ss, tipo: l[1], tipoCurto: l[1], loc, quando: l[3], abertura: sspTxtData(l[3]), tipoPedido: "sci",
-      campos: [["Cliente", l[6]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
+      campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
   // junta as confirmações (pela SS e pelo número do pedido) e decide o que ainda aparece
@@ -4598,7 +4598,7 @@ async function carregarSSPend(chave) {
           if (it.fotos.length) etapas.push(it.fotoAnexada ? chip("✔ Foto anexada à SS", verde) : chip("📷 Documento (foto) para anexar à SS", vermelho));
         }
       }
-      const ficha = it.campos.filter(c => sspLimpo(c[1])).map(c => `<div style="font-size:14px">${sspEsc(c[0])}: ${sspEsc(sspLimpo(c[1]))}</div>`).join("");
+      const ficha = sspFicha(it.campos);
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
       const exige = sspFotoExigida(it.tipo);
       const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada;
@@ -4625,7 +4625,8 @@ async function carregarSSPend(chave) {
       }
       return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.prazo && it.prazo.vencida ? vermelho : it.parada ? vinho : it.tipoPedido === "digiteam" ? laranja : "#0b5394"}">
         ${filtro === "campo" ? `<span style="float:right;font-weight:bold;color:#0b5394">${n + 1}º</span>` : ""}
-        <b>${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</b> · ${sspEsc(it.tipo)}<br>
+        <div style="font-size:20px;font-weight:bold;color:#0b5394">${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</div>
+        <div style="font-weight:600">${sspEsc(it.tipo)}</div>
         <span style="font-size:13px;color:#555">${it.pedidoPor ? "Pedido por " + sspEsc(sspNome(it.pedidoPor)) + " em " : it.tipoPedido === "sci" ? "Aberta em " : "Lançada em "}${it.tipoPedido === "sci" ? sspEsc(it.abertura) : formatarQuando(it.quando)}</span>
         <div style="margin:6px 0">${etapas.join("")}</div>
         ${ficha}${fotosHTML}
@@ -4634,6 +4635,23 @@ async function carregarSSPend(chave) {
       </div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar: " + (e && e.message ? e.message : "erro") + "."; }
+}
+// Ficha da SS para achar o imóvel: nome, endereço completo, hidrômetro, telefone e observação em destaque
+function sspFicha(campos) {
+  const v = {}; campos.forEach(c => { const x = sspLimpo(c[1]); if (x && !v[c[0]]) v[c[0]] = x; });
+  const semCod = t => String(t || "").replace(/^\d+\s*-\s*/, "").trim();
+  const linha = (ic, html, grande) => `<div style="display:flex;gap:8px;align-items:flex-start;margin-top:5px;font-size:${grande ? 17 : 15}px;${grande ? "font-weight:600;" : ""}line-height:1.35"><span style="flex:0 0 22px;text-align:center">${ic}</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">${html}</span></div>`;
+  const end = [semCod(v["Endereço"]), semCod(v["Bairro"])].filter(Boolean).join(" – ");
+  const tel = v["Telefone"] ? v["Telefone"].replace(/[^\d]/g, "") : "";
+  const out = [];
+  if (v["Cliente"]) out.push(linha("👤", sspEsc(v["Cliente"]), true));
+  if (end) out.push(linha("📍", sspEsc(end), true));
+  if (v["Hidrômetro"]) out.push(linha("🔢", "Hidrômetro: <b>" + sspEsc(v["Hidrômetro"]) + "</b>"));
+  if (tel) out.push(linha("📞", `<a href="tel:${tel.length <= 9 ? "77" + tel : tel}">${sspEsc(v["Telefone"])}</a>`));
+  if (v["Obs."]) out.push(linha("📝", "<b>Obs.:</b> " + sspEsc(v["Obs."])));
+  if (v["Solicitante"] && v["Solicitante"] !== v["Cliente"]) out.push(linha("🙋", "Solicitante: " + sspEsc(v["Solicitante"])));
+  if (v["Matrícula"]) out.push(`<div style="font-size:13px;color:#555;margin-top:5px">Matrícula ${sspEsc(v["Matrícula"])}</div>`);
+  return out.length ? `<div style="background:#f6f9fc;border-radius:8px;padding:6px 10px;margin:6px 0">${out.join("")}</div>` : "";
 }
 function sspFotoExigida(tipo) { return SSP_FOTO_MIN.find(x => x.re.test(String(tipo || ""))) || null; }
 function sspAddFoto(id, input) {
@@ -4745,14 +4763,15 @@ async function carregarCortes() {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
     if (res.erro) { box.textContent = res.erro; return; }
     const locs = cortesLocais().map(normalizarNome);
-    const lista = res.dados.slice(1).map(l => ({ ss: sspLimpo(l[0]), tipo: l[1], loc: String(l[2] || "").trim(), abertura: String(l[3] || ""), situacao: l[5] || "", nome: l[6] || "", mat: sspLimpo(l[7]) }))
+    const lista = res.dados.slice(1).map(l => ({ ss: sspLimpo(l[0]), tipo: l[1], loc: String(l[2] || "").trim(), abertura: String(l[3] || ""), situacao: l[5] || "", nome: l[6] || "", mat: sspLimpo(l[7]), end: l[8], bairro: l[9], hid: l[10], tel: l[11] }))
       .filter(x => x.ss && ehCorteSS(x.tipo) && !/encerrad|cancelad|conclu/i.test(x.situacao) && locs.includes(normalizarNome(x.loc)));
     if (!lista.length) { box.innerHTML = "<p>Nenhum corte em aberto.</p>"; return; }
     const porLoc = {}; lista.forEach(x => (porLoc[x.loc] = porLoc[x.loc] || []).push(x));
     box.innerHTML = `<div style="margin-bottom:8px;font-weight:bold">${Object.entries(porLoc).map(([l, xs]) => `${sspEsc(l)}: ${xs.length}`).join(" · ")}</div>` +
       lista.map(x => `<div class="card" style="margin-bottom:6px;border-left:6px solid #c62828">
-        <b>SS ${sspEsc(x.ss)}</b> · ${sspEsc(x.tipo)}<br>
-        <span style="font-size:14px">${sspEsc(x.loc)}${x.mat ? " · matrícula " + sspEsc(x.mat) : ""}${x.nome ? " · " + sspEsc(String(x.nome).replace(/\|.*$/, "")) : ""}${x.abertura ? "<br>Aberta em " + sspEsc(sspTxtData(x.abertura) || x.abertura) : ""}</span>
+        <div style="font-size:18px;font-weight:bold;color:#0b5394">SS ${sspEsc(x.ss)}</div><div style="font-weight:600">${sspEsc(x.tipo)}</div>
+        ${sspFicha([["Cliente", String(x.nome).replace(/\|.*$/, "")], ["Endereço", x.end], ["Bairro", x.bairro], ["Hidrômetro", x.hid], ["Telefone", x.tel], ["Matrícula", x.mat]])}
+        <span style="font-size:13px;color:#555">${sspEsc(x.loc)}${x.abertura ? " · aberta em " + sspEsc(sspTxtData(x.abertura) || x.abertura) : ""}</span>
       </div>`).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
@@ -6154,7 +6173,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 06h20";
+const VERSAO_PAINEL = "05/11 06h45";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
