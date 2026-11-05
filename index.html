@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 04/11 18h54</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h20</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -55,7 +55,7 @@
   <button id="btnInstalar" onclick="instalarApp()" style="display:none;margin-top:8px;background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">📲 Instalar aplicativo</button>
   <div id="versaoMsg" style="font-size:13px;margin-top:6px"></div>
 </header>
-<div class="aviso-proto">Sincronização dos pedidos de SS: 7h30, 10h, 13h30 e 15h30. Nesses horários, clique em "Verificar nova versão" para receber as atualizações.</div>
+<div class="aviso-proto">As SS são atualizadas de 1 em 1 hora, em horário comercial (segunda a sexta, 7h30 às 12h e 13h30 às 17h30).</div>
 
 <div id="login" style="position:fixed;inset:0;background:#0b5394;display:flex;align-items:center;justify-content:center;z-index:9">
   <div style="background:#fff;padding:24px;border-radius:12px;width:90%;max-width:340px">
@@ -1663,7 +1663,7 @@ function mostrarMenu(itens, titulo) {
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
-  if (!pilha.length) itens = cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens)));
+  if (!pilha.length) itens = menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))));
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -1689,8 +1689,8 @@ function mostrarMenu(itens, titulo) {
 }
 
 // ===== Contadores nos botões de SS e pendência =====
-const NOME_EXIBIDO = { encerrarEscritorio: "Encerrar SS como executada", pendExecutar: "SS pendente", gersa: "Demandas Agersa" };
-const CONTAGEM_SS_TELAS = { ocorPedidos: "ocorrencias", todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos", gersa: "agersa", pendExecutar: "pendExecutar", ssDigiteam: "ssDigiteam" };
+const NOME_EXIBIDO = { encerrarEscritorio: "Encerrar SS como executada", pendExecutar: "SS pendente", gersa: "Demandas Agersa", cortes: "Cortes" };
+const CONTAGEM_SS_TELAS = { ocorPedidos: "ocorrencias", todasSS: "todas", ssTodas: "todas", encerrarEscritorio: "encerrar", pendenciasEstado: "encerrar", pedidosSS: "pedidos", gersa: "agersa", pendExecutar: "pendExecutar", ssDigiteam: "ssDigiteam", cortes: "cortes" };
 async function contarPendExecutar(cred) {
   try {
     const res = await chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" });
@@ -1734,19 +1734,20 @@ async function atualizarContagemSS() {
       const res = await chamarApi({ acao: "listar", ...cred, aba: "Agersa" });
       if (res.erro) return 0;
       const angico = String(perfilAtual || "").startsWith("Operador Angico");
-      return res.dados.slice(1).filter(l => l[0] && !/encerrad|conclu|validad|cancelad/i.test(l[5] || "") &&
-        (angico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]))).length;
+      return res.dados.slice(1).filter(l => l[0] && !/encerrad|conclu|validad|cancelad/i.test(l[5] || "") && agersaEhMinha(l, angico)).length;
     } catch (e) { return 0; }
   };
-  const [todas, encerrar, pedidos, ocorrencias, agersa] = await Promise.all([
+  const locsCorte = cortesLocais().map(normalizarNome);
+  const [todas, encerrar, pedidos, ocorrencias, agersa, cortes] = await Promise.all([
     contar("SSAbertas", l => l[0] && !/encerrad|cancelad|conclu/i.test(l[5] || "")),
     contar("EncerrarSS", l => (l[6] || "pendente") === "pendente"),
     contar("PedidoSS", l => (l[10] || "pendente") === "pendente" && !sspPedidoNaTelaLocal(l[4], l[9])),
     contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
-    contarAgersa()
+    contarAgersa(),
+    contar("SSAbertas", l => l[0] && ehCorteSS(l[1]) && !/encerrad|cancelad|conclu/i.test(l[5] || "") && locsCorte.includes(normalizarNome(l[2])))
   ]);
   const [pendEx, digi, ssp] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens()]);
-  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, pendExecutar: pendEx, ssDigiteam: digi }, ssp);
+  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi }, ssp);
   window.contagemSSCarregando = false;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
     const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
@@ -2275,7 +2276,7 @@ function mostrarEscalaMes(ano, mes) {
 // ===== DEMANDAS AGERSA (cada um vê só a sua localidade) =====
 // Localidades da Agersa que a pessoa atende, pelo cadastro AGERSA_EQUIPE (mesmo critério de quem recebe a demanda)
 function localidadesAgersaDoUsuario() {
-  const quem = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
+  const quem = identidadeAtual(); // na prévia da gerente, usa a pessoa escolhida
   // nome completo, ou primeiro nome quando ele não se repete no cadastro (ex.: Ivo Carlos -> ivo)
   const todos = Object.values(AGERSA_EQUIPE).flat();
   const primeiros = {};
@@ -2285,8 +2286,22 @@ function localidadesAgersaDoUsuario() {
   return Object.keys(AGERSA_EQUIPE).filter(loc => AGERSA_EQUIPE[loc].some(casa));
 }
 function localidadeVisivel(local) {
-  if (window.MODO_GERENTE) return true;
+  if (window.MODO_GERENTE && !emPrevia()) return true;
   return localidadesAgersaDoUsuario().some(l => l === local);
+}
+// Demanda Agersa: cada um vê só as demandas em que é responsável (sem responsável: as da localidade dele)
+function agersaEhMinha(l, ehAngico) {
+  if (window.MODO_GERENTE && !emPrevia()) return true;
+  const quem = identidadeAtual();
+  const resp = String(l[4] || "").split(/[,;\/]| e /).map(s => s.trim()).filter(Boolean);
+  if (!resp.length) return ehAngico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]);
+  const todos = Object.values(AGERSA_EQUIPE).flat();
+  const prim = n => normalizarNome(String(n).split(" ")[0]);
+  return resp.some(n => {
+    const k = normalizarNome(n), p = prim(n);
+    const unico = todos.filter(t => prim(t) === p).length <= 1 && p !== "janio";
+    return (k && quem.includes(k)) || (unico && p.length >= 3 && quem.includes(p)) || (p === "isaque" && quem.includes("isaac"));
+  });
 }
 
 function telaAgersaCampo() {
@@ -3615,8 +3630,8 @@ async function carregarAgersa() {
     // colunas: data_hora, usuario, localidade, demanda, responsavel, situacao
     // Ramon e Renato veem só as demandas do Angico e da Captação São Desidério
     const ehAngico = String(perfilAtual || "").startsWith("Operador Angico");
-    const minhas = res.dados.slice(1).filter(l => !/cancelad/i.test(String(l[5] || ""))).filter(l => ehAngico ? ["Angico", "Captação São Desidério"].includes(l[2]) : localidadeVisivel(l[2]));
-    box.innerHTML = minhas.length === 0 ? '<div class="nota">Nenhuma demanda da sua localidade.</div>' :
+    const minhas = res.dados.slice(1).filter(l => !/cancelad/i.test(String(l[5] || ""))).filter(l => agersaEhMinha(l, ehAngico));
+    box.innerHTML = minhas.length === 0 ? '<div class="nota">Nenhuma demanda sob sua responsabilidade.</div>' :
       minhas.map(l => `
         <div class="card" style="margin-bottom:10px">
           <b>${l[3]}</b><br>
@@ -4735,8 +4750,39 @@ function cortesNoMenu(itens) {
   const pode = (window.MODO_GERENTE && !emPrevia()) || [...GRUPO_CAMPO, ...GRUPO_GESTAO].some(n => id.includes(n));
   if (!pode || itens.some(i => i.tela === "cortes")) return itens;
   let k = -1; itens.forEach((i, n) => { if (i.tela === "servicosUrgentes" || SSP_TELA[i.tela] || i.tela === "pedirSS") k = n; });
-  itens.splice(k + 1, 0, { nome: "Cortes (42.1)", tela: "cortes" });
+  itens.splice(k + 1, 0, { nome: "Cortes", tela: "cortes" });
   return itens;
+}
+// ===== MENU PRINCIPAL DO AGENTE DE CAMPO =====
+// Grandes: SS pendentes da localidade, Pedir SS, Solicitação no SCI e Solicitação ao Digiteam.
+// Pequenos (com contagem quando tem): Cortes, Demandas Agersa, Níveis e Escala da ETA da localidade, Outros.
+const AGENTE_NIVEIS = { sd: [{ nome: "ETA São Desidério", tela: "nivelHistSD" }, { nome: "ETA Angico", tela: "nivelHistAngico" }], cat: [{ nome: "ETA Mozondó", tela: "nivelHistMozondo" }], bai: [] };
+const AGENTE_ESCALA = { sd: [{ nome: "Escala ETA São Desidério", tela: "escalaSD" }, { nome: "Escala ETA Angico", tela: "escalaAngico" }], cat: [{ nome: "Escala ETA Mozondó", tela: "escalaMozondo" }], bai: [] };
+function menuAgenteCampo(itens) {
+  if (window.MODO_GERENTE && !emPrevia()) return itens;
+  const id = identidadeAtual();
+  if (!GRUPO_CAMPO.some(n => id.includes(n))) return itens;
+  const chaves = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo);
+  const pool = []; const vistos = new Set();
+  const por = i => { const k = i.nome + "|" + (i.tela || ""); if (!vistos.has(k)) { vistos.add(k); pool.push(i); } };
+  itens.forEach(i => { if (i.nome === "Outros" && i.sub) i.sub.forEach(por); else por(i); });
+  const tirar = f => { const k = pool.findIndex(f); return k >= 0 ? pool.splice(k, 1)[0] : null; };
+  const urg = tirar(i => i.tela === "servicosUrgentes");
+  const ssp = []; let x; while ((x = tirar(i => SSP_TELA[i.tela]))) ssp.push(Object.assign({}, x, { prioridade: true }));
+  const pedir = tirar(i => i.tela === "pedirSS") || { nome: "Pedir SS", tela: "pedirSS" };
+  const sci = tirar(i => i.nome === "Solicitação no SCI");
+  const digi = tirar(i => i.tela === "ssDigiteam") || { nome: "Solicitação ao Digiteam", tela: "ssDigiteam" };
+  const cortes = tirar(i => i.tela === "cortes");
+  const agersa = tirar(i => i.tela === "gersa") || { nome: "Demandas Agersa", tela: "gersa" };
+  // os níveis e escalas antigos (de todas as ETAs) saem; ficam só os da localidade
+  while (tirar(i => /^Histórico de níveis/.test(i.nome) || i.nome === "Escala de turno")) {}
+  const juntar = m => { const out = []; chaves.forEach(k => (m[k] || []).forEach(e => { if (!out.some(o => o.tela === e.tela)) out.push(e); })); return out; };
+  const niv = juntar(AGENTE_NIVEIS), esc = juntar(AGENTE_ESCALA);
+  const pequeno = (nome, lista) => !lista.length ? null : lista.length === 1 ? { nome, tela: lista[0].tela } : { nome, sub: lista };
+  const menu = [urg, ...ssp, Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }), Object.assign({}, digi, { grande: true }),
+    cortes, agersa, pequeno("Níveis dos reservatórios", niv), pequeno("Escala da ETA", esc)].filter(Boolean);
+  if (pool.length) menu.push({ nome: "Outros", sub: pool });
+  return menu;
 }
 function telaCortes() {
   const locs = cortesLocais();
@@ -6173,7 +6219,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 06h45";
+const VERSAO_PAINEL = "05/11 07h20";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
