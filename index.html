@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h25</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -4553,8 +4553,9 @@ async function sspContagens() {
   try {
     const d = await sspDados();
     // No menu: campo vê só o que falta executar; digitador vê só o que falta digitar
+    const oc = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador) ? await listarOcorrencias().catch(() => []) : [];
     Object.keys(SSP_LOCAIS).forEach(k => { const p = sspPapel(k); const l = p.ve ? sspMontar(d, k) : [];
-      out[SSP_CONTA[k]] = l.filter(p.digitador ? sspFaltaDigitador : sspFaltaCampo).length; });
+      out[SSP_CONTA[k]] = l.filter(p.digitador ? sspFaltaDigitador : sspFaltaCampo).length + (p.digitador ? sspOcorrencias(oc, k).length : 0); });
   } catch (e) {}
   return out;
 }
@@ -4575,7 +4576,9 @@ async function carregarSSPend(chave) {
   window.sspChave = chave;
   box.textContent = "Carregando...";
   try {
-    const [d, base] = await Promise.all([sspDados(), carregarBaseLocalizacao()]);
+    const p0 = sspPapel(chave);
+    const [d, base, ocs] = await Promise.all([sspDados(), carregarBaseLocalizacao(), p0.digitador ? listarOcorrencias().catch(() => []) : Promise.resolve([])]);
+    const ocHTML = p0.digitador ? sspOcorrenciasHTML(sspOcorrencias(ocs, chave)) : "";
     const lista = sspMontar(d, chave);
     lista.forEach(it => {
       const g = (String(it.gpsCol || "").match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || String((it.campos.find(c => /Logradouro/.test(c[0])) || [])[1] || "").match(/GPS:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || []);
@@ -4583,7 +4586,7 @@ async function carregarSSPend(chave) {
     });
     window.sspCache = {}; lista.forEach(it => { window.sspCache[it.id] = it; });
     const p = sspPapel(chave);
-    if (!lista.length) { box.innerHTML = "<p>Nenhuma SS pendente.</p>"; return; }
+    if (!lista.length) { box.innerHTML = ocHTML + "<p>Nenhuma SS pendente.</p>"; return; }
     window.sspFiltro = window.sspFiltro || {};
     const filtro = p.digitador ? (window.sspFiltro[chave] || "digitacao") : "campo"; // campo vê só o que falta ir a campo
     const nC = lista.filter(sspFaltaCampo).length, nD = lista.filter(sspFaltaDig).length, nF = lista.filter(sspFaltaFoto).length;
@@ -4598,7 +4601,7 @@ async function carregarSSPend(chave) {
     const chip = (txt, cor) => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${cor}">${txt}</span>`;
     const verde = "#2e7d32", vermelho = "#c62828", laranja = "#ef6c00", vinho = "#7f0000";
     const eu = normalizarNome(window.credenciais.usuario);
-    box.innerHTML = barra + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
+    box.innerHTML = ocHTML + barra + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
       const id = sspEsc(it.id);
       const etapas = [];
       if (it.prazo) etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA – prazo " + sspEsc(it.prazo.texto), vermelho) : chip("Prazo: vence " + it.prazo.fim.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), "#8d6e00"));
@@ -4651,6 +4654,42 @@ async function carregarSSPend(chave) {
       </div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar: " + (e && e.message ? e.message : "erro") + "."; }
+}
+// ===== Pedidos de ocorrência operacional dentro de "SS pendentes" (só para os digitadores) =====
+// "solicitada" = abrir no SCI e devolver o número; "finalizada" = encerrar no SCI.
+function sspChaveDaLocalidade(loc) {
+  const n = normalizarNome(loc);
+  if (/angico|desiderio/.test(n)) return "sd";
+  if (/catolandia|mozondo|buriti/.test(n)) return "cat";
+  if (/baianopolis/.test(n)) return "bai";
+  return "";
+}
+function sspOcorrencias(ocs, chave) {
+  return (ocs || []).filter(o => ["solicitada", "finalizada"].includes(o.situacao) && sspChaveDaLocalidade(o.loc) === chave);
+}
+function sspOcorrenciasHTML(lista) {
+  if (!lista.length) return "";
+  return `<div style="background:#6a1b9a;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Ocorrência operacional (${lista.length})</div>` +
+    lista.map(o => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${o.situacao === "solicitada" ? "#c62828" : "#f9a825"}">
+      <div style="font-size:18px;font-weight:bold;color:#6a1b9a">${o.situacao === "solicitada" ? "Abrir ocorrência no SCI" : "Encerrar ocorrência nº " + sspEsc(o.num) + " no SCI"}</div>
+      <div style="font-weight:600">${sspEsc(o.tipo)} · ${sspEsc(o.loc)}</div>
+      <span style="font-size:13px;color:#555">Pedido por ${sspEsc(sspNome(o.quem))} em ${formatarQuando(o.quando)}</span>
+      <div style="background:#f6f9fc;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:15px">${sspEsc(o.end)}<br>${ocDescHtml(sspEsc(o.desc))}</div>
+      ${o.situacao === "solicitada"
+        ? `<input id="oc_n_${o.linha}" class="campo" placeholder="Número da ocorrência aberta"><button class="acao" onclick="sspOcorrenciaAcao(${o.linha}, 'abrir', this)">Devolver número para a equipe</button>`
+        : `<div style="font-size:14px"><b>Término:</b> ${sspEsc(o.fim)}<br><b>Observação:</b> ${sspEsc(o.obsFim)}</div><button class="acao" onclick="sspOcorrenciaAcao(${o.linha}, 'encerrar', this)">Encerrada no SCI</button>`}
+    </div>`).join("");
+}
+async function sspOcorrenciaAcao(linha, acao, btn) {
+  if (btn && btn.disabled) return;
+  const numero = acao === "abrir" ? String((document.getElementById("oc_n_" + linha) || {}).value || "").trim() : "";
+  if (acao === "abrir" && !numero) { alert("Digite o número da ocorrência."); return; }
+  sspTravar(btn);
+  try {
+    const res = await chamarApi(Object.assign({ acao: acao === "abrir" ? "responderOcorrencia" : "encerrarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha }, acao === "abrir" ? { numero } : {}));
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); sspDestravar(btn); }
 }
 // Ficha da SS para achar o imóvel: nome, endereço completo, hidrômetro, telefone e observação em destaque
 function sspFicha(campos) {
@@ -6220,7 +6259,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 07h25";
+const VERSAO_PAINEL = "05/11 07h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
