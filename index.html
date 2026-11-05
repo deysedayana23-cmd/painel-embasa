@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h37</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h42</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -4831,9 +4831,12 @@ function menuAgenteCampo(itens) {
   const juntar = m => { const out = []; chaves.forEach(k => (m[k] || []).forEach(e => { if (!out.some(o => o.tela === e.tela)) out.push(e); })); return out; };
   const niv = juntar(AGENTE_NIVEIS), esc = juntar(AGENTE_ESCALA);
   const pequeno = (nome, lista) => !lista.length ? null : lista.length === 1 ? { nome, tela: lista[0].tela } : { nome, sub: lista };
-  const menu = [urg, ...ssp, Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }), Object.assign({}, digi, { grande: true }),
+  // 05/11: o agente pega as SS sempre pelo Digiteam. "Solicitação ao Digiteam" é o botão principal;
+  // "SS pendentes" (Executei em campo) vai para Outros.
+  const menu = [urg, Object.assign({}, digi, { prioridade: true }), Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }),
     cortes, agersa, pequeno("Níveis dos reservatórios", niv), pequeno("Escala da ETA", esc)].filter(Boolean);
-  if (pool.length) menu.push({ nome: "Outros", sub: pool });
+  const outros = [...ssp.map(i => Object.assign({}, i, { prioridade: false })), ...pool];
+  if (outros.length) menu.push({ nome: "Outros", sub: outros });
   return menu;
 }
 function telaCortes() {
@@ -6271,7 +6274,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 07h37";
+const VERSAO_PAINEL = "05/11 07h42";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
