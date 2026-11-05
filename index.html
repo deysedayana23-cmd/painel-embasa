@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 16h54</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 16h59</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3385,7 +3385,7 @@ function inatPedidos(dados) {
   const linhas = (dados || []).slice(1), feitos = {};
   linhas.filter(l => l[10] === "feito").forEach(l => { feitos[String(l[11])] = { por: l[1], em: l[0], pdf: String(l[12] || "") }; });
   return linhas.filter(l => l[10] === "pendente").map(l => ({ id: inatId(l), quando: l[0], quem: l[1], mat: sspLimpo(l[2]), tipo: l[3], grupo: l[4], nome: l[5], end: l[6],
-    leitura: l[7], obs: l[8], fotos: String(l[9] || "").split(/\s+/).filter(u => /^https?:/.test(u)), feito: feitos[inatId(l)] || null }));
+    leitura: l[7], obs: l[8], fotos: String(l[9] || "").split(/\s+/).filter(u => /^https?:/.test(u)), ssOrigem: sspLimpo(l[11]), feito: feitos[inatId(l)] || null }));
 }
 function inativasNoMenu(itens) {
   const ger = window.MODO_GERENTE && !emPrevia();
@@ -3426,7 +3426,7 @@ async function carregarInativas() {
   const meus = pedidos.filter(p => normalizarNome(p.quem) === eu).sort((a, b) => String(b.quando).localeCompare(String(a.quando))).slice(0, 15);
   const meusHTML = meus.length ? `<details class="card" style="margin-bottom:10px" ${meus.some(p => p.tipo === "2via" && p.feito && p.feito.pdf) ? "open" : ""}><summary style="font-weight:bold;font-size:16px">Meus pedidos (${meus.length})</summary>${meus.map(p => `<div style="margin-top:8px;font-size:15px;border-top:1px solid #eee;padding-top:6px">
       <b>${p.tipo === "2via" ? "📄 2ª via" : "🔌 Religação"}</b> · matrícula ${sspEsc(p.mat)} · ${sspEsc(p.nome)}<br>
-      ${p.feito ? (p.tipo === "2via" ? (p.feito.pdf ? `✅ <a href="${sspEsc(p.feito.pdf)}" target="_blank"><b>Abrir PDF da 2ª via</b></a>` : "✅ Respondido") : "✅ Religada no SCI") + ` <span style="font-size:13px;color:#555">(${formatarQuando(p.feito.em)})</span>` : "⏳ Aguardando o escritório"}</div>`).join("")}</details>` : "";
+      ${p.feito ? (p.tipo === "2via" ? (p.feito.pdf ? `✅ <a href="${sspEsc(p.feito.pdf)}" target="_blank"><b>Abrir PDF da 2ª via</b></a>` : "✅ Respondido") : "✅ Religada no SCI" + (p.feito.pdf ? " – SS nº " + sspEsc(p.feito.pdf) : "")) + ` <span style="font-size:13px;color:#555">(${formatarQuando(p.feito.em)})</span>` : "⏳ Aguardando o escritório"}</div>`).join("")}</details>` : "";
   // filtros: busca e bairro
   window.inatBusca = window.inatBusca || "";
   const busca = normalizarNome(window.inatBusca);
@@ -3483,22 +3483,57 @@ async function pedirInativa(mat, tipo, btn) {
     carregarInativas();
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
 }
+// ---- Corte / revisão de corte: o agente avisa que a água já está religada em campo ----
+const ehCorteOuRevisao = (tipo, esp) => ehCorteSS(tipo) || /REV.*SIT.*ABAST|REVISAO DE LIGACAO CORTADA/i.test(String(tipo || "") + " " + String(esp || ""));
+function religSSFormHTML(ss) {
+  const s = sspEsc(ss);
+  return `<button class="acao" style="background:#2e7d32" onclick="document.getElementById('relf_${s}').style.display='block'">💧 Água religada em campo – pedir religação no SCI</button>
+    <div id="relf_${s}" style="display:none;margin-top:6px;background:#f1f8e9;border-radius:8px;padding:8px">
+      <input id="rell_${s}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (obrigatória)">
+      <textarea id="relo_${s}" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
+      <div style="font-size:14px">Foto (opcional): <input type="file" id="relp_${s}" accept="image/*" capture="environment"></div>
+      <button class="acao" style="background:#2e7d32" onclick="pedirReligacaoSS('${s}', this)">Enviar ao escritório</button>
+    </div>`;
+}
+async function pedirReligacaoSS(ss, btn) {
+  const x = (window.slCache || {})[ss]; if (!x || (btn && btn.disabled)) return;
+  const leitura = String((document.getElementById("rell_" + ss) || {}).value || "").trim();
+  const obs = String((document.getElementById("relo_" + ss) || {}).value || "").trim();
+  if (!leitura) { alert("Informe a leitura do hidrômetro."); return; }
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  sspTravar(btn);
+  try {
+    let fotos = "";
+    const arq = ((document.getElementById("relp_" + ss) || {}).files || [])[0];
+    if (arq) {
+      const pos = await obterPosicao();
+      const r = await chamarApi({ acao: "salvarFoto", ...cred, base64: await carimbarFoto(arq, pos), tipo: "image/jpeg", nome: arq.name });
+      if (r.erro) { alert("Não consegui enviar a foto: " + r.erro); sspDestravar(btn); return; }
+      fotos = r.url;
+    }
+    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "PedidoInativa",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + sspLimpo(x.mat), "religacao_ss", grupoDono(x.grupo, x.loc) || grupoSCIDoUsuario(), x.nome, [x.end, x.bairro].filter(Boolean).join(" – "), leitura, obs, fotos, "pendente", "'" + ss, ""]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    alert("Pedido enviado. O escritório religa no SCI e você recebe o número da SS de religação.");
+    carregarSSLista(window.ssListaFiltro || null);
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
 // ---- Digitadores: pedidos de religação e 2ª via dentro de "SS pendentes" da equipe ----
 const SSP_CHAVE_GRUPO = { sd: "São Desidério", cat: "Catolândia", bai: "Baianópolis", ang: "Angico" };
 const inatPendentesDaChave = (pedidos, chave) => pedidos.filter(p => !p.feito && p.grupo === SSP_CHAVE_GRUPO[chave]);
 function inatPedidosHTML(lista) {
   if (!lista.length) return "";
   window.inatPedCache = {}; lista.forEach((p, i) => { window.inatPedCache[i] = p; });
-  return `<div style="background:#2e7d32;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Inativas – religação e 2ª via (${lista.length})</div>` +
+  return `<div style="background:#2e7d32;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Religação e 2ª via – pedidos do campo (${lista.length})</div>` +
     lista.map((p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">
-      <div style="font-size:18px;font-weight:bold;color:${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">${p.tipo === "2via" ? "📄 2ª via para entregar ao cliente" : "🔌 Religação feita em campo – abrir e encerrar no SCI"}</div>
+      <div style="font-size:18px;font-weight:bold;color:${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">${p.tipo === "2via" ? "📄 2ª via para entregar ao cliente" : p.tipo === "religacao_ss" ? "💧 Água religada em campo (SS de corte " + sspEsc(p.ssOrigem) + ") – religar no SCI" : "🔌 Religação feita em campo – abrir e encerrar no SCI"}</div>
       <div style="font-size:16px;font-weight:600">Matrícula ${sspEsc(p.mat)} · ${sspEsc(p.nome)}</div>
       <div style="font-size:14px">📍 ${sspEsc(p.end)}</div>
-      ${p.tipo === "religacao" ? `<div style="font-size:15px">Leitura: <b>${sspEsc(p.leitura)}</b>${p.obs ? "<br>Obs.: " + sspEsc(p.obs) : ""}</div>` : ""}
+      ${p.tipo !== "2via" ? `<div style="font-size:15px">Leitura: <b>${sspEsc(p.leitura)}</b>${p.obs ? "<br>Obs.: " + sspEsc(p.obs) : ""}</div>` : ""}
       ${p.fotos.length ? `<div style="font-size:14px">Fotos: ${p.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : ""}
       <span style="font-size:13px;color:#555">Pedido por ${sspEsc(sspNome(p.quem))} em ${formatarQuando(p.quando)}</span>
       ${p.tipo === "2via" ? `<div style="margin-top:6px"><input type="file" id="inatpdf_${i}" accept="application/pdf,.pdf"></div><button class="acao" style="background:#0b5394" onclick="responderInativa(${i}, this)">Anexar PDF da 2ª via</button>`
-        : `<button class="acao" style="background:#2e7d32" onclick="responderInativa(${i}, this)">Religada no SCI</button>`}
+        : `<input id="inatnum_${i}" class="campo" inputmode="numeric" placeholder="Número da SS de religação (vai para o agente)"><button class="acao" style="background:#2e7d32" onclick="responderInativa(${i}, this)">Religada no SCI – enviar ao agente</button>`}
     </div>`).join("");
 }
 async function responderInativa(i, btn) {
@@ -3515,7 +3550,11 @@ async function responderInativa(i, btn) {
       if (r.erro) { alert("Não consegui enviar o PDF: " + r.erro); sspDestravar(btn); return; }
       pdf = r.url;
     } catch (e) { alert("Não consegui enviar o PDF. Verifique a internet."); sspDestravar(btn); return; }
-  } else sspTravar(btn);
+  } else {
+    pdf = String((document.getElementById("inatnum_" + i) || {}).value || "").replace(/\D/g, "");
+    if (!pdf) { alert("Digite o número da SS de religação para mandar ao agente."); return; }
+    sspTravar(btn);
+  }
   try {
     const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "PedidoInativa",
       linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + p.mat, p.tipo, p.grupo, p.nome, "", "", "", "", "feito", p.id, pdf]] });
@@ -3679,9 +3718,13 @@ async function carregarSSLista(filtro) {
   try {
     window.ssListaFiltro = filtro;
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-    const [res, ex, encV, acs] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })),
-      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] })), chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }).catch(() => ({ dados: [] }))]);
+    const [res, ex, encV, acs, pinat] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })),
+      chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] })), chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }).catch(() => ({ dados: [] })),
+      chamarApi({ acao: "listar", ...cred, aba: "PedidoInativa" }).catch(() => ({ dados: [] }))]);
     const jaPedidas = ssJaPedidasDigiteam(acs.dados);
+    // corte / revisão de corte com religação já pedida pelo campo: sai da lista
+    const pedRelig = inatPedidos(pinat.dados).filter(p => p.tipo === "religacao_ss");
+    const religPedidas = new Set(pedRelig.map(p => p.ssOrigem));
     // SS vencidas já mandadas ao escritório para cancelar não aparecem mais aqui
     const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     if (res.erro) { box.textContent = res.erro; return; }
@@ -3692,7 +3735,7 @@ async function carregarSSLista(filtro) {
       // "Programada" = já está no Digiteam de alguém: não aparece
       .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|escrit|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
       // cada funcionário vê só as SS do Excel da equipe dele (ou da localidade, nas SS antigas); a gerência vê todas
-      .filter(x => ssDoMeuGrupo(x.grupo, x.loc) && !ehSubstituicaoHD(x.tipo, x.esp)); // substituição de HD tem botão próprio
+      .filter(x => ssDoMeuGrupo(x.grupo, x.loc) && !ehSubstituicaoHD(x.tipo, x.esp) && !religPedidas.has(x.ss)); // substituição de HD tem botão próprio
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
     lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
@@ -3705,7 +3748,10 @@ async function carregarSSLista(filtro) {
     if (locSel) lista = lista.filter(x => String(x.loc).trim() === locSel);
     // Situação dos pedidos do próprio agente
     const meus = (window.MODO_GERENTE && !emPrevia()) ? [] : lerPedidosDigiteam(acs.dados, res.dados).filter(p => normalizarNome(p.quem) === normalizarNome(window.credenciais.usuario)).slice(0, 5);
-    const meusHTML = meus.length ? `<div class="card" style="margin-bottom:10px"><b>Seus pedidos ao Digiteam</b>${meus.map(p => `<div style="margin-top:6px;font-size:14px">${p.feito ? "✅ <b>Despachado</b>" : "⏳ <b>Aguardando despacho</b>"} · ${p.ss.length} SS · ${sspEsc([...p.tipos].join(", "))} · para ${sspEsc(p.data || "hoje")}</div>`).join("")}</div>` : "";
+    window.slCache = {}; lista.forEach(x => { window.slCache[x.ss] = x; });
+    const minhasRelig = (window.MODO_GERENTE && !emPrevia()) ? [] : pedRelig.filter(p => normalizarNome(p.quem) === normalizarNome(window.credenciais.usuario)).sort((a, b) => String(b.quando).localeCompare(String(a.quando))).slice(0, 8);
+    const religHTML = minhasRelig.length ? `<div class="card" style="margin-bottom:10px"><b>Suas religações pedidas ao escritório</b>${minhasRelig.map(p => `<div style="margin-top:6px;font-size:14px">${p.feito ? "✅ <b>Religada no SCI</b>" + (p.feito.pdf ? " – SS nº <b>" + sspEsc(p.feito.pdf) + "</b>" : "") : "⏳ <b>Aguardando o escritório</b>"} · SS de corte ${sspEsc(p.ssOrigem)} · ${sspEsc(p.nome)}</div>`).join("")}</div>` : "";
+    const meusHTML = religHTML + (meus.length ? `<div class="card" style="margin-bottom:10px"><b>Seus pedidos ao Digiteam</b>${meus.map(p => `<div style="margin-top:6px;font-size:14px">${p.feito ? "✅ <b>Despachado</b>" : "⏳ <b>Aguardando despacho</b>"} · ${p.ss.length} SS · ${sspEsc([...p.tipos].join(", "))} · para ${sspEsc(p.data || "hoje")}</div>`).join("")}</div>` : "");
     // Botões por tipo de serviço, com a quantidade em aberto; ao escolher um tipo, todas daquele tipo já vêm marcadas
     const nomeT = t => String(t || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
     const contT = {}; lista.forEach(x => { const t = nomeT(x.tipo); contT[t] = (contT[t] || 0) + 1; });
@@ -3728,6 +3774,7 @@ async function carregarSSLista(filtro) {
         ${x.cesta ? CESTA_HTML : ""}${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt, x.venc), true)}
         <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}${x.end || x.bairro ? "<br>📍 " + sspEsc([x.end, x.bairro].filter(Boolean).join(" – ")) : ""}${x.hid ? "<br>🔢 Hidrômetro: <b>" + sspEsc(x.hid) + "</b>" : ""}${x.obs ? "<br>📝 <b>Obs.:</b> " + sspEsc(x.obs) : ""}<br>Aberta em ${fmt(x.abertura)}</span>
         <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
+        ${!(window.MODO_GERENTE && !emPrevia()) && ehCorteOuRevisao(x.tipo, x.esp) ? religSSFormHTML(x.ss) : ""}
       </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
@@ -6813,7 +6860,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 16h54";
+const VERSAO_PAINEL = "05/11 16h59";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
