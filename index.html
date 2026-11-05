@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 17h11</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 17h17</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3765,6 +3765,20 @@ async function carregarSSLista(filtro) {
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
     lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
     const fmt = d => d ? d.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "—";
+    // Prazo: SS e ligações fora do prazo, vencendo em até 12h e em até 24h
+    const agoraP = Date.now();
+    lista.forEach(x => { const pz = prazoSS(x.tipo, x.aberturaTxt, x.venc); x.fimPrazo = pz ? pz.fim.getTime() : null; });
+    const ehLigacao = x => /^\s*21\b/.test(String(x.tipo || "")) || /LIGACAO NOVA|LIGACAO DE AGUA/i.test(String(x.tipo || "") + " " + String(x.esp || ""));
+    const FILTROS_PRAZO = {
+      ssVenc: { rot: "⚠ SS fora do prazo", f: x => x.fimPrazo && x.fimPrazo < agoraP && !ehLigacao(x), cor: "#c62828" },
+      ligVenc: { rot: "⚠ Ligações fora do prazo", f: x => x.fimPrazo && x.fimPrazo < agoraP && ehLigacao(x), cor: "#c62828" },
+      v12: { rot: "⏰ Vencem em até 12h", f: x => x.fimPrazo && x.fimPrazo >= agoraP && x.fimPrazo <= agoraP + 12 * 36e5, cor: "#ef6c00" },
+      v24: { rot: "⏰ Vencem em até 24h", f: x => x.fimPrazo && x.fimPrazo >= agoraP && x.fimPrazo <= agoraP + 24 * 36e5, cor: "#f9a825" }
+    };
+    const prazoSel = FILTROS_PRAZO[window.slPrazo] ? window.slPrazo : "";
+    const bp = (k, rot, n, cor) => `<button onclick="window.slPrazo='${k}';window.slLoc='';window.slTipo='';window.slBairro='';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:9px 11px;border-radius:8px;font-weight:700;border:2px solid ${cor};background:${prazoSel === k ? cor : "#fff"};color:${prazoSel === k ? "#fff" : cor}">${rot} (${n})</button>`;
+    const barraP = lista.length ? `<div class="nota"><b>Prazo:</b></div><div style="margin-bottom:6px">${bp("", "Todas", lista.length, "#455a64")}${Object.entries(FILTROS_PRAZO).map(([k, o]) => bp(k, o.rot, lista.filter(o.f).length, o.cor)).join("")}</div>` : "";
+    if (prazoSel) lista = lista.filter(FILTROS_PRAZO[prazoSel].f);
     // Localidade primeiro (só as localidades do agente)
     const contL = {}; lista.forEach(x => { const l = String(x.loc).trim(); contL[l] = (contL[l] || 0) + 1; });
     const locSel = contL[window.slLoc] ? window.slLoc : "";
@@ -3792,7 +3806,7 @@ async function carregarSSLista(filtro) {
     if (bairroSel) lista = lista.filter(x => (x.bairro || "Sem bairro") === bairroSel);
     const avisoCorte = tipoSel && /CORTE/.test(tipoSel) ? AVISO_CORTE : "";
     const marcarTodas = tipoSel ? `<label style="display:block;margin:6px 0;font-weight:600"><input type="checkbox" checked onchange="document.querySelectorAll('.sl_sel').forEach(c => c.checked = this.checked)"> Marcar todas as ${lista.length} de ${tipoSel}${bairroSel ? " – " + sspEsc(bairroSel) : ""}</label>` : "";
-    box.innerHTML = meusHTML + barraL + barraT + barraB + avisoCorte + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
+    box.innerHTML = meusHTML + barraP + barraL + barraT + barraB + avisoCorte + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
         <label><input type="checkbox" class="sl_sel" ${tipoSel ? "checked" : ""} value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
         ${/SUBSTITUI A SS/i.test(x.nome) ? `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ ${String(x.nome).match(/SUBSTITUI A SS[^|]*/i)[0]} – o prazo da antiga foi perdido. Esta nova NÃO PODE perder o prazo.</div>` : ""}
         ${x.esp ? `<div style="font-size:14px;color:#0b5394;font-weight:600">${sspEsc(x.esp)}</div>` : ""}
@@ -6890,7 +6904,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 17h11";
+const VERSAO_PAINEL = "05/11 17h17";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
