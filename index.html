@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 12h18</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 13h37</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -55,7 +55,7 @@
   <button id="btnInstalar" onclick="instalarApp()" style="display:none;margin-top:8px;background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">📲 Instalar aplicativo</button>
   <div id="versaoMsg" style="font-size:13px;margin-top:6px"></div>
 </header>
-<div class="aviso-proto">As SS são atualizadas de 1 em 1 hora, em horário comercial (segunda a sexta, 7h30 às 12h e 13h30 às 17h30).</div>
+<div class="aviso-proto">As SS são atualizadas pelo escritório com o Excel do SCI, em horário comercial (segunda a sexta, 7h30 às 12h e 13h30 às 17h30).</div>
 
 <div id="login" style="position:fixed;inset:0;background:#0b5394;display:flex;align-items:center;justify-content:center;z-index:9">
   <div style="background:#fff;padding:24px;border-radius:12px;width:90%;max-width:340px">
@@ -1663,7 +1663,7 @@ function mostrarMenu(itens, titulo) {
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
-  if (!pilha.length) itens = pedidosDigiNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens)))));
+  if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))))));
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -1718,9 +1718,9 @@ async function contarSSDigiteam(cred) {
     const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
     const gerente = window.MODO_GERENTE && !emPrevia();
-    return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], situacao: l[5] || "" }))
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
-      .filter(x => gerente || cortesLocais().includes(String(x.loc).trim())).length;
+    return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], situacao: l[5] || "", grupo: String(l[13] || "").trim() }))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|escrit|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
+      .filter(x => gerente || ssDoMeuGrupo(x.grupo, x.loc)).length;
   } catch (e) { return 0; }
 }
 async function atualizarContagemSS() {
@@ -1745,12 +1745,12 @@ async function atualizarContagemSS() {
   };
   const locsCorte = cortesLocais().map(normalizarNome);
   const [todas, encerrar, pedidos, ocorrencias, agersa, cortes] = await Promise.all([
-    contar("SSAbertas", l => l[0] && !/encerrad|cancelad|conclu|saiu/i.test(l[5] || "")),
+    contar("SSAbertas", l => l[0] && !/encerrad|cancelad|conclu|saiu|escrit/i.test(l[5] || "")),
     contar("EncerrarSS", l => (l[6] || "pendente") === "pendente"),
     contar("PedidoSS", l => (l[10] || "pendente") === "pendente" && !sspPedidoNaTelaLocal(l[4], l[9])),
     contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
     contarAgersa(),
-    contar("SSAbertas", l => l[0] && ehCorteSS(l[1]) && !/encerrad|cancelad|conclu|saiu/i.test(l[5] || "") && locsCorte.includes(normalizarNome(l[2])))
+    contar("SSAbertas", l => l[0] && ehCorteSS(l[1]) && !/encerrad|cancelad|conclu|saiu|escrit/i.test(l[5] || "") && locsCorte.includes(normalizarNome(l[2])))
   ]);
   const [pendEx, digi, ssp, pedidosDigi] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens(), contarPedidosDigi(cred)]);
   window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi, pedidosDigi }, ssp);
@@ -1792,6 +1792,7 @@ function abrir(i) {
     if (it.tela === "meusAcessos") carregarMeusAcessos();
     if (it.tela === "pedidosSS") { carregarPedidosSS(); carregarPedidosDigiteam(); }
     if (it.tela === "pedidosDigi") carregarPedidosDigi();
+    if (it.tela === "importarSCI") carregarImportarSCI();
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
@@ -2992,7 +2993,7 @@ async function carregarSSPrazo() {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
     if (res.erro) { document.getElementById("sp_24").textContent = res.erro; return; }
     const linhas = res.dados.slice(1).map(l => ({ ss: String(l[0]), esp: l[1], loc: l[2], abertura: dataSS(l[3]), vencimento: dataSS(l[4]), situacao: l[5] || "" }))
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu/i.test(x.situacao));
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|escrit/i.test(x.situacao));
     const vencem = linhas.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= em24).sort((a, b) => a.vencimento - b.vencimento);
     const abertas = linhas.filter(x => x.abertura && x.abertura >= tres).sort((a, b) => b.abertura - a.abertura);
     const tabela = (lista, campo) => lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
@@ -3229,6 +3230,113 @@ async function marcarPedidoDigiFeito(i, btn) {
     carregarPedidosDigi();
   } catch (e) { alert("Não consegui registrar. Verifique a internet."); sspDestravar(btn); }
 }
+// ===== SCI: "Exportação Excel Pendências para IA" (só Deyse, Thiago, Igor e Oséias) =====
+// Um botão por Excel/unidade. O arquivo é lido aqui e gravado em partes na aba ImportSCI;
+// o servidor atualiza o painel em até 1 minuto e grava o resultado em ImportSCIStatus.
+const SCI_GRUPOS_BOTAO = ["São Desidério", "Angico", "Catolândia", "Baianópolis"];
+const SCI_DESTINO = { "São Desidério": "Luzenildo, Joaquim, Carlito e Francisco (pedem no Digiteam)", "Angico": "Ramon e Renato (execução manual, sem Digiteam)",
+  "Catolândia": "Isaque (Catolândia, Mozondó e Buriti Cortado)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis, São Marcos e Passagem de Pedra)" };
+const SCI_LOCS_ESPERADAS = { "São Desidério": ["saodesiderio"], "Angico": ["angico"], "Catolândia": ["catolandia", "mozondo", "buriticortado", "baianopolis"], "Baianópolis": ["baianopolis", "catolandia"] };
+// Colunas combinadas (nomes como aparecem no SCI). A ordem no Excel não importa.
+const SCI_COLUNAS = ["SS", "Tipo", "Especificação", "Meio de Solic", "Matrícula", "Localidade", "Bairro", "Logradouro", "Estado", "Nome do Solic", "Geração da SS", "Previsão Inicial", "Núm do Hid", "Obs da SS", "Sit da SS"];
+const SCI_OBRIGATORIAS = ["SS", "Tipo", "Especificação", "Meio de Solic", "Localidade", "Estado", "Geração da SS", "Previsão Inicial", "Sit da SS"];
+const SCI_QUEM_ENVIA = ["deyse", "thiago", "tiago", "igor", "oseias"];
+const podeEnviarSCI = () => (window.MODO_GERENTE && !emPrevia()) || SCI_QUEM_ENVIA.some(n => identidadeAtual().includes(n));
+function sciDesdeData() { const d = new Date(); d.setMonth(d.getMonth() - 3); d.setHours(0, 0, 0, 0); return d; }
+const sciDesde = () => sciDesdeData().toLocaleDateString("pt-BR");
+function sciNoMenu(itens) {
+  if (!podeEnviarSCI() || itens.some(i => i.tela === "importarSCI")) return itens;
+  const k = itens.findIndex(i => i.tela === "pedidosDigi");
+  itens.splice(k + 1, 0, { nome: "Exportação Excel Pendências para IA (desde " + sciDesde() + ")", tela: "importarSCI", grande: true });
+  return itens;
+}
+Object.assign(TELAS, { importarSCI: () => `<h2>Exportação Excel Pendências para IA</h2>
+  <div class="card" style="margin-bottom:10px;font-size:15px;line-height:1.45">
+    <b>Como baixar no SCI</b><br>
+    1. Atendimento e Serviços › Ordem de Serviço › Pendências › <b>Pendências de Atendimento</b><br>
+    2. Data de abertura <b>desde ${sciDesde()}</b><br>
+    3. Uma unidade por vez: São Desidério, Angico, Catolândia e Baianópolis<br>
+    4. Em "Alterar colunas visíveis", deixe marcadas <b>só estas ${SCI_COLUNAS.length} colunas</b>:
+    <ol style="margin:6px 0 6px 18px;padding:0;columns:2;column-gap:18px">${SCI_COLUNAS.map(c => `<li>${c}</li>`).join("")}</ol>
+    <span style="font-size:13px;color:#555">A coluna OS não precisa. A ordem das colunas não importa.</span><br>
+    5. Exporte para Excel e envie no botão da unidade, aqui embaixo.
+  </div>
+  <div class="nota">Cada Excel é a lista completa daquela equipe: a SS que não vier nele sai do painel. Confira o último envio de cada unidade antes de mandar de novo.</div>
+  <div id="sci_status">Carregando...</div>` });
+function sciHorarioComercial(d = new Date()) {
+  const dia = d.getDay(), m = d.getHours() * 60 + d.getMinutes();
+  return dia >= 1 && dia <= 5 && ((m >= 450 && m < 720) || (m >= 810 && m < 1050));
+}
+async function carregarImportarSCI() {
+  const box = document.getElementById("sci_status"); if (!box) return;
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  let st, imp;
+  try {
+    [st, imp] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }), chamarApi({ acao: "listar", ...cred, aba: "ImportSCI" })]);
+    if (st.erro || imp.erro) { box.textContent = st.erro || imp.erro; return; }
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
+  const porG = {}; (st.dados || []).slice(1).forEach(l => { porG[l[0]] = { enviado: l[1], por: l[2], qtd: l[3], res: String(l[4] || ""), proc: l[5] }; });
+  const proc = {}; (imp.dados || []).slice(1).forEach(l => { if (l[0] && !String(l[7] || "").trim()) proc[l[1]] = { enviado: l[3], por: l[2] }; });
+  box.innerHTML = SCI_GRUPOS_BOTAO.map((g, i) => {
+    const s = porG[g], p = proc[g];
+    const desde = s ? Date.now() - new Date(s.enviado).getTime() : Infinity;
+    const cor = p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : desde > 36e5 && sciHorarioComercial() ? "#c62828" : "#2e7d32";
+    const info = p ? `⏳ Recebido de <b>${sspEsc(sspNome(p.por))}</b> às ${formatarQuando(p.enviado)}. Atualizando o painel (até 1 minuto)…`
+      : s ? `Último envio: <b>${formatarQuando(s.enviado)}</b> por <b>${sspEsc(sspNome(s.por))}</b> (há ${faltaTexto(desde)})<br><span style="font-size:13px;color:${/^erro/.test(s.res) ? "#c62828" : "#555"}">${sspEsc(s.res)}</span>`
+      : "Ainda não enviado.";
+    return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${cor}">
+      <div style="font-size:18px;font-weight:bold">Excel ${g}</div>
+      <div style="font-size:13px;color:#555">Vai para: ${SCI_DESTINO[g]}</div>
+      <div style="font-size:15px;margin:6px 0">${info}</div>
+      <button class="acao" onclick="document.getElementById('sci_arq_${i}').click()">Enviar Excel de ${g}</button>
+      <input type="file" id="sci_arq_${i}" accept=".xls,.xlsx,.htm,.html" style="display:none" onchange="enviarExcelSCI(${i}, this)">
+    </div>`;
+  }).join("");
+  clearTimeout(window.sciTimer);
+  if (Object.keys(proc).length) window.sciTimer = setTimeout(() => { if (document.getElementById("sci_status")) carregarImportarSCI(); }, 15000);
+}
+// Lê o Excel do SCI (é uma página HTML com a tabela) e devolve { linhas, faltam, dataFiltro, locs }
+function lerExcelSCI(texto) {
+  const doc = new DOMParser().parseFromString(texto, "text/html");
+  const tabs = [...doc.querySelectorAll("table")]; if (!tabs.length) return null;
+  const tab = doc.getElementById("form-grid-grid") || [...tabs].sort((a, b) => b.rows.length - a.rows.length)[0];
+  const ths = [...tab.querySelectorAll("thead th")].map(t => t.textContent.replace(/\s+/g, " ").trim());
+  const idx = n => ths.findIndex(t => normalizarNome(t) === normalizarNome(n));
+  const faltam = SCI_OBRIGATORIAS.filter(n => idx(n) < 0);
+  const linhas = [...tab.querySelectorAll("tbody tr")].map(tr => { const tds = [...tr.children];
+    return SCI_COLUNAS.map(n => { const k = idx(n); return k >= 0 && tds[k] ? tds[k].textContent.replace(/\s+/g, " ").trim() : ""; }); })
+    .filter(l => /^\d{6,}$/.test(l[0]));
+  const filtro = tabs[0] !== tab ? [...tabs[0].querySelectorAll("td")].map(t => t.textContent.trim()) : [];
+  const kd = filtro.indexOf("data");
+  const locs = {}; linhas.forEach(l => { const n = normalizarNome(l[5].replace(/^\d+\s*-\s*/, "")); locs[n] = (locs[n] || 0) + 1; });
+  return { linhas, faltam, dataFiltro: kd >= 0 ? filtro[kd + 1] || "" : "", locs };
+}
+async function enviarExcelSCI(i, inp) {
+  const g = SCI_GRUPOS_BOTAO[i], arq = inp.files && inp.files[0]; inp.value = "";
+  if (!arq) return;
+  let texto = ""; try { texto = await arq.text(); } catch (e) {}
+  const x = /<table/i.test(texto) ? lerExcelSCI(texto) : null;
+  if (!x) { alert("Esse arquivo não é o Excel do SCI. Envie o arquivo exatamente como o SCI baixou (Pendências de Atendimento › Exportar para Excel)."); return; }
+  if (x.faltam.length) { alert("Faltam colunas no Excel: " + x.faltam.join(", ") + ".\n\nNo SCI, marque as colunas da lista desta tela e exporte de novo."); return; }
+  if (!x.linhas.length && !confirm("O Excel de " + g + " veio sem nenhuma SS. Isso tira todas as SS de " + g + " do painel. Confirmar?")) return;
+  const mf = x.dataFiltro.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (mf && new Date(Number(mf[3]), Number(mf[2]) - 1, Number(mf[1])) - sciDesdeData() > 864e5 &&
+    !confirm("Este Excel foi filtrado desde " + mf[0] + ", mas deveria ser desde " + sciDesde() + ". As SS abertas antes de " + mf[0] + " sairiam do painel.\n\nEnviar mesmo assim?")) return;
+  const maior = Object.keys(x.locs).sort((a, b) => x.locs[b] - x.locs[a])[0];
+  if (maior && !SCI_LOCS_ESPERADAS[g].includes(maior) && !confirm("Este Excel parece ser de outra unidade (a maioria das SS é de " + maior.toUpperCase() + ").\n\nEnviar mesmo assim como Excel de " + g + "?")) return;
+  const partes = []; let atual = [], tam = 2;
+  x.linhas.forEach(l => { const t = JSON.stringify(l).length + 1; if (atual.length && tam + t > 30000) { partes.push(atual); atual = []; tam = 2; } atual.push(l); tam += t; });
+  partes.push(atual);
+  const enviado = new Date().toISOString(), lote = enviado + "-" + Math.random().toString(36).slice(2, 6);
+  const box = document.getElementById("sci_status"); if (box) box.insertAdjacentHTML("afterbegin", `<div class="nota" id="sci_env">Enviando o Excel de ${g} (${x.linhas.length} SS)…</div>`);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ImportSCI",
+      linhas: partes.map((p, k) => [lote, g, window.credenciais.usuario, enviado, k + 1, partes.length, JSON.stringify(p), "", ""]) });
+    if (res.erro) { alert(res.erro); carregarImportarSCI(); return; }
+    alert("Excel de " + g + " recebido: " + x.linhas.length + " SS. O painel atualiza em até 1 minuto.");
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); }
+  carregarImportarSCI();
+}
 // SS já pedidas ao Digiteam e ainda não mandadas (aba AcaoSS): somem da lista para os outros não pedirem de novo
 function ssJaPedidasDigiteam(dados) {
   const linhas = (dados || []).slice(1);
@@ -3251,7 +3359,10 @@ function regraPrazoSS(tipo) {
   if (/LIG(ACAO)?\s*NOVA|LIGACAO DE AGUA|NOVA LIG/.test(t)) return { uteis: 10, texto: "10 dias úteis (ligação nova)" };
   return null;
 }
-function prazoSS(tipo, abertura) {
+function prazoSS(tipo, abertura, venc) {
+  // Vencimento do SCI (data da Previsão Inicial + hora da Geração da SS) vale para qualquer tipo
+  const mv = String(venc || "").match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+  if (mv) { const fimS = new Date(Number(mv[3]), Number(mv[2]) - 1, Number(mv[1]), Number(mv[4]), Number(mv[5])); return { vencida: new Date() > fimS, fim: fimS, texto: "prazo do SCI", sci: true }; }
   const r = regraPrazoSS(tipo);
   const m = String(abertura || "").match(/(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
   if (!r || !m) return null;
@@ -3261,13 +3372,20 @@ function prazoSS(tipo, abertura) {
   else { let d = 0; while (d < r.uteis) { fim.setDate(fim.getDate() + 1); if (fim.getDay() !== 0 && fim.getDay() !== 6) d++; } fim.setHours(23, 59); }
   return { vencida: new Date() > fim, fim, texto: r.texto };
 }
+// "2 dias e 3h", "5h20", "40 min"
+function faltaTexto(ms) {
+  const t = Math.abs(ms), d = Math.floor(t / 864e5), h = Math.floor(t % 864e5 / 36e5), m = Math.floor(t % 36e5 / 6e4);
+  return d ? d + (d > 1 ? " dias" : " dia") + (h ? " e " + h + "h" : "") : h ? h + "h" + (m ? String(m).padStart(2, "0") : "") : m + " min";
+}
+const quandoVence = d => d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", " às");
 function alertaPrazoHTML(p, digiteam) {
   if (!p) return "";
-  const f = p.fim.toLocaleDateString("pt-BR");
-  return p.vencida
-    ? `<div style="background:#c62828;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ VENCIDA – perdeu o prazo de ${p.texto} em ${f}.${digiteam ? " Não mandar no Digiteam: deve ser encerrada e aberto outro protocolo." : ""}</div>`
-    : `<div style="font-size:13px;color:#7a5a00">Prazo: ${p.texto} · vence em ${f}</div>`;
+  const f = quandoVence(p.fim), falta = p.fim - new Date();
+  if (p.vencida) return `<div style="background:#c62828;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ VENCIDA há ${faltaTexto(falta)} – venceu ${f}.${digiteam ? " Não mandar no Digiteam: deve ser encerrada e aberto outro protocolo." : ""}</div>`;
+  if (falta < 24 * 36e5) return `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⏰ Vence ${f} – faltam ${faltaTexto(falta)}</div>`;
+  return `<div style="font-size:14px;color:#7a5a00;font-weight:600;margin:3px 0">⏳ Vence ${f} – faltam ${faltaTexto(falta)}</div>`;
 }
+const CESTA_HTML = `<div style="background:#b71c1c;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">🎯 CESTA DE METAS – aberta pelo cliente. Não pode perder o prazo.</div>`;
 async function carregarSSLista(filtro) {
   const box = document.getElementById("sl_lista");
   if (!box) return;
@@ -3283,11 +3401,12 @@ async function carregarSSLista(filtro) {
     if (res.erro) { box.textContent = res.erro; return; }
     // SS que alguém já deu OK (executada) somem desta lista
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
-    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), aberturaTxt: String(l[3] || ""), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "", end: l[8] || "", bairro: String(l[9] || "").replace(/^\d+\s*-\s*/, "").trim(), obs: ehCorteSS(l[1]) ? "" : String(l[12] || "").trim() }))
+    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), aberturaTxt: String(l[3] || ""), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "", end: l[8] || "", bairro: String(l[9] || "").replace(/^\d+\s*-\s*/, "").trim(), obs: ehCorteSS(l[1]) ? "" : String(l[12] || "").trim(),
+        grupo: String(l[13] || "").trim(), venc: String(l[4] || ""), esp: String(l[15] || "").trim(), hid: String(l[10] || "").trim(), cesta: String(l[20] || "").trim() === "sim" }))
       // "Programada" = já está no Digiteam de alguém: não aparece
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
-      // cada funcionário vê só as SS da(s) localidade(s) dele; a gerência vê todas
-      .filter(x => (window.MODO_GERENTE && !emPrevia()) || cortesLocais().includes(String(x.loc).trim()));
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|escrit|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
+      // cada funcionário vê só as SS do Excel da equipe dele (ou da localidade, nas SS antigas); a gerência vê todas
+      .filter(x => ssDoMeuGrupo(x.grupo, x.loc));
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
     lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
@@ -3319,8 +3438,9 @@ async function carregarSSLista(filtro) {
     box.innerHTML = meusHTML + barraL + barraT + barraB + avisoCorte + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
         <label><input type="checkbox" class="sl_sel" ${tipoSel ? "checked" : ""} value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
         ${/SUBSTITUI A SS/i.test(x.nome) ? `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ ${String(x.nome).match(/SUBSTITUI A SS[^|]*/i)[0]} – o prazo da antiga foi perdido. Esta nova NÃO PODE perder o prazo.</div>` : ""}
-        ${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt), true)}
-        <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}${x.end || x.bairro ? "<br>📍 " + sspEsc([x.end, x.bairro].filter(Boolean).join(" – ")) : ""}${x.obs ? "<br>📝 <b>Obs.:</b> " + sspEsc(x.obs) : ""}<br>Aberta em ${fmt(x.abertura)}</span>
+        ${x.esp ? `<div style="font-size:14px;color:#0b5394;font-weight:600">${sspEsc(x.esp)}</div>` : ""}
+        ${x.cesta ? CESTA_HTML : ""}${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt, x.venc), true)}
+        <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}${x.end || x.bairro ? "<br>📍 " + sspEsc([x.end, x.bairro].filter(Boolean).join(" – ")) : ""}${x.hid ? "<br>🔢 Hidrômetro: <b>" + sspEsc(x.hid) + "</b>" : ""}${x.obs ? "<br>📝 <b>Obs.:</b> " + sspEsc(x.obs) : ""}<br>Aberta em ${fmt(x.abertura)}</span>
         <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
       </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
@@ -4488,10 +4608,12 @@ async function responderSS(linha, mandarDigiteam) {
 //   "executada" (campo, com GPS e fotos) · "digitada" · "foto anexada" (digitador) · "assumida" / "liberada" (campo: "Vou executar")
 // Some quando: executada + digitada + (foto anexada, se tiver foto). "Mandar no Digiteam" some quando o digitador abre e manda.
 // "Abrir e encerrar" continua em Demandas > Pedidos de SS.
-const SSP_LOCAIS = { sd: "São Desidério", cat: "Catolândia", bai: "Baianópolis" };
-const SSP_TELA = { ssPendSD: "sd", ssPendCat: "cat", ssPendBai: "bai" };
-const SSP_CONTA = { sd: "sspSD", cat: "sspCat", bai: "sspBai" };
-const SSP_EQUIPE = { sd: ["luzenildo", "joaquim", "carlito", "francisco"], cat: ["isaque", "isaac"], bai: ["ivocarlos", "janiogualberto"] };
+const SSP_LOCAIS = { sd: "São Desidério", cat: "Catolândia", bai: "Baianópolis", ang: "Angico" };
+const SSP_TELA = { ssPendSD: "sd", ssPendCat: "cat", ssPendBai: "bai", ssPendAng: "ang" };
+const SSP_CONTA = { sd: "sspSD", cat: "sspCat", bai: "sspBai", ang: "sspAng" };
+const SSP_EQUIPE = { sd: ["luzenildo", "joaquim", "carlito", "francisco"], cat: ["isaque", "isaac"], bai: ["ivocarlos", "janiogualberto"], ang: ["ramon", "renato"] };
+// Excel do SCI (grupo) → tela de SS pendentes
+const SSP_GRUPO_CHAVE = { "São Desidério": "sd", "Catolândia": "cat", "Baianópolis": "bai", "Angico": "ang" };
 const SSP_DIGITADORES = ["deyse", "thiago", "tiago", "oseias", "igor"];
 const SSP_ORIGEM = { "São Desidério": [-12.3654726, -44.9743524], "Catolândia": [-12.314725, -44.8615625], "Baianópolis": [-12.307875, -44.53859375] };
 // Foto obrigatória por tipo de serviço (no "Executei em campo")
@@ -4506,10 +4628,11 @@ Object.assign(TELAS, {
   ssPendSD: () => telaSSPend("sd"),
   ssPendCat: () => telaSSPend("cat"),
   ssPendBai: () => telaSSPend("bai"),
+  ssPendAng: () => telaSSPend("ang"),
   pedirSS: () => telaPedirSSUnico(),
   resumoGerencia: () => telaResumoGerencia()
 });
-Object.assign(CONTAGEM_SS_TELAS, { ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai" });
+Object.assign(CONTAGEM_SS_TELAS, { ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai", ssPendAng: "sspAng" });
 function sspPapel(chave) {
   const id = identidadeAtual();
   const digitador = SSP_DIGITADORES.some(n => id.includes(n)) || (window.MODO_GERENTE && !emPrevia());
@@ -4518,7 +4641,7 @@ function sspPapel(chave) {
 }
 function sspBotoesDoUsuario() {
   return Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
-    .map(k => ({ nome: "SS pendentes – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai" }[k], prioridade: true }));
+    .map(k => ({ nome: "SS pendentes – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai", ang: "ssPendAng" }[k], prioridade: true }));
 }
 // Menu principal: SS pendentes no topo; para o campo, um botão só "Pedir SS"; para a gerente, "Resumo e relatório"
 const SSP_TELAS_PEDIR = ["ssVazRede", "ssVazRamal", "ssVazHid", "solicitarSS", "pedidoSS", "pedidoSSEncerrar", "ssRede", "ssRamal"];
@@ -4572,7 +4695,7 @@ const sspHorasDesde = v => { const d = new Date(v); return isNaN(d) ? 0 : (Date.
 function telaSSPend(chave) {
   const p = sspPapel(chave);
   return `<h2>SS pendentes – ${SSP_LOCAIS[chave]}</h2>
-    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.digitador ? "A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver)." : "Toque em \"Vou executar\" antes de sair e em \"Executei em campo\" quando terminar. A SS sai da sua lista quando você executar. Se estiver no local do serviço, o GPS vai junto com a foto."}</div>
+    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.digitador ? "A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver)." : "Toque em \"Vou executar\" antes de sair e em \"" + (chave === "ang" ? "Serviço executado" : "Executei em campo") + "\" quando terminar (escreva o que foi feito no campo de informações). A SS sai da sua lista quando você executar. Se estiver no local do serviço, o GPS vai junto com a foto."}</div>
     <div id="ssp_lista">Carregando...</div>`;
 }
 async function sspDados() {
@@ -4597,7 +4720,7 @@ function sspMontar(d, chave) {
     const c = pegar(k);
     const quem = String(l[6] || "").split("|")[0].trim() || String(l[4] || "");
     if (sit === "executada") {
-      if (!c.executada) c.executada = { quem, quando: l[0] };
+      if (!c.executada) c.executada = { quem, quando: l[0], info: (String(l[6] || "").match(/\|\s*Info:\s*([^|]*)/) || [])[1] || "" };
       const f = String(l[6] || "").match(/Fotos:\s*(.+)$/);
       if (f) f[1].split(/\s+/).filter(u => /^https?:/.test(u)).forEach(u => { if (!c.fotos.includes(u)) c.fotos.push(u); });
     } else if (sit === "digitada") { if (!c.digitada) c.digitada = { quem, quando: l[0] }; }
@@ -4633,12 +4756,15 @@ function sspMontar(d, chave) {
       ["Hidrômetro", v("hidrometro")], ["Telefone", v("telefone")], ["Obs.", v("obs_ss")], ["Solicitante", v("solicitante")], ["Matrícula", v("matricula")]], gpsCol: String(v("localizacao") || ""), mat: sspLimpo(v("matricula")), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
-  // 3) SS abertas no SCI (aba SSAbertas) que ainda não estão no painel. Corte (tipo 20) fica no fluxo do Digiteam.
+  // 3) SS abertas no SCI (aba SSAbertas) que ainda não estão no painel. Vale o Excel (grupo) da SS; nas antigas, a localidade.
+  //    Corte e "Programada" ficam no fluxo do Digiteam (menos no Angico, que é todo manual).
   (d.sa || []).forEach(l => {
     const ss = sspLimpo(l[0]); if (!/^\d{6,}$/.test(ss) || porSS[ss]) return;
-    if (!sspMesmoLocal(l[2], loc) || /^\s*20\s*-/.test(String(l[1] || "")) || /encerrad|cancelad|conclu|saiu/i.test(String(l[5] || ""))) return;
-    const it = { id: ss, ss, tipo: l[1], tipoCurto: l[1], loc, quando: l[3], abertura: sspTxtData(l[3]), tipoPedido: "sci",
-      campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
+    const grupo = sspLimpo(l[13]);
+    if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
+    if ((chave !== "ang" && ehCorteSS(l[1])) || /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(String(l[5] || ""))) return;
+    const it = { id: ss, ss, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", tipoPedido: "sci",
+      campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
   // junta as confirmações (pela SS e pelo número do pedido) e decide o que ainda aparece
@@ -4647,7 +4773,7 @@ function sspMontar(d, chave) {
     const um = campo => cs.map(c => c[campo]).find(Boolean) || null;
     const fotos = [...it.fotosPedido]; cs.forEach(c => c.fotos.forEach(u => { if (!fotos.includes(u)) fotos.push(u); }));
     Object.assign(it, { executada: um("executada"), digitada: um("digitada"), fotoAnexada: um("foto"), assumida: um("assumida"), finalizada: cs.some(c => c.finalizada), fotos });
-    it.prazo = it.tipoPedido === "digiteam" || it.executada ? null : prazoSS(it.tipo, it.abertura);
+    it.prazo = it.tipoPedido === "digiteam" || it.executada ? null : prazoSS(it.tipoCurto || it.tipo, it.abertura, it.venc);
     it.parada = "";
     if (it.executada && !it.digitada && sspHorasDesde(it.executada.quando) > SSP_HORAS_PARADA_DIG) it.parada = "executada há " + Math.floor(sspHorasDesde(it.executada.quando)) + "h e ainda sem digitação";
     else if (!it.ss && (it.tipoPedido === "abrir" || it.tipoPedido === "digiteam") && sspHorasDesde(it.quando) > SSP_HORAS_PARADA_NUM) it.parada = "pedido há " + Math.floor(sspHorasDesde(it.quando)) + "h e ainda sem número";
@@ -4719,7 +4845,9 @@ async function carregarSSPend(chave) {
     box.innerHTML = ocHTML + barra + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
       const id = sspEsc(it.id);
       const etapas = [];
-      if (it.prazo) etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA – prazo " + sspEsc(it.prazo.texto), vermelho) : chip("Prazo: vence " + it.prazo.fim.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }), "#8d6e00"));
+      if (it.cesta) etapas.push(chip("🎯 CESTA DE METAS", "#b71c1c"));
+      if (it.prazo) { const fal = it.prazo.fim - new Date();
+        etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA há " + faltaTexto(fal) + " (venceu " + quandoVence(it.prazo.fim) + ")", vermelho) : chip((fal < 24 * 36e5 ? "⏰" : "⏳") + " Vence " + quandoVence(it.prazo.fim) + " – faltam " + faltaTexto(fal), fal < 24 * 36e5 ? laranja : "#8d6e00")); }
       if (it.parada) etapas.push(chip("⏱ Parada: " + sspEsc(it.parada), vinho));
       if (it.tipoPedido === "digiteam") etapas.push(chip("Aguardando abertura e envio ao Digiteam", laranja));
       else {
@@ -4746,7 +4874,8 @@ async function carregarSSPend(chave) {
           <input type="file" id="sspcam_${id}" accept="image/*" capture="environment" style="display:none" onchange="sspAddFoto('${id}', this)">
           <input type="file" id="sspgal_${id}" accept="image/*" multiple style="display:none" onchange="sspAddFoto('${id}', this)">
           <div id="sspfotos_${id}" class="nota">${((window.fotosSsp || {})[it.id] || []).length} foto(s)</div></div>
-        <button class="acao" onclick="sspExecutar('${id}', this)">Executei em campo</button>` : "";
+        <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Informações do serviço (o que foi feito, materiais, observações)"></textarea>
+        <button class="acao" onclick="sspExecutar('${id}', this)">${chave === "ang" ? "Serviço executado" : "Executei em campo"}</button>` : "";
       let acoesDig = "";
       if (p.digitador) {
         if (it.tipoPedido === "digiteam") acoesDig = `<input id="sspn_${id}" class="campo" placeholder="Número da SS aberta">${selectDigiteam("sspd_" + it.id)}
@@ -4764,6 +4893,7 @@ async function carregarSSPend(chave) {
         <span style="font-size:13px;color:#555">${it.pedidoPor ? "Pedido por " + sspEsc(sspNome(it.pedidoPor)) + " em " : it.tipoPedido === "sci" ? "Aberta em " : "Lançada em "}${it.tipoPedido === "sci" ? sspEsc(it.abertura) : formatarQuando(it.quando)}</span>
         <div style="margin:6px 0">${etapas.join("")}</div>
         ${ficha}${fotosHTML}
+        ${it.executada && it.executada.info ? `<div style="background:#fff8e1;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:15px">📝 <b>Campo informou:</b> ${sspEsc(it.executada.info)}</div>` : ""}
         ${it.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(it.gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
         ${acoesCampo}${acoesDig}
       </div>`;
@@ -4852,7 +4982,8 @@ async function sspExecutar(id, btn) {
       if (r.erro) { alert("Não consegui enviar a foto: " + r.erro); sspDestravar(btn); return; }
       links.push(r.url);
     }
-    const confirmado = window.credenciais.usuario + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "") + (links.length ? " | Fotos: " + links.join(" ") : "");
+    const info = String((document.getElementById("sspinfo_" + id) || {}).value || "").replace(/[|\n\r]+/g, " / ").trim();
+    const confirmado = window.credenciais.usuario + (info ? " | Info: " + info : "") + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "") + (links.length ? " | Fotos: " + links.join(" ") : "");
     const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo",
       linhas: [[new Date().toISOString(), "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), "executada", confirmado]] });
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
@@ -4890,6 +5021,19 @@ const ehCorteSS = t => { const s = String(t || "").toUpperCase(); return !/RELIG
 const CORTE_TIPO = "42.1 - CORTE POR FALTA DE PAGAMENTO";
 const AVISO_CORTE = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:10px">⚠ Executar exclusivamente pelo Digiteam.</div>`;
 Object.assign(TELAS, { cortes: () => telaCortes() });
+// Equipe de cada Excel do SCI (quem recebe a SS é o Excel/botão, não a localidade escrita na SS)
+const SCI_EQUIPES_PAINEL = { "São Desidério": ["luzenildo", "joaquim", "carlito", "francisco"], "Angico": ["ramon", "renato"], "Catolândia": ["isaque", "isaac"], "Baianópolis": ["ivo", "janiogualberto"] };
+function grupoSCIDoUsuario() {
+  const id = identidadeAtual();
+  for (const g of Object.keys(SCI_EQUIPES_PAINEL)) if (SCI_EQUIPES_PAINEL[g].some(n => id.includes(n))) return g;
+  return "";
+}
+function ssDoMeuGrupo(grupo, loc) {
+  if (window.MODO_GERENTE && !emPrevia()) return true;
+  const g = grupoSCIDoUsuario();
+  if (String(grupo || "").trim()) return !g || String(grupo).trim() === g;
+  return cortesLocais().includes(String(loc).trim());
+}
 function cortesLocais() {
   const todas = Object.keys(OC_LOGRADOUROS);
   if (window.MODO_GERENTE && !emPrevia()) return todas;
@@ -4968,7 +5112,7 @@ async function carregarCortes() {
     if (res.erro) { box.textContent = res.erro; return; }
     const locs = cortesLocais().map(normalizarNome);
     const lista = res.dados.slice(1).map(l => ({ ss: sspLimpo(l[0]), tipo: l[1], loc: String(l[2] || "").trim(), abertura: String(l[3] || ""), situacao: l[5] || "", nome: l[6] || "", mat: sspLimpo(l[7]), end: l[8], bairro: l[9], hid: l[10], tel: l[11] }))
-      .filter(x => x.ss && ehCorteSS(x.tipo) && !/encerrad|cancelad|conclu|saiu/i.test(x.situacao) && locs.includes(normalizarNome(x.loc)));
+      .filter(x => x.ss && ehCorteSS(x.tipo) && !/encerrad|cancelad|conclu|saiu|escrit/i.test(x.situacao) && locs.includes(normalizarNome(x.loc)));
     if (!lista.length) { box.innerHTML = "<p>Nenhum corte em aberto.</p>"; return; }
     const porLoc = {}; lista.forEach(x => (porLoc[x.loc] = porLoc[x.loc] || []).push(x));
     box.innerHTML = `<div style="margin-bottom:8px;font-weight:bold">${Object.entries(porLoc).map(([l, xs]) => `${sspEsc(l)}: ${xs.length}`).join(" · ")}</div>` +
@@ -6350,7 +6494,7 @@ async function carregarSSAbertoLocal() {
     });
     (sa.dados || []).slice(1).forEach(l => {
       const ss = String(l[0] || "").replace(/^'/, "");
-      if (!ss || !/^\d{6,}$/.test(ss) || executadas.has(ss) || /encerrad|cancelad|conclu|saiu/i.test(String(l[5] || ""))) return;
+      if (!ss || !/^\d{6,}$/.test(ss) || executadas.has(ss) || /encerrad|cancelad|conclu|saiu|escrit/i.test(String(l[5] || ""))) return;
       if (!porSS[ss]) porSS[ss] = { tipo: String(l[1] || "Sem tipo"), loc: String(l[2] || "Sem localidade").trim() };
     });
     const grupos = {};
@@ -6377,7 +6521,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 12h18";
+const VERSAO_PAINEL = "05/11 13h37";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
