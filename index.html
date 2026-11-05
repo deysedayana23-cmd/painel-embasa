@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h20</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h25</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -2058,7 +2058,8 @@ function gerarTextoCoelba() {
     "RECLAMAÇÃO COELBA",
     "Qualidade(" + q + ") Interrupção(" + i + ")",
     "- LOCALIDADE",
-    campo("cb_cidade"),
+    // localidade + unidade do contrato (ex.: "São Desidério Captação")
+    [campo("cb_cidade"), document.getElementById("cb_conta").value.split("|")[1] || ""].filter(Boolean).join(" "),
     "- CONTA CONTRATO",
     (document.getElementById("cb_conta").value.split("|")[0] || "--"),
     "- NOTA DE RECLAMAÇÃO",
@@ -6219,7 +6220,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 07h20";
+const VERSAO_PAINEL = "05/11 07h25";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
