@@ -1663,7 +1663,7 @@ function mostrarMenu(itens, titulo) {
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
-  if (!pilha.length) itens = sspPedirParaTodos(sspAjustarMenu(itens));
+  if (!pilha.length) itens = cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens)));
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -1712,8 +1712,8 @@ async function contarSSDigiteam(cred) {
     const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
     const gerente = window.MODO_GERENTE && !emPrevia();
-    return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), loc: l[2], situacao: l[5] || "" }))
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
+    return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], situacao: l[5] || "" }))
+      .filter(x => x.ss && !ehCorteSS(x.tipo) &&!/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
       .filter(x => gerente || localidadesAgersaDoUsuario().includes(String(x.loc).trim())).length;
   } catch (e) { return 0; }
 }
@@ -1788,6 +1788,7 @@ function abrir(i) {
     if (it.tela === "pendExecutar") carregarPendExecutar();
     if (SSP_TELA[it.tela]) carregarSSPend(SSP_TELA[it.tela]);
     if (it.tela === "resumoGerencia") carregarResumoGerencia(0);
+    if (it.tela === "cortes") carregarCortes();
     if (it.tela === "semLocalizacao") carregarSemLocalizacao();
     if (it.local) window.almoxLocalPreset = it.local;
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
@@ -3182,8 +3183,8 @@ async function carregarSSLista(filtro) {
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
     let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), aberturaTxt: String(l[3] || ""), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
       // "Programada" = já está no Digiteam de alguém: não aparece
-      .filter(x => x.ss && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
-      // cada funcionário vê só as SS da(s) localidade(s) dele; a gerência vê todas
+      .filter(x => x.ss && !ehCorteSS(x.tipo) && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
+      // cortes ficam só no botão "Cortes (42.1)"; cada funcionário vê só as SS da(s) localidade(s) dele; a gerência vê todas
       .filter(x => (window.MODO_GERENTE && !emPrevia()) || localidadesAgersaDoUsuario().includes(String(x.loc).trim()));
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
@@ -4254,8 +4255,8 @@ async function carregarPedidosDigiteam() {
     const lista = Object.entries(grupos).reverse();
     window.digiGrupos = Object.fromEntries(lista);
     box.innerHTML = lista.length ? `<h3>Pedidos para o Digiteam (${lista.length})</h3>` + lista.map(([id, g], k) => `<div class="card" style="margin-bottom:10px;border-left:6px solid #ef6c00">
-      <b>${g.quem} pediu ${g.ss.length} SS de ${g.tipo}</b><br><span style="font-size:14px">${g.loc} · em ${formatarQuando(g.quando)}</span>
-      <div style="font-size:13px;margin-top:4px">SS: ${g.ss.join(", ")}</div>
+      ${g.ss.every(s => /^Bairro:/.test(s)) ? `<b>${g.quem} pediu cortes no Digiteam</b>` : `<b>${g.quem} pediu ${g.ss.length} SS de ${g.tipo}</b>`}<br><span style="font-size:14px">${g.loc} · em ${formatarQuando(g.quando)}</span>
+      <div style="font-size:13px;margin-top:4px">${g.ss.every(s => /^Bairro:/.test(s)) ? sspEsc(g.ss.join(" · ")) : "SS: " + g.ss.join(", ")}</div>
       <button class="acao" onclick="marcarDigiteamFeito(${k})">Mandado no Digiteam</button></div>`).join("") : "";
   } catch (e) { box.textContent = ""; }
 }
@@ -4694,6 +4695,84 @@ async function sspResponder(id, digiteam, btn) {
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
 }
+// ===== CORTES (42.1): um botão só, para consulta. Execução exclusivamente pelo Digiteam. =====
+// Lista os cortes em aberto da aba SSAbertas (por localidade) e tem um formulário simples:
+// o funcionário escolhe a localidade e o bairro, e o pedido vai para "Pedidos para o Digiteam" (aba AcaoSS).
+const ehCorteSS = t => { const s = String(t || "").toUpperCase(); return !/RELIG|RESTAB/.test(s) && (/^\s*(20|42)\s*[-.]/.test(s) || /CORTE/.test(s)); };
+const CORTE_TIPO = "42.1 - CORTE POR FALTA DE PAGAMENTO";
+const AVISO_CORTE = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:10px">⚠ Executar exclusivamente pelo Digiteam.</div>`;
+Object.assign(TELAS, { cortes: () => telaCortes() });
+function cortesLocais() {
+  const todas = Object.keys(OC_LOGRADOUROS);
+  if (window.MODO_GERENTE && !emPrevia()) return todas;
+  const minhas = localidadesAgersaDoUsuario();
+  // Angico é da equipe de São Desidério; Mozondó e Buriti Cortado, da equipe de Catolândia
+  if (minhas.includes("São Desidério")) minhas.push("Angico");
+  if (minhas.includes("Catolândia")) minhas.push("Mozondó", "Buriti Cortado");
+  const l = todas.filter(x => minhas.includes(x));
+  return l.length ? l : todas;
+}
+function cortesNoMenu(itens) {
+  const id = identidadeAtual();
+  const pode = (window.MODO_GERENTE && !emPrevia()) || [...GRUPO_CAMPO, ...GRUPO_GESTAO].some(n => id.includes(n));
+  if (!pode || itens.some(i => i.tela === "cortes")) return itens;
+  let k = -1; itens.forEach((i, n) => { if (i.tela === "servicosUrgentes" || SSP_TELA[i.tela] || i.tela === "pedirSS") k = n; });
+  itens.splice(k + 1, 0, { nome: "Cortes (42.1)", tela: "cortes" });
+  return itens;
+}
+function telaCortes() {
+  const locs = cortesLocais();
+  return `<h2>Cortes (42.1)</h2>${AVISO_CORTE}
+    <div class="nota">Esta tela é só para consulta. Para receber cortes no Digiteam, escolha o bairro abaixo e envie.</div>
+    <h3>Pedir cortes de um bairro no Digiteam</h3>
+    <select id="ct_loc" class="campo" onchange="cortesBairros()">${locs.length > 1 ? `<option value="">Localidade…</option>` : ""}${locs.map(l => `<option>${l}</option>`).join("")}</select>
+    <select id="ct_bairro" class="campo"><option value="">Escolha a localidade primeiro</option></select>
+    <input id="ct_obs" class="campo" placeholder="Observação (opcional)">
+    <button class="acao" onclick="enviarPedidoCorte(this)">Enviar ao Digiteam</button>
+    <h3>Cortes em aberto</h3>
+    <div id="ct_lista">Carregando...</div>`;
+}
+function cortesBairros() {
+  const loc = (document.getElementById("ct_loc") || {}).value || "";
+  const sel = document.getElementById("ct_bairro"); if (!sel) return;
+  const bs = Object.keys(OC_LOGRADOUROS[loc] || {});
+  sel.innerHTML = bs.length ? `<option value="">Bairro…</option>${bs.map(b => `<option>${b}</option>`).join("")}` : `<option value="">Escolha a localidade primeiro</option>`;
+}
+async function carregarCortes() {
+  cortesBairros();
+  const box = document.getElementById("ct_lista"); if (!box) return;
+  try {
+    const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
+    if (res.erro) { box.textContent = res.erro; return; }
+    const locs = cortesLocais().map(normalizarNome);
+    const lista = res.dados.slice(1).map(l => ({ ss: sspLimpo(l[0]), tipo: l[1], loc: String(l[2] || "").trim(), abertura: String(l[3] || ""), situacao: l[5] || "", nome: l[6] || "", mat: sspLimpo(l[7]) }))
+      .filter(x => x.ss && ehCorteSS(x.tipo) && !/encerrad|cancelad|conclu/i.test(x.situacao) && locs.includes(normalizarNome(x.loc)));
+    if (!lista.length) { box.innerHTML = "<p>Nenhum corte em aberto.</p>"; return; }
+    const porLoc = {}; lista.forEach(x => (porLoc[x.loc] = porLoc[x.loc] || []).push(x));
+    box.innerHTML = `<div style="margin-bottom:8px;font-weight:bold">${Object.entries(porLoc).map(([l, xs]) => `${sspEsc(l)}: ${xs.length}`).join(" · ")}</div>` +
+      lista.map(x => `<div class="card" style="margin-bottom:6px;border-left:6px solid #c62828">
+        <b>SS ${sspEsc(x.ss)}</b> · ${sspEsc(x.tipo)}<br>
+        <span style="font-size:14px">${sspEsc(x.loc)}${x.mat ? " · matrícula " + sspEsc(x.mat) : ""}${x.nome ? " · " + sspEsc(String(x.nome).replace(/\|.*$/, "")) : ""}${x.abertura ? "<br>Aberta em " + sspEsc(sspTxtData(x.abertura) || x.abertura) : ""}</span>
+      </div>`).join("");
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function enviarPedidoCorte(btn) {
+  const loc = (document.getElementById("ct_loc") || {}).value || "";
+  const bairro = (document.getElementById("ct_bairro") || {}).value || "";
+  const obs = String((document.getElementById("ct_obs") || {}).value || "").trim();
+  if (!loc || !bairro) { alert("Escolha a localidade e o bairro."); return; }
+  if (btn && btn.disabled) return;
+  sspTravar(btn);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "Bairro: " + bairro + (obs ? " (" + obs + ")" : ""), CORTE_TIPO, loc, "", "Mandar no Digiteam (cortes do bairro)", "pendente"]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    alert("Pedido enviado: cortes de " + bairro + " (" + loc + ") no seu Digiteam. Lembre: executar exclusivamente pelo Digiteam.");
+    document.getElementById("ct_obs").value = "";
+    sspDestravar(btn);
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); sspDestravar(btn); }
+}
+
 // ===== PEDIR SS: um botão só para o campo (vazamento, Digiteam e abrir e encerrar ficam dentro) =====
 function telaPedirSSUnico() {
   const atalho = (rot, t, e) => `<button class="ssp-atalho" onclick="sspAtalho(this, '${t}', '${e}')" style="flex:1 1 30%;margin:3px;padding:10px 6px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">${rot}</button>`;
