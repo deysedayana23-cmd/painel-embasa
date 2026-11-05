@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h40</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 07h55</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -1672,6 +1672,10 @@ function mostrarMenu(itens, titulo) {
   let html = "";
   if (pilha.length) html += `<button class="voltar" onclick="voltar()">← Voltar</button>`;
   if (!pilha.length && perfilAtual.startsWith("Agente")) html += AVISO_DIGITINHO;
+  if (!pilha.length && itens.some(i => i.tela === "ssDigiteam") && !(window.MODO_GERENTE && !emPrevia())) {
+    const q = window.contagemSS && window.contagemSS.ssDigiteam !== undefined ? window.contagemSS.ssDigiteam : "…";
+    html += `<div id="lembreteSCI" class="aviso" style="background:#e3f2fd;border-left-color:#0b5394"><b>Existem <span id="lembreteSCIq">${q}</span> SS em aberto no SCI.</b> Caso esteja disponível, solicite o envio ao seu Digiteam em "Solicitação ao Digiteam".</div>`;
+  }
   if (!pilha.length && !perfilAtual.startsWith("Gerente")) html += BANNER_VERIF;
   html += `<h2>${titulo}</h2><div class="grid">`;
   itens.forEach((it, i) => {
@@ -1713,7 +1717,7 @@ async function contarSSDigiteam(cred) {
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
     const gerente = window.MODO_GERENTE && !emPrevia();
     return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], situacao: l[5] || "" }))
-      .filter(x => x.ss && !ehCorteSS(x.tipo) &&!/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
       .filter(x => gerente || localidadesAgersaDoUsuario().includes(String(x.loc).trim())).length;
   } catch (e) { return 0; }
 }
@@ -1749,6 +1753,7 @@ async function atualizarContagemSS() {
   const [pendEx, digi, ssp] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens()]);
   window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi }, ssp);
   window.contagemSSCarregando = false;
+  const lq = document.getElementById("lembreteSCIq"); if (lq) lq.textContent = window.contagemSS.ssDigiteam;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
     const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
     if (chave) b.textContent = `${b.dataset.nome} (${window.contagemSS[chave]})`;
@@ -3197,10 +3202,10 @@ async function carregarSSLista(filtro) {
     if (res.erro) { box.textContent = res.erro; return; }
     // SS que alguém já deu OK (executada) somem desta lista
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
-    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), aberturaTxt: String(l[3] || ""), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "" }))
+    let lista = res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], abertura: dataSS(l[3]), aberturaTxt: String(l[3] || ""), vencimento: dataSS(l[4]), situacao: l[5] || "", nome: l[6] || "", mat: l[7] || "", end: l[8] || "", bairro: String(l[9] || "").replace(/^\d+\s*-\s*/, "").trim() }))
       // "Programada" = já está no Digiteam de alguém: não aparece
-      .filter(x => x.ss && !ehCorteSS(x.tipo) && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
-      // cortes ficam só no botão "Cortes (42.1)"; cada funcionário vê só as SS da(s) localidade(s) dele; a gerência vê todas
+      .filter(x => x.ss && !/encerrad|cancelad|conclu|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss))
+      // cada funcionário vê só as SS da(s) localidade(s) dele; a gerência vê todas
       .filter(x => (window.MODO_GERENTE && !emPrevia()) || localidadesAgersaDoUsuario().includes(String(x.loc).trim()));
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
@@ -3210,15 +3215,22 @@ async function carregarSSLista(filtro) {
     const nomeT = t => String(t || "Sem tipo").replace(/^\s*\d+\s*-\s*/, "").trim().toUpperCase();
     const contT = {}; lista.forEach(x => { const t = nomeT(x.tipo); contT[t] = (contT[t] || 0) + 1; });
     const tipoSel = window.slTipo || "";
-    const bt = (rot, val) => `<button onclick="window.slTipo='${val}';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid #0b5394;background:${tipoSel === val ? "#0b5394" : "#fff"};color:${tipoSel === val ? "#fff" : "#0b5394"}">${rot}</button>`;
+    const bt = (rot, val) => `<button onclick="window.slTipo='${val}';window.slBairro='';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid #0b5394;background:${tipoSel === val ? "#0b5394" : "#fff"};color:${tipoSel === val ? "#fff" : "#0b5394"}">${rot}</button>`;
     const barraT = lista.length ? `<div style="margin-bottom:8px">${bt("Todas (" + lista.length + ")", "")}${Object.entries(contT).sort((a, b) => b[1] - a[1]).map(([t, q]) => bt(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}</div>` : "";
     if (tipoSel) lista = lista.filter(x => nomeT(x.tipo) === tipoSel);
-    const marcarTodas = tipoSel ? `<label style="display:block;margin:6px 0;font-weight:600"><input type="checkbox" checked onchange="document.querySelectorAll('.sl_sel').forEach(c => c.checked = this.checked)"> Marcar todas as ${lista.length} de ${tipoSel}</label>` : "";
-    box.innerHTML = barraT + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
+    // Escolhido o tipo, botões por bairro (para não mandar tudo de uma vez)
+    const contB = {}; if (tipoSel) lista.forEach(x => { const b = x.bairro || "Sem bairro"; contB[b] = (contB[b] || 0) + 1; });
+    const bairroSel = tipoSel && contB[window.slBairro] ? window.slBairro : "";
+    const bb = (rot, val) => `<button onclick="window.slBairro='${val}';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:7px 9px;border-radius:8px;font-weight:600;border:2px solid #2e7d32;background:${bairroSel === val ? "#2e7d32" : "#fff"};color:${bairroSel === val ? "#fff" : "#2e7d32"}">${rot}</button>`;
+    const barraB = tipoSel && Object.keys(contB).length > 1 ? `<div class="nota" style="margin-top:4px"><b>Bairro:</b></div><div style="margin-bottom:8px">${bb("Todos (" + lista.length + ")", "")}${Object.entries(contB).sort((a, b) => b[1] - a[1]).map(([b, q]) => bb(sspEsc(b) + " (" + q + ")", b.replace(/'/g, ""))).join("")}</div>` : "";
+    if (bairroSel) lista = lista.filter(x => (x.bairro || "Sem bairro") === bairroSel);
+    const avisoCorte = tipoSel && /CORTE/.test(tipoSel) ? AVISO_CORTE : "";
+    const marcarTodas = tipoSel ? `<label style="display:block;margin:6px 0;font-weight:600"><input type="checkbox" checked onchange="document.querySelectorAll('.sl_sel').forEach(c => c.checked = this.checked)"> Marcar todas as ${lista.length} de ${tipoSel}${bairroSel ? " – " + sspEsc(bairroSel) : ""}</label>` : "";
+    box.innerHTML = barraT + barraB + avisoCorte + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
         <label><input type="checkbox" class="sl_sel" ${tipoSel ? "checked" : ""} value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
         ${/SUBSTITUI A SS/i.test(x.nome) ? `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ ${String(x.nome).match(/SUBSTITUI A SS[^|]*/i)[0]} – o prazo da antiga foi perdido. Esta nova NÃO PODE perder o prazo.</div>` : ""}
         ${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt), true)}
-        <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}<br>Aberta em ${fmt(x.abertura)}</span>
+        <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}${x.end || x.bairro ? "<br>📍 " + sspEsc([x.end, x.bairro].filter(Boolean).join(" – ")) : ""}<br>Aberta em ${fmt(x.abertura)}</span>
         <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
       </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
@@ -4788,7 +4800,7 @@ function cortesLocais() {
 function cortesNoMenu(itens) {
   const id = identidadeAtual();
   const pode = (window.MODO_GERENTE && !emPrevia()) || [...GRUPO_CAMPO, ...GRUPO_GESTAO].some(n => id.includes(n));
-  if (!pode || itens.some(i => i.tela === "cortes")) return itens;
+  if (true || !pode || itens.some(i => i.tela === "cortes")) return itens; // 05/11: cortes ficam dentro de "Solicitação ao Digiteam"
   let k = -1; itens.forEach((i, n) => { if (i.tela === "servicosUrgentes" || SSP_TELA[i.tela] || i.tela === "pedirSS") k = n; });
   itens.splice(k + 1, 0, { nome: "Cortes", tela: "cortes" });
   return itens;
@@ -6259,7 +6271,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 07h40";
+const VERSAO_PAINEL = "05/11 07h55";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
