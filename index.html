@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 16h50</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 16h54</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1662,7 +1662,7 @@ function mostrarMenu(itens, titulo) {
     if (outrosSub.length) itens.push({nome: "Outros", sub: outrosSub});
   }
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
-  if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(inativasNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens)))))));
+  if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(substNoMenu(inativasNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))))))));
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
@@ -1717,9 +1717,9 @@ async function contarSSDigiteam(cred) {
     const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
     const gerente = window.MODO_GERENTE && !emPrevia();
-    return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], situacao: l[5] || "", grupo: String(l[13] || "").trim() }))
+    return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], situacao: l[5] || "", grupo: String(l[13] || "").trim(), esp: l[15] }))
       .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|escrit|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
-      .filter(x => gerente || ssDoMeuGrupo(x.grupo, x.loc)).length;
+      .filter(x => (gerente || ssDoMeuGrupo(x.grupo, x.loc)) && !ehSubstituicaoHD(x.tipo, x.esp)).length;
   } catch (e) { return 0; }
 }
 async function atualizarContagemSS() {
@@ -1727,6 +1727,7 @@ async function atualizarContagemSS() {
   window.contagemSSCarregando = true;
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
   if (document.querySelector("#app button.btn") && [...document.querySelectorAll("#app button.btn")].some(b => /^Inativas/.test(b.textContent))) atualizarDataInativas(cred);
+  if ([...document.querySelectorAll("#app button.btn")].some(b => /^Substituição de hidrômetro/.test(b.textContent))) atualizarSubstMenu(cred);
   const contar = async (aba, filtro) => {
     try {
       const res = await chamarApi({ acao: "listar", ...cred, aba });
@@ -1794,6 +1795,7 @@ function abrir(i) {
     if (it.tela === "pedidosDigi") carregarPedidosDigi();
     if (it.tela === "importarSCI") carregarImportarSCI();
     if (it.tela === "inativas") carregarInativas();
+    if (it.tela === "substHD") carregarSubst();
     if (it.tela === "pendAbrirEncerrar") carregarPendAbrirEncerrar();
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
@@ -3521,6 +3523,106 @@ async function responderInativa(i, btn) {
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui registrar. Verifique a internet."); sspDestravar(btn); }
 }
+// ===== SUBSTITUIÇÃO DE HIDRÔMETRO: datas pelo cronograma de leitura (atualizar todo mês com a tabela da Deyse) =====
+// Regra por localidade e, em Catolândia, por setor de faturamento. ate = pode até essa data; aPartir = pode a partir dessa data.
+const SUBST_REGRAS = [
+  { loc: "Baianópolis", aPartir: "11/11/2026" },
+  { loc: "Catolândia", setores: [1, 2], nome: "setores 1 e 2", aPartir: "11/11/2026" },
+  { loc: "Catolândia", setores: [3, 4, 5, 6, 7, 8], nome: "setores 3 a 8", aPartir: "09/11/2026" },
+  { loc: "Catolândia", setores: [9, 10, 11, 12, 13, 14, 15, 16], nome: "setores 10 a 16", aPartir: "12/11/2026" },
+  { loc: "Buriti Cortado", aPartir: "09/11/2026" },
+  { loc: "Mozondó", ate: "10/11/2026", aPartir: "14/11/2026" },
+  { loc: "Angico", aPartir: "19/11/2026" },
+  { loc: "São Desidério", ate: "12/11/2026" }
+];
+// Setor das matrículas que ainda não vieram com setor no Excel
+const SUBST_SETOR_CONHECIDO = { "163074844": 1 };
+const ehSubstituicaoHD = (tipo, esp) => /^\s*26\b/.test(String(tipo || "")) && /SUBSTITUI/i.test(String(esp || ""));
+const substData = t => { const m = String(t || "").match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) : null; };
+const substDM = t => String(t || "").slice(0, 5);
+function substRegra(loc, setorTxt, mat) {
+  const l = String(loc || "").trim();
+  const setor = Number((String(setorTxt || "").match(/^\s*(\d+)/) || [])[1]) || SUBST_SETOR_CONHECIDO[sspLimpo(mat)] || 0;
+  const regras = SUBST_REGRAS.filter(r => r.loc === l);
+  if (!regras.length) return null;
+  let r = regras.length === 1 ? regras[0] : regras.find(x => x.setores && x.setores.includes(setor));
+  if (!r) return { loc: l, semSetor: true, rotulo: l + " – setor não informado", texto: "confirme a data com o escritório", liberado: false };
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const ate = substData(r.ate), aPartir = substData(r.aPartir);
+  const liberado = (ate && hoje <= ate) || (aPartir && hoje >= aPartir) || (!ate && !aPartir);
+  const texto = ate && aPartir ? "até " + substDM(r.ate) + " ou a partir de " + substDM(r.aPartir) : ate ? "até " + substDM(r.ate) : "a partir de " + substDM(r.aPartir);
+  const setTxt = r.nome ? " " + r.nome : "";
+  return { loc: l, rotulo: l + setTxt, texto, liberado, setor };
+}
+function substAvisoHTML(r) {
+  if (!r) return "";
+  return `<div style="background:#b71c1c;color:#fff;border-radius:8px;padding:10px 12px;margin:6px 0;font-size:18px;font-weight:bold;line-height:1.35">
+    ⚠ Por conta do cronograma de leitura, esta substituição deve ser feita <u>${sspEsc(r.texto)}</u>.
+    <div style="font-size:16px;margin-top:4px;background:#fff;color:${r.liberado ? "#2e7d32" : "#b71c1c"};border-radius:6px;padding:4px 8px;display:inline-block">${r.liberado ? "✅ HOJE PODE SUBSTITUIR" : "⛔ HOJE É PROIBIDO SUBSTITUIR"}</div></div>`;
+}
+function substNoMenu(itens) {
+  const ger = window.MODO_GERENTE && !emPrevia();
+  if ((!ger && !grupoSCIDoUsuario()) || itens.some(i => i.tela === "substHD")) return itens;
+  let k = itens.findIndex(i => i.tela === "inativas");
+  if (k < 0) k = itens.findIndex(i => i.tela === "ssDigiteam" || i.tela === "ssPendAng");
+  itens.splice(k >= 0 ? k + 1 : Math.min(1, itens.length), 0, { nome: window.substRotuloMenu || "Substituição de hidrômetro", tela: "substHD", grande: !ger });
+  return itens;
+}
+function substLista(saDados, exDados, acsDados) {
+  const executadas = new Set((exDados || []).slice(1).filter(l => /^(executada|finalizada)/i.test(String(l[5] || "").trim())).map(l => sspLimpo(l[1])));
+  const jaPedidas = ssJaPedidasDigiteam(acsDados);
+  return (saDados || []).slice(1).map(l => ({ ss: sspLimpo(l[0]), tipo: l[1], loc: sspLimpo(l[2]), situacao: String(l[5] || ""), nome: l[6], mat: sspLimpo(l[7]), end: l[8], bairro: String(l[9] || "").replace(/^\d+\s*-\s*/, ""), hid: l[10],
+      obs: l[12], grupo: sspLimpo(l[13]), esp: l[15], venc: sspLimpo(l[4]), aberturaTxt: String(l[3] || ""), setor: l[21] }))
+    .filter(x => x.ss && ehSubstituicaoHD(x.tipo, x.esp) && !/encerrad|cancelad|conclu|saiu|escrit|programad/i.test(x.situacao) && !executadas.has(x.ss) && ssDoMeuGrupo(x.grupo, x.loc))
+    .map(x => Object.assign(x, { regra: substRegra(x.loc, x.setor, x.mat), pedida: jaPedidas.has(x.ss) }));
+}
+async function atualizarSubstMenu(cred) {
+  try {
+    const [sa, ex, acs] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })), chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }).catch(() => ({ dados: [] }))]);
+    const l = substLista(sa.dados, ex.dados, acs.dados).filter(x => !x.pedida);
+    const regras = [...new Set(l.map(x => x.regra ? x.regra.texto : ""))];
+    window.substRotuloMenu = "Substituição de hidrômetro (" + l.length + ")" + (regras.length === 1 && regras[0] ? " – " + regras[0] : "");
+    document.querySelectorAll("#app button.btn").forEach(b => { if (/^Substituição de hidrômetro/.test(b.textContent)) b.textContent = window.substRotuloMenu; });
+  } catch (e) {}
+}
+Object.assign(TELAS, { substHD: () => `<h2>Substituição de hidrômetro</h2>
+  <div style="background:#b71c1c;color:#fff;border-radius:10px;padding:12px;font-size:18px;font-weight:bold;margin-bottom:8px">Por conta do cronograma de leitura, cada setor tem a sua data. Só substitua nos dias liberados.</div>
+  <input type="hidden" id="sl_acao" value="Mandar no Digiteam">
+  <div id="subst_lista">Carregando...</div>` });
+async function carregarSubst() {
+  const box = document.getElementById("subst_lista"); if (!box) return;
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  let sa, ex, acs;
+  try { [sa, ex, acs] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }).catch(() => ({ dados: [] })), chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }).catch(() => ({ dados: [] }))]); }
+  catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
+  const lista = substLista(sa.dados, ex.dados, acs.dados);
+  const angico = grupoSCIDoUsuario() === "Angico";
+  const grupos = {}; lista.forEach(x => { const k = x.regra ? x.regra.rotulo : x.loc; (grupos[k] = grupos[k] || { regra: x.regra, itens: [] }).itens.push(x); });
+  const sel = grupos[window.substSel] ? window.substSel : (Object.keys(grupos).length === 1 ? Object.keys(grupos)[0] : "");
+  const botoes = Object.keys(grupos).sort().map(k => { const g = grupos[k], r = g.regra, on = k === sel;
+    return `<button onclick="window.substSel='${k.replace(/'/g, "")}';carregarSubst()" style="display:block;width:100%;text-align:left;margin:6px 0;padding:14px;border-radius:10px;font-size:17px;font-weight:bold;border:3px solid ${r && r.liberado ? "#2e7d32" : "#b71c1c"};background:${on ? (r && r.liberado ? "#2e7d32" : "#b71c1c") : "#fff"};color:${on ? "#fff" : "#222"}">
+      ${sspEsc(k)} (${g.itens.length})<br><span style="font-size:15px">${r ? (r.liberado ? "✅ " : "⛔ ") + "Substituir " + sspEsc(r.texto) : ""}</span></button>`; }).join("");
+  if (!lista.length) { box.innerHTML = "<p>Nenhuma substituição de hidrômetro em aberto para a sua equipe.</p>"; return; }
+  const g = grupos[sel];
+  let corpo = "";
+  if (g) {
+    const r = g.regra, podePedir = !angico && r && r.liberado && !(window.MODO_GERENTE && !emPrevia());
+    corpo = substAvisoHTML(r) +
+      (angico ? `<div class="nota">Para dar baixa, use <b>SS pendentes – Angico</b> (Serviço executado), só nos dias liberados.</div>` : "") +
+      (podePedir ? `<label style="display:block;font-weight:600;margin-top:6px">Data para o Digiteam <input type="date" id="sl_data" class="campo" value="${hojeISO()}"></label>
+        <button class="acao" onclick="pedirSubstDigiteam()">Pedir as marcadas no meu Digiteam</button>` : "") +
+      g.itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${r && r.liberado ? "#2e7d32" : "#b71c1c"}">
+        ${podePedir && !x.pedida ? `<label style="float:right"><input type="checkbox" class="sl_sel" checked value="${sspEsc(x.ss)}" data-tipo="${sspEsc(x.tipo)}" data-loc="${sspEsc(x.loc)}" data-nome="${sspEsc(x.nome)}" data-mat="${sspEsc(x.mat)}"> pedir</label>` : ""}
+        <div style="font-size:18px;font-weight:bold;color:#0b5394">SS ${sspEsc(x.ss)}</div>
+        <div style="font-size:14px;color:#0b5394;font-weight:600">${sspEsc(x.esp)}${x.regra && x.regra.setor ? " · setor " + x.regra.setor : ""}</div>
+        ${x.pedida ? `<div style="font-weight:bold;color:#6a1b9a">⏳ Já pedida no Digiteam</div>` : ""}
+        ${sspFicha([["Cliente", x.nome], ["Endereço", x.end], ["Bairro", x.bairro], ["Hidrômetro", x.hid], ["Obs.", x.obs], ["Matrícula", x.mat]])}
+        ${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt, x.venc), false)}
+      </div>`).join("");
+  }
+  box.innerHTML = `<div class="nota">Escolha o grupo:</div>` + botoes + corpo;
+}
+async function pedirSubstDigiteam() { await enviarSSLista(); carregarSubst(); }
 // SS já pedidas ao Digiteam e ainda não mandadas (aba AcaoSS): somem da lista para os outros não pedirem de novo
 function ssJaPedidasDigiteam(dados) {
   const linhas = (dados || []).slice(1);
@@ -3590,7 +3692,7 @@ async function carregarSSLista(filtro) {
       // "Programada" = já está no Digiteam de alguém: não aparece
       .filter(x => x.ss && !/encerrad|cancelad|conclu|saiu|escrit|programad/i.test(x.situacao) && !executadas.has(x.ss) && !canceladasV.has(x.ss) && !jaPedidas.has(x.ss))
       // cada funcionário vê só as SS do Excel da equipe dele (ou da localidade, nas SS antigas); a gerência vê todas
-      .filter(x => ssDoMeuGrupo(x.grupo, x.loc));
+      .filter(x => ssDoMeuGrupo(x.grupo, x.loc) && !ehSubstituicaoHD(x.tipo, x.esp)); // substituição de HD tem botão próprio
     if (filtro === "24") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 24 * 3600e3));
     if (filtro === "48") lista = lista.filter(x => x.vencimento && x.vencimento >= agora && x.vencimento <= new Date(agora.getTime() + 48 * 3600e3));
     lista.sort((a, b) => (a.vencimento || a.abertura || 0) - (b.vencimento || b.abertura || 0));
@@ -4947,7 +5049,7 @@ function sspMontar(d, chave) {
     const grupo = grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
     if ((chave !== "ang" && ehCorteSS(l[1])) || /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(String(l[5] || ""))) return;
-    const it = { id: ss, ss, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", tipoPedido: "sci",
+    const it = { id: ss, ss, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
@@ -5050,7 +5152,7 @@ async function carregarSSPend(chave) {
       const ficha = sspFicha(it.campos);
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
       const exige = sspFotoExigida(it.tipo);
-      const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada;
+      const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
       const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
       const acoesCampo = podeCampo ? `
         ${p.campo ? (minha ? `<button class="acao" style="background:#555" onclick="sspConfirmar('${id}', 'liberada', this)">Não vou mais (liberar)</button>`
@@ -5079,6 +5181,7 @@ async function carregarSSPend(chave) {
         <div style="font-weight:600">${sspEsc(it.tipo)}</div>
         <span style="font-size:13px;color:#555">${it.pedidoPor ? "Pedido por " + sspEsc(sspNome(it.pedidoPor)) + " em " : it.tipoPedido === "sci" ? "Aberta em " : "Lançada em "}${it.tipoPedido === "sci" ? sspEsc(it.abertura) : formatarQuando(it.quando)}</span>
         <div style="margin:6px 0">${etapas.join("")}</div>
+        ${it.subst ? substAvisoHTML(it.subst) : ""}
         ${ficha}${fotosHTML}
         ${it.executada && it.executada.info ? `<div style="background:#fff8e1;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:15px">📝 <b>Campo informou:</b> ${sspEsc(it.executada.info)}</div>` : ""}
         ${it.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(it.gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
@@ -6710,7 +6813,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 16h50";
+const VERSAO_PAINEL = "05/11 16h54";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
