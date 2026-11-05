@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 16h59</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 17h11</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1714,7 +1714,7 @@ async function contarSSDigiteam(cred) {
     ]);
     if (res.erro) return 0;
     const jaPedidas = ssJaPedidasDigiteam(acs.dados);
-    const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
+    const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]|\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
     const gerente = window.MODO_GERENTE && !emPrevia();
     return res.dados.slice(1).map(l => ({ ss: String(l[0]).replace(/^'/, ""), tipo: l[1], loc: l[2], situacao: l[5] || "", grupo: String(l[13] || "").trim(), esp: l[15] }))
@@ -3082,7 +3082,7 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
     box.innerHTML = itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
       ${x.obs ? `<br><span style="font-size:14px;color:#b71c1c;font-weight:600">${x.obs}</span>` : ""}
-      ${gerencia && /\[VENCIDA\]/.test(String(x.obs)) ? `<br><input id="ee_nova_${x.linha}" class="campo" placeholder="Número da NOVA SS gerada">
+      ${gerencia && /\[VENCIDA\]|\[NOVA SS\]/.test(String(x.obs)) ? `<br><input id="ee_nova_${x.linha}" class="campo" placeholder="Número da NOVA SS gerada">
         <button class="acao" style="background:#c62828" onclick="registrarNovaSSVencida(${x.linha}, '${String(x.ss).replace(/^'/, "")}', '${String(x.serv).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">Cancelada e nova SS gerada</button>`
         : gerencia ? `<br><button class="acao" onclick="marcarEncerrada(${x.linha})">Concluída no sistema</button>` : ""}
     </div>`).join("") : "<p>Nenhuma SS pendente.</p>";
@@ -3483,6 +3483,31 @@ async function pedirInativa(mat, tipo, btn) {
     carregarInativas();
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
 }
+// ---- Não executado: o campo informa o motivo; o escritório encerra a SS (ou cancela e abre outra) ----
+function naoExecFormHTML(ss, it) {
+  const s = sspEsc(ss); if (it) (window.naoExecCache = window.naoExecCache || {})[ss] = it;
+  return `<button class="acao" style="background:#757575" onclick="document.getElementById('nef_${s}').style.display='block'">❌ Não executado</button>
+    <div id="nef_${s}" style="display:none;margin-top:6px;background:#fbe9e7;border-radius:8px;padding:8px">
+      <textarea id="neo_${s}" class="campo" rows="2" placeholder="Motivo de não ter executado (obrigatório)"></textarea>
+      <button class="acao" style="background:#c62828" onclick="naoExecutado('${s}', false, this)">Não executado – encerrar a SS</button>
+      <button class="acao" style="background:#ef6c00" onclick="naoExecutado('${s}', true, this)">Não executado – abrir outra SS nova</button>
+    </div>`;
+}
+async function naoExecutado(ss, novaSS, btn) {
+  const x = (window.naoExecCache || {})[ss] || (window.slCache || {})[ss]; if (!x || (btn && btn.disabled)) return;
+  const motivo = String((document.getElementById("neo_" + ss) || {}).value || "").trim();
+  if (!motivo) { alert("Escreva o motivo de não ter executado."); return; }
+  if (!confirm(novaSS ? "Pedir ao escritório para cancelar a SS " + ss + " e abrir outra nova?" : "Informar ao escritório que a SS " + ss + " não foi executada?")) return;
+  sspTravar(btn);
+  try {
+    const tag = novaSS ? "[NOVA SS] Não executado – abrir outra SS. Motivo: " : "[NÃO EXECUTADO] Motivo: ";
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EncerrarSS",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + ss, String(x.tipoCurto || x.tipo || ""), String(x.loc || ""), tag + motivo, "pendente", "", ""]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    alert(novaSS ? "Enviado. O escritório cancela esta SS e abre outra; a nova volta para a lista." : "Enviado ao escritório para encerrar como não executada.");
+    if (document.getElementById("sl_lista")) carregarSSLista(window.ssListaFiltro || null); else if (window.sspChave) carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
 // ---- Corte / revisão de corte: o agente avisa que a água já está religada em campo ----
 const ehCorteOuRevisao = (tipo, esp) => ehCorteSS(tipo) || /REV.*SIT.*ABAST|REVISAO DE LIGACAO CORTADA/i.test(String(tipo || "") + " " + String(esp || ""));
 function religSSFormHTML(ss) {
@@ -3726,7 +3751,7 @@ async function carregarSSLista(filtro) {
     const pedRelig = inatPedidos(pinat.dados).filter(p => p.tipo === "religacao_ss");
     const religPedidas = new Set(pedRelig.map(p => p.ssOrigem));
     // SS vencidas já mandadas ao escritório para cancelar não aparecem mais aqui
-    const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
+    const canceladasV = new Set((encV.dados || []).slice(1).filter(l => /\[VENCIDA\]|\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => String(l[2]).replace(/^'/, "")));
     if (res.erro) { box.textContent = res.erro; return; }
     // SS que alguém já deu OK (executada) somem desta lista
     const executadas = new Set((ex.dados || []).slice(1).filter(l => String(l[5]).toLowerCase() === "executada").map(l => String(l[1]).replace(/^'/, "")));
@@ -3773,9 +3798,10 @@ async function carregarSSLista(filtro) {
         ${x.esp ? `<div style="font-size:14px;color:#0b5394;font-weight:600">${sspEsc(x.esp)}</div>` : ""}
         ${x.cesta ? CESTA_HTML : ""}${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt, x.venc), true)}
         <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}${x.end || x.bairro ? "<br>📍 " + sspEsc([x.end, x.bairro].filter(Boolean).join(" – ")) : ""}${x.hid ? "<br>🔢 Hidrômetro: <b>" + sspEsc(x.hid) + "</b>" : ""}${x.obs ? "<br>📝 <b>Obs.:</b> " + sspEsc(x.obs) : ""}<br>Aberta em ${fmt(x.abertura)}</span>
-        <br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>
-        ${!(window.MODO_GERENTE && !emPrevia()) && ehCorteOuRevisao(x.tipo, x.esp) ? religSSFormHTML(x.ss) : ""}
-      </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>");
+        ${(window.MODO_GERENTE && !emPrevia()) ? `<br><button class="acao" onclick="marcarExecutada('${x.ss}', '${String(x.tipo).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">OK, executada</button>`
+          : naoExecFormHTML(x.ss) + (ehCorteOuRevisao(x.tipo, x.esp) ? religSSFormHTML(x.ss) : "")}
+      </div>`).join("") : "<p>Nenhuma SS nesta lista.</p>") +
+      (!(window.MODO_GERENTE && !emPrevia()) && lista.length ? `<div style="position:sticky;bottom:0;background:#f4f6f9;padding:8px 0;z-index:5"><button class="acao" style="margin:0" onclick="enviarSSLista()">📲 Pedir as marcadas no meu Digiteam</button></div>` : "");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 async function enviarSSLista() {
@@ -5033,14 +5059,16 @@ function telaSSPend(chave) {
 }
 async function sspDados() {
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-  const [ex, pe, sa] = await Promise.all([
+  const [ex, pe, sa, enc] = await Promise.all([
     chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }),
     chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" }),
-    chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] }))
+    chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] })),
+    chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] }))
   ]);
   if (ex.erro) throw new Error(ex.erro);
   if (pe.erro) throw new Error(pe.erro);
-  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []) };
+  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []),
+    naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => sspLimpo(l[2]))) };
 }
 // Monta a lista da localidade a partir das abas
 function sspMontar(d, chave) {
@@ -5113,6 +5141,7 @@ function sspMontar(d, chave) {
     return it;
   }).filter(it => {
     if (it.finalizada) return false;
+    if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
     if (it.tipoPedido === "digiteam") return true;
     return !(it.executada && it.digitada && (!it.fotos.length || it.fotoAnexada));
   });
@@ -5211,7 +5240,8 @@ async function carregarSSPend(chave) {
           <input type="file" id="sspgal_${id}" accept="image/*" multiple style="display:none" onchange="sspAddFoto('${id}', this)">
           <div id="sspfotos_${id}" class="nota">${((window.fotosSsp || {})[it.id] || []).length} foto(s)</div></div>
         <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Informações do serviço (o que foi feito, materiais, observações)"></textarea>
-        <button class="acao" onclick="sspExecutar('${id}', this)">${chave === "ang" ? "Serviço executado" : "Executei em campo"}</button>` : "";
+        <button class="acao" onclick="sspExecutar('${id}', this)">${chave === "ang" ? "Serviço executado" : "Executei em campo"}</button>
+        ${it.ss ? naoExecFormHTML(it.ss, it) : ""}` : "";
       let acoesDig = "";
       if (p.digitador) {
         if (it.tipoPedido === "digiteam") acoesDig = `<input id="sspn_${id}" class="campo" placeholder="Número da SS aberta">${selectDigiteam("sspd_" + it.id)}
@@ -6860,7 +6890,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 16h59";
+const VERSAO_PAINEL = "05/11 17h11";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
