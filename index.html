@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 10h26</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 05/11 12h18</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="verificarVersao()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Verificar nova versão</button>
@@ -2810,7 +2810,7 @@ function ocAtualizarHorario() {
 }
 async function usarGPSOcorrencia() {
   const pos = await obterPosicao();
-  if (!pos) { alert("Não consegui pegar a localização. Verifique o GPS e a permissão do navegador."); return; }
+  if (!pos) { if (!semLocalEscolhido()) alert("Não consegui pegar a localização. Verifique o GPS e a permissão do navegador."); return; }
   document.getElementById("oc_gps").value = pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
 }
 function ocFmt(v) { if (!v) return ""; const [d, h] = v.split("T"); const [a, m, dd] = d.split("-"); return `${dd}/${m}/${a} ${h}`; }
@@ -3955,7 +3955,18 @@ function addFotoEnc(input) {
   if (excedeu) alert("O limite é de 10 fotos. As que passaram do limite não foram adicionadas.");
 }
 // Localização do aparelho (GPS). Usada no endereço e carimbada na foto da SS.
+// Antes de pegar o GPS pergunta se a pessoa está no local do serviço (fora do local o GPS sairia errado).
+// A resposta vale por 2 minutos, para não perguntar várias vezes na mesma ação.
+function noLocalDoServico() {
+  const d = window.__gpsDecisao;
+  if (d && Date.now() - d.quando < 120000) return d.sim;
+  const sim = confirm("Você está no local do serviço agora?\n\nOK = Sim (registra o GPS)\nCancelar = Não (vai sem GPS)");
+  window.__gpsDecisao = { quando: Date.now(), sim };
+  return sim;
+}
+const semLocalEscolhido = () => !!(window.__gpsDecisao && Date.now() - window.__gpsDecisao.quando < 120000 && !window.__gpsDecisao.sim);
 function obterPosicao() {
+  if (!noLocalDoServico()) return Promise.resolve(null);
   return new Promise(resolver => {
     if (!navigator.geolocation) return resolver(null);
     navigator.geolocation.getCurrentPosition(
@@ -3966,7 +3977,7 @@ function obterPosicao() {
 }
 async function usarGPSSS() {
   const pos = await obterPosicao();
-  if (!pos) { alert("Não consegui pegar a localização. Verifique se o GPS e a permissão do navegador estão ligados."); return; }
+  if (!pos) { if (!semLocalEscolhido()) alert("Não consegui pegar a localização. Verifique se o GPS e a permissão do navegador estão ligados."); return; }
   window.ssGps = pos;
   const psl = document.getElementById("ps_log"); psl.value = (psl.value && !/^GPS:/.test(psl.value) ? psl.value + " | " : "") + "GPS: " + pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
   alert("Localização preenchida.");
@@ -4030,7 +4041,7 @@ async function enviarPedidoSS(encerrar = false) {
   encerrar = encerrar && acaoEscolhida === "Digitar e encerrar"; // só exige os dados de encerramento quando for encerrar
   if (fotosSoAbrir.length) {
     const pos = (await obterPosicao()) || window.ssGps;
-    if (!pos) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e tente de novo."); return; }
+    if (!pos && !semLocalEscolhido()) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e tente de novo."); return; }
     try {
       const links = [];
       for (const arq of fotosSoAbrir) {
@@ -4061,7 +4072,7 @@ async function enviarPedidoSS(encerrar = false) {
     if (!hIni || !hFim) { alert("Informe o horário de início e de fim do serviço."); return; }
     obsFinal += " | Início: " + hIni + " | Fim: " + hFim;
     const arquivos = window.fotosEnc || [];
-    if (arquivos.length && !window.ssGps && !(await obterPosicao())) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e tente de novo."); return; }
+    if (arquivos.length && !window.ssGps && !(await obterPosicao()) && !semLocalEscolhido()) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e tente de novo."); return; }
     if (window.ssGps) obsFinal += " | GPS: " + window.ssGps.lat.toFixed(6) + ", " + window.ssGps.lon.toFixed(6);
     try {
       const links = [];
@@ -4299,7 +4310,7 @@ async function marcarExecutada(ss, tipo, loc) {
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
     // fotos do serviço (opcionais): carimbadas com a localização e enviadas antes do OK
     const fotos = (window.fotosPex || {})[ss] || [];
-    if (fotos.length && !pos) { window.marcandoEx = false; alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e toque de novo."); return; }
+    if (fotos.length && !pos && !semLocalEscolhido()) { window.marcandoEx = false; alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e toque de novo."); return; }
     const links = [];
     for (const arq of fotos) {
       const base64 = await carimbarFoto(arq, pos);
@@ -4561,7 +4572,7 @@ const sspHorasDesde = v => { const d = new Date(v); return isNaN(d) ? 0 : (Date.
 function telaSSPend(chave) {
   const p = sspPapel(chave);
   return `<h2>SS pendentes – ${SSP_LOCAIS[chave]}</h2>
-    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.digitador ? "A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver)." : "Toque em \"Vou executar\" antes de sair e em \"Executei em campo\" quando terminar. A SS sai da sua lista quando você executar. Foto só vai com o GPS ligado."}</div>
+    <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.digitador ? "A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver)." : "Toque em \"Vou executar\" antes de sair e em \"Executei em campo\" quando terminar. A SS sai da sua lista quando você executar. Se estiver no local do serviço, o GPS vai junto com a foto."}</div>
     <div id="ssp_lista">Carregando...</div>`;
 }
 async function sspDados() {
@@ -4729,7 +4740,7 @@ async function carregarSSPend(chave) {
       const acoesCampo = podeCampo ? `
         ${p.campo ? (minha ? `<button class="acao" style="background:#555" onclick="sspConfirmar('${id}', 'liberada', this)">Não vou mais (liberar)</button>`
           : !it.assumida ? `<button class="acao" style="background:#1565c0" onclick="sspConfirmar('${id}', 'assumida', this)">🚶 Vou executar</button>` : "") : ""}
-        <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço ${exige ? `<span style="color:#c62828">(obrigatório: ${sspEsc(exige.texto)})</span>` : "(opcional)"}</b> – precisa do GPS ligado<br>
+        <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço ${exige ? `<span style="color:#c62828">(obrigatório: ${sspEsc(exige.texto)})</span>` : "(opcional)"}</b> – o app pergunta se você está no local; se sim, o GPS vai junto<br>
           <button onclick="document.getElementById('sspcam_${id}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:600">📷 Tirar foto</button>
           <button onclick="document.getElementById('sspgal_${id}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#fff;color:#555;font-weight:600">Anexar do celular</button>
           <input type="file" id="sspcam_${id}" accept="image/*" capture="environment" style="display:none" onchange="sspAddFoto('${id}', this)">
@@ -4831,7 +4842,7 @@ async function sspExecutar(id, btn) {
   sspTravar(btn, "Pegando o GPS...");
   try {
     const pos = await obterPosicao();
-    if (fotos.length && !pos) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e toque de novo."); sspDestravar(btn); return; }
+    if (fotos.length && !pos && !semLocalEscolhido()) { alert("A foto precisa ir com o GPS. Ligue a localização do celular, permita para o navegador e toque de novo."); sspDestravar(btn); return; }
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
     const links = [];
     for (const arq of fotos) {
@@ -6366,7 +6377,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "05/11 10h26";
+const VERSAO_PAINEL = "05/11 12h18";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
