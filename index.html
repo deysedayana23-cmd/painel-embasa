@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 16h27</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 17h13</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3373,19 +3373,52 @@ async function sciEnviarLinhas(g, linhas, rotulo) {
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); }
   carregarImportarSCI();
 }
+// Excel "Resultado da Solicitação em Lote" do SCI: só Matrícula, Solicitação (nº da SS) e Resultado.
+// Serve para marcar SS que já existem (botões "Escritório ..." e "Vencidas ..."), nunca para o Excel normal da unidade.
+function lerExcelLoteSCI(texto) {
+  const doc = new DOMParser().parseFromString(texto, "text/html");
+  const tabs = [...doc.querySelectorAll("table")]; if (!tabs.length) return null;
+  const tab = [...tabs].sort((a, b) => b.rows.length - a.rows.length)[0];
+  const cels = tr => [...tr.children].map(c => c.textContent.replace(/\s+/g, " ").trim());
+  let cab = -1, col = {};
+  const trs = [...tab.querySelectorAll("tr")];
+  trs.forEach((tr, n) => { if (cab >= 0) return; const t = cels(tr).map(normalizarNome);
+    const ss = t.findIndex(x => ["solicitacao", "ss", "numerodass", "numerodasolicitacao"].includes(x));
+    const mat = t.findIndex(x => ["matricula", "matriculas"].includes(x));
+    if (ss >= 0) { cab = n; col = { ss, mat, res: t.findIndex(x => ["resultado", "situacao", "status"].includes(x)) }; } });
+  if (cab < 0) return null;
+  const linhas = []; let recusadas = 0;
+  trs.slice(cab + 1).forEach(tr => { const c = cels(tr);
+    const ss = String(c[col.ss] || "").replace(/\D/g, "");
+    const temAlgo = c.some(v => String(v || "").trim());
+    if (!/^\d{6,}$/.test(ss)) { if (temAlgo) recusadas++; return; }
+    if (col.res >= 0 && c[col.res] && !/sucesso|ok/i.test(c[col.res])) { recusadas++; return; } // linha que o SCI recusou não entra
+    const l = SCI_COLUNAS.map(() => "");
+    l[0] = ss; if (col.mat >= 0) l[4] = String(c[col.mat] || "").replace(/\D/g, "");
+    linhas.push(l); });
+  return linhas.length ? { linhas, faltam: [], dataFiltro: "", locs: {}, lote: true, recusadas } : null;
+}
+const SCI_GRUPO_SO_MARCA = g => /^(Vencidas|Escrit[oó]rio) /.test(g); // botões que só marcam SS já existentes
 async function enviarExcelSCI(i, inp) {
   const g = SCI_GRUPOS_TODOS[i], arq = inp.files && inp.files[0]; inp.value = "";
   if (!arq) return;
   let texto = ""; try { texto = await sciTextoDoArquivo(arq); } catch (e) {}
-  const x = /<table/i.test(texto) ? lerExcelSCI(texto) : null;
+  let x = /<table/i.test(texto) ? lerExcelSCI(texto) : null;
+  // Excel do tipo "Resultado da Solicitação em Lote": só tem os números das SS
+  const xLote = x && x.faltam.length ? lerExcelLoteSCI(texto) : null;
+  if (xLote) {
+    if (!SCI_GRUPO_SO_MARCA(g)) { alert("Este Excel traz só os números das SS (Resultado da Solicitação em Lote).\n\nEle serve nos botões \"Escritório ...\" e \"Vencidas ...\". No Excel de " + g + ", que atualiza a lista inteira da unidade, ele apagaria as outras SS do painel."); return; }
+    if (!confirm("Excel \"Resultado da Solicitação em Lote\": " + xLote.linhas.length + " SS geradas" + (xLote.recusadas ? " · " + xLote.recusadas + " linha(s) recusada(s) pelo SCI (não entram)" : "") + ".\n\nEnviar como " + g + "?")) return;
+    x = xLote;
+  }
   if (!x) { alert("Esse arquivo não é o Excel do SCI. Envie o arquivo exatamente como o SCI baixou (Pendências de Atendimento › Exportar para Excel)."); return; }
   if (x.faltam.length) { alert("Faltam colunas no Excel: " + x.faltam.join(", ") + ".\n\nNo SCI, marque as colunas da lista desta tela e exporte de novo."); return; }
-  if (!x.linhas.length && !confirm("O Excel de " + g + " veio sem nenhuma SS. Isso tira todas as SS de " + g + " do painel. Confirmar?")) return;
+  if (!x.lote && !x.linhas.length && !confirm("O Excel de " + g + " veio sem nenhuma SS. Isso tira todas as SS de " + g + " do painel. Confirmar?")) return;
   const mf = x.dataFiltro.match(/(\d{2})\/(\d{2})\/(\d{4})/);
   if (mf && new Date(Number(mf[3]), Number(mf[2]) - 1, Number(mf[1])) - sciDesdeData() > 864e5 &&
     !confirm("Este Excel foi filtrado desde " + mf[0] + ", mas deveria ser desde " + sciDesde() + ". As SS abertas antes de " + mf[0] + " sairiam do painel.\n\nEnviar mesmo assim?")) return;
   const maior = Object.keys(x.locs).sort((a, b) => x.locs[b] - x.locs[a])[0];
-  if (maior && !SCI_LOCS_ESPERADAS[g].includes(maior) && !confirm("Este Excel parece ser de outra unidade (a maioria das SS é de " + maior.toUpperCase() + ").\n\nEnviar mesmo assim como Excel de " + g + "?")) return;
+  if (!x.lote && maior && !SCI_LOCS_ESPERADAS[g].includes(maior) && !confirm("Este Excel parece ser de outra unidade (a maioria das SS é de " + maior.toUpperCase() + ").\n\nEnviar mesmo assim como Excel de " + g + "?")) return;
   const partes = []; let atual = [], tam = 2;
   x.linhas.forEach(l => { const t = JSON.stringify(l).length + 1; if (atual.length && tam + t > 30000) { partes.push(atual); atual = []; tam = 2; } atual.push(l); tam += t; });
   partes.push(atual);
@@ -6961,7 +6994,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "06/11 16h27";
+const VERSAO_PAINEL = "06/11 17h13";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
