@@ -3241,8 +3241,8 @@ const SCI_DESTINO = { "São Desidério": "Luzenildo, Joaquim, Carlito e Francisc
   "Catolândia": "Isaque (Catolândia, Mozondó e Buriti Cortado)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis, São Marcos e Passagem de Pedra)" };
 const SCI_LOCS_ESPERADAS = { "São Desidério": ["saodesiderio"], "Angico": ["angico"], "Catolândia": ["catolandia", "mozondo", "buriticortado", "baianopolis"], "Baianópolis": ["baianopolis", "catolandia"] };
 // Colunas combinadas (nomes como aparecem no SCI). A ordem no Excel não importa.
-const SCI_COLUNAS = ["SS", "Tipo", "Especificação", "Meio de Solic", "Matrícula", "Localidade", "Bairro", "Logradouro", "Estado", "Nome do Solic", "Geração da SS", "Previsão Inicial", "Núm do Hid", "Obs da SS", "Sit da SS", "Setor Faturamento", "Programado para"];
-const SCI_OBRIGATORIAS = ["SS", "Tipo", "Especificação", "Meio de Solic", "Localidade", "Estado", "Geração da SS", "Previsão Inicial", "Sit da SS"];
+const SCI_COLUNAS = ["SS", "Tipo", "Especificação", "Canal de Atend", "Matrícula", "Localidade", "Bairro", "Logradouro", "Estado", "Nome do Solic", "Geração da SS", "Previsão Inicial", "Núm do Hid", "Obs da SS", "Sit da OS", "Setor Faturamento", "Programado para"];
+const SCI_OBRIGATORIAS = ["SS", "Tipo", "Especificação", "Canal de Atend", "Localidade", "Estado", "Geração da SS", "Previsão Inicial", "Sit da OS"];
 const SCI_QUEM_ENVIA = ["deyse", "thiago", "tiago", "igor", "oseias"];
 const podeEnviarSCI = () => (window.MODO_GERENTE && !emPrevia()) || SCI_QUEM_ENVIA.some(n => identidadeAtual().includes(n));
 function sciDesdeData() { const d = new Date(); d.setMonth(d.getMonth() - 3); d.setHours(0, 0, 0, 0); return d; }
