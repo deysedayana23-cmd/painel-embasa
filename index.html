@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 15h14</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 16h38</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3238,12 +3238,15 @@ async function marcarPedidoDigiFeito(i, btn) {
 // o servidor atualiza o painel em até 1 minuto e grava o resultado em ImportSCIStatus.
 const SCI_GRUPOS_BOTAO = ["São Desidério", "Angico", "Catolândia", "Baianópolis"];
 // SS já vencidas para encerrar no campo: um Excel por unidade (grupo "Vencidas <unidade>"). Marca as SS e a equipe vê em Demandas de SS.
-const SCI_GRUPOS_TODOS = SCI_GRUPOS_BOTAO.concat(SCI_GRUPOS_BOTAO.map(g => "Vencidas " + g));
+// SS que o escritório deve encerrar (Estado preenchido ou comando já dado): um Excel por unidade (grupo "Escritório <unidade>").
+// Vão só para os digitadores; o campo não vê. Se depois vierem no Excel normal da unidade, continuam com os digitadores.
+const SCI_GRUPOS_TODOS = SCI_GRUPOS_BOTAO.concat(SCI_GRUPOS_BOTAO.map(g => "Vencidas " + g), SCI_GRUPOS_BOTAO.map(g => "Escritório " + g));
 const SCI_DESTINO = { "São Desidério": "Luzenildo, Joaquim, Carlito e Francisco (pedem no Digiteam)", "Angico": "Ramon e Renato (execução manual, sem Digiteam)",
   "Catolândia": "Isaque (Catolândia, Buriti Cortado, São Marcos e Passagem de Pedra)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis)" };
-SCI_GRUPOS_BOTAO.forEach(g => { SCI_DESTINO["Vencidas " + g] = "Campo (botão \"SS encerradas no SCI\"): " + SCI_DESTINO[g] + " · e para os digitadores (encerrar no sistema)"; });
+SCI_GRUPOS_BOTAO.forEach(g => { SCI_DESTINO["Vencidas " + g] = "Campo (botão \"SS encerradas no SCI\"): " + SCI_DESTINO[g] + " · e para os digitadores (encerrar no sistema)";
+  SCI_DESTINO["Escritório " + g] = "Somente os digitadores (Deyse, Thiago, Oseias e Igor), no filtro \"Escritório encerrar\" de " + g + ". O campo não recebe."; });
 const SCI_LOCS_ESPERADAS = { "São Desidério": ["saodesiderio"], "Angico": ["angico"], "Catolândia": ["catolandia", "mozondo", "buriticortado", "baianopolis"], "Baianópolis": ["baianopolis", "catolandia"] };
-SCI_GRUPOS_BOTAO.forEach(g => { SCI_LOCS_ESPERADAS["Vencidas " + g] = SCI_LOCS_ESPERADAS[g]; });
+SCI_GRUPOS_BOTAO.forEach(g => { SCI_LOCS_ESPERADAS["Vencidas " + g] = SCI_LOCS_ESPERADAS[g]; SCI_LOCS_ESPERADAS["Escritório " + g] = SCI_LOCS_ESPERADAS[g]; });
 // Colunas combinadas (nomes como aparecem no SCI). A ordem no Excel não importa.
 const SCI_COLUNAS = ["SS", "Tipo", "Especificação", "Canal de Atend", "Matrícula", "Localidade", "Bairro", "Logradouro", "Estado", "Nome do Solic", "Geração da SS", "Previsão Inicial", "Núm do Hid", "Obs da SS", "Sit da OS", "Setor", "Programado para"];
 const SCI_OBRIGATORIAS = ["SS", "Tipo", "Especificação", "Canal de Atend", "Localidade", "Estado", "Geração da SS", "Previsão Inicial", "Sit da OS"];
@@ -5152,13 +5155,14 @@ function sspMontar(d, chave) {
   // Situação de cada SS na aba SSAbertas (para marcar as vencidas que já estão na lista de execução)
   const sitSA = {}; (d.sa || []).forEach(l => { const k = sspLimpo(l[0]); if (k && sitSA[k] === undefined) sitSA[k] = String(l[5] || ""); });
   const ehVencida = ss => /^Vencida/.test(sitSA[ss] || "");
+  const ehEscritorio = ss => /^Encerrar no escrit/i.test(sitSA[ss] || ""); // SS que o escritório deve encerrar: só digitador
   // 2) SS lançadas na ExecucaoCampo (pendente) da localidade
   const cab = d.cab; const ic = n => cab.indexOf(n);
   d.ex.forEach(l => {
     if (String(l[5] || "").toLowerCase().trim() !== "pendente" || !sspMesmoLocal(l[3], loc)) return;
     const ss = sspLimpo(l[1]); if (!ss || porSS[ss]) return;
     const v = n => ic(n) >= 0 ? l[ic(n)] : "";
-    const it = { id: ss, ss, vencidaCampo: ehVencida(ss), tipo: l[2], tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(v("abertura")) || sspTxtData(l[0]), tipoPedido: "ss", campos: [["Cliente", v("cliente")], ["Endereço", v("logradouro")], ["Bairro", v("bairro")],
+    const it = { id: ss, ss, vencidaCampo: ehVencida(ss), escritorioEncerrar: ehEscritorio(ss), tipo: l[2], tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(v("abertura")) || sspTxtData(l[0]), tipoPedido: "ss", campos: [["Cliente", v("cliente")], ["Endereço", v("logradouro")], ["Bairro", v("bairro")],
       ["Hidrômetro", v("hidrometro")], ["Telefone", v("telefone")], ["Obs.", v("obs_ss")], ["Solicitante", v("solicitante")], ["Matrícula", v("matricula")]], gpsCol: String(v("localizacao") || ""), mat: sspLimpo(v("matricula")), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
@@ -5166,14 +5170,16 @@ function sspMontar(d, chave) {
   //    Corte e "Programada" ficam no fluxo do Digiteam (menos no Angico, que é todo manual).
   (d.sa || []).forEach(l => {
     const ss = sspLimpo(l[0]); if (!/^\d{6,}$/.test(ss) || porSS[ss]) return;
-    const vencCampo = /^Vencida/.test(String(l[5] || ""));
+    const sitSS = String(l[5] || "");
+    const vencCampo = /^Vencida/.test(sitSS);
+    const escrSS = /^Encerrar no escrit/i.test(sitSS); // vai só para os digitadores
     // SS vencida (encerrada no SCI): vale a localidade da própria SS, não o Excel em que ela entrou antes.
     // Se a localidade não tem tela própria (Mozondó, por exemplo), continua valendo a unidade do Excel.
     const locTemTela = !!grupoDono("", sspLimpo(l[2])) || Object.values(SSP_LOCAIS).some(x => sspMesmoLocal(l[2], x));
-    const grupo = vencCampo && locTemTela ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
+    const grupo = (vencCampo || escrSS) && locTemTela ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
-    if ((chave !== "ang" && ehCorteSS(l[1])) || /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(String(l[5] || ""))) return;
-    const it = { id: ss, ss, vencidaCampo: vencCampo, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
+    if ((chave !== "ang" && ehCorteSS(l[1])) || (!escrSS && /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(sitSS))) return;
+    const it = { id: ss, ss, vencidaCampo: vencCampo, escritorioEncerrar: escrSS, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
@@ -5191,15 +5197,17 @@ function sspMontar(d, chave) {
   }).filter(it => {
     if (it.finalizada) return false;
     if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
+    if (it.escritorioEncerrar) return !it.digitada; // só sai quando o digitador encerrar no SCI
     if (it.tipoPedido === "digiteam") return true;
     return !(it.executada && it.digitada && (!it.fotos.length || it.fotoAnexada));
   });
 }
 // O que falta para o campo (ir executar) e para o digitador (número, digitação, foto, Digiteam)
-const sspFaltaCampo = it => it.tipoPedido !== "digiteam" && !it.executada;
+const sspFaltaCampo = it => it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar; // escritório encerra: o campo não vê
 const sspFaltaDig = it => it.tipoPedido === "digiteam" || !it.ss || !!(it.executada && !it.digitada) || !!(it.vencidaCampo && !it.digitada); // SS vencida já encerrada no SCI: vai direto ao digitador
+const sspEscritorio = it => !!(it.escritorioEncerrar && !it.digitada); // SS que o escritório deve encerrar no SCI
 const sspFaltaFoto = it => !!(it.fotos.length && !it.fotoAnexada);
-const sspFaltaDigitador = it => sspFaltaDig(it) || sspFaltaFoto(it);
+const sspFaltaDigitador = it => sspFaltaDig(it) || sspFaltaFoto(it) || sspEscritorio(it);
 async function sspContagens() {
   const out = {};
   try {
@@ -5248,14 +5256,15 @@ async function carregarSSPend(chave) {
     const filtro = p.digitador ? (window.sspFiltro[chave] || "digitacao") : "campo"; // campo vê só o que falta ir a campo
     const nC = lista.filter(sspFaltaCampo).length, nD = lista.filter(sspFaltaDig).length, nF = lista.filter(sspFaltaFoto).length;
     const nV = lista.filter(it => it.vencidaCampo && !it.executada).length; // encerradas no SCI, falta ir a campo
+    const nE = lista.filter(sspEscritorio).length; // o escritório precisa encerrar no SCI
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
-    const barra = p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
+    const barra = p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${nE ? btnF("escritorio", "Escritório encerrar", nE, "#b71c1c") : ""}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
       : window.sspDemandasVenc
         ? `<div style="background:#b71c1c;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS encerradas no SCI – fazer em campo (${nV})</div>`
           + `<button class="acao" style="background:#0b5394" onclick="window.sspDemandasVenc=false;carregarSSPend('${chave}')">Ver todas as SS pendentes (${nC})</button>`
         : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`
           + (nV ? `<button class="acao" style="background:#b71c1c" onclick="window.sspDemandasVenc=true;carregarSSPend('${chave}')">SS encerradas no SCI – fazer em campo (${nV})</button>` : "");
-    let visiveis = (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : lista;
+    let visiveis = (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : filtro === "escritorio" ? lista.filter(sspEscritorio) : lista;
     // Ordem: vencidas e paradas primeiro; no "Falta ir a campo", ordem de visita a partir do escritório
     const urg = it => (it.prazo && it.prazo.vencida) || !!it.parada;
     if (filtro === "campo") visiveis = [...sspRota(visiveis.filter(urg), SSP_LOCAIS[chave]), ...sspRota(visiveis.filter(it => !urg(it)), SSP_LOCAIS[chave])];
@@ -5271,21 +5280,22 @@ async function carregarSSPend(chave) {
         etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA há " + faltaTexto(fal) + " (venceu " + quandoVence(it.prazo.fim) + ")", vermelho) : chip((fal < 24 * 36e5 ? "⏰" : "⏳") + " Vence " + quandoVence(it.prazo.fim) + " – faltam " + faltaTexto(fal), fal < 24 * 36e5 ? laranja : "#8d6e00")); }
       if (it.parada) etapas.push(chip("⏱ Parada: " + sspEsc(it.parada), vinho));
       if (it.vencidaCampo && !it.executada) etapas.push(chip("⚠ SS vencida – encerrar no campo", "#b71c1c"));
+      if (it.escritorioEncerrar) etapas.push(chip("🏢 O escritório deve encerrar no SCI (o campo não vê)", "#b71c1c"));
       if (it.tipoPedido === "digiteam") etapas.push(chip("Aguardando abertura e envio ao Digiteam", laranja));
       else {
         if (it.tipoPedido === "sci") etapas.push(chip("Aberta no SCI", "#0b5394"));
         if (!it.ss) etapas.push(chip("Aguardando número da SS", laranja));
         if (it.assumida && !it.executada) etapas.push(chip("🚶 Com " + sspEsc(sspNome(it.assumida.quem)), "#1565c0"));
-        etapas.push(it.executada ? chip("✔ Executada em campo (" + sspEsc(sspNome(it.executada.quem)) + ")", verde) : chip("Falta executar em campo", vermelho));
+        if (!it.escritorioEncerrar) etapas.push(it.executada ? chip("✔ Executada em campo (" + sspEsc(sspNome(it.executada.quem)) + ")", verde) : chip("Falta executar em campo", vermelho));
         if (p.digitador) { // digitação e documentos: só digitadores veem
-          etapas.push(it.digitada ? chip("✔ Digitada (" + sspEsc(sspNome(it.digitada.quem)) + ")", verde) : chip("Falta digitar", vermelho));
+          etapas.push(it.digitada ? chip("✔ Digitada (" + sspEsc(sspNome(it.digitada.quem)) + ")", verde) : chip(it.escritorioEncerrar ? "Falta encerrar no SCI" : "Falta digitar", vermelho));
           if (it.fotos.length) etapas.push(it.fotoAnexada ? chip("✔ Foto anexada à SS", verde) : chip("📷 Documento (foto) para anexar à SS", vermelho));
         }
       }
       const ficha = sspFicha(it.campos);
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
       const exige = sspFotoExigida(it.tipo);
-      const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
+      const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
       const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
       // Tela das SS encerradas no SCI: um botão só, sem foto nem informações (a SS já foi encerrada no sistema)
       const acoesCampo = podeCampo && window.sspDemandasVenc && it.vencidaCampo
@@ -6951,7 +6961,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "06/11 15h14";
+const VERSAO_PAINEL = "06/11 16h38";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
