@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 15h08</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 15h14</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5167,8 +5167,10 @@ function sspMontar(d, chave) {
   (d.sa || []).forEach(l => {
     const ss = sspLimpo(l[0]); if (!/^\d{6,}$/.test(ss) || porSS[ss]) return;
     const vencCampo = /^Vencida/.test(String(l[5] || ""));
-    // SS vencida (encerrada no SCI): vale a localidade da própria SS, não o Excel em que ela entrou antes
-    const grupo = vencCampo ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
+    // SS vencida (encerrada no SCI): vale a localidade da própria SS, não o Excel em que ela entrou antes.
+    // Se a localidade não tem tela própria (Mozondó, por exemplo), continua valendo a unidade do Excel.
+    const locTemTela = !!grupoDono("", sspLimpo(l[2])) || Object.values(SSP_LOCAIS).some(x => sspMesmoLocal(l[2], x));
+    const grupo = vencCampo && locTemTela ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
     if ((chave !== "ang" && ehCorteSS(l[1])) || /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(String(l[5] || ""))) return;
     const it = { id: ss, ss, vencidaCampo: vencCampo, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
@@ -6949,7 +6951,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "06/11 15h08";
+const VERSAO_PAINEL = "06/11 15h14";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
