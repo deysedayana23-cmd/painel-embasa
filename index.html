@@ -5209,10 +5209,10 @@ async function carregarSSPend(chave) {
     const p = sspPapel(chave);
     if (!lista.length) { box.innerHTML = ocHTML + "<p>Nenhuma SS pendente.</p>"; return; }
     window.sspFiltro = window.sspFiltro || {};
-    const filtro = p.digitador ? (window.sspFiltro[chave] || "digitacao") : "campo"; // campo vê só o que falta ir a campo
+    const filtro = p.digitador ? ((window.sspFiltro[chave] && window.sspFiltro[chave] !== "campo") ? window.sspFiltro[chave] : "digitacao") : "campo"; // campo vê só o que falta ir a campo
     const nC = lista.filter(sspFaltaCampo).length, nD = lista.filter(sspFaltaDig).length, nF = lista.filter(sspFaltaFoto).length;
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
-    const barra = p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
+    const barra = p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
       : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`;
     let visiveis = filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : lista;
     // Ordem: vencidas e paradas primeiro; no "Falta ir a campo", ordem de visita a partir do escritório
