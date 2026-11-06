@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 13h49</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 14h26</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5480,6 +5480,7 @@ function menuAgenteCampo(itens) {
   const tirar = f => { const k = pool.findIndex(f); return k >= 0 ? pool.splice(k, 1)[0] : null; };
   const urg = tirar(i => i.tela === "servicosUrgentes");
   const ssp = []; let x; while ((x = tirar(i => SSP_TELA[i.tela]))) ssp.push(Object.assign({}, x, { prioridade: true }));
+  const ssv = ssp.filter(i => /^ssVenc/.test(i.tela)), ssPend = ssp.filter(i => !/^ssVenc/.test(i.tela)); // SS encerradas no SCI: fica na tela principal
   const pedir = tirar(i => i.tela === "pedirSS") || { nome: "Pedir SS", tela: "pedirSS" };
   const sci = tirar(i => i.nome === "Solicitação no SCI");
   const digi = tirar(i => i.tela === "ssDigiteam") || { nome: "Solicitação ao Digiteam", tela: "ssDigiteam" };
@@ -5492,9 +5493,9 @@ function menuAgenteCampo(itens) {
   const pequeno = (nome, lista) => !lista.length ? null : lista.length === 1 ? { nome, tela: lista[0].tela } : { nome, sub: lista };
   // 05/11: o agente pega as SS sempre pelo Digiteam. "Solicitação ao Digiteam" é o botão principal;
   // "SS pendentes" (Executei em campo) vai para Outros.
-  const menu = [urg, Object.assign({}, digi, { prioridade: true }), Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }),
+  const menu = [urg, ...ssv.map(i => Object.assign({}, i, { prioridade: true, grande: true })), Object.assign({}, digi, { prioridade: true }), Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }),
     cortes, agersa, pequeno("Níveis dos reservatórios", niv), pequeno("Escala da ETA", esc)].filter(Boolean);
-  const outros = [...ssp.map(i => Object.assign({}, i, { prioridade: false })), ...pool];
+  const outros = [...ssPend.map(i => Object.assign({}, i, { prioridade: false })), ...pool];
   if (outros.length) menu.push({ nome: "Outros", sub: outros });
   return menu;
 }
@@ -6933,7 +6934,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "06/11 13h49";
+const VERSAO_PAINEL = "06/11 14h26";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
