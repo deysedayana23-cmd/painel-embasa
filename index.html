@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 17h13</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 17h48</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4463,7 +4463,7 @@ function blocoEncerramento(chave) {
   </div>`;
 }
 function telaPedidoSS(encerrar = false) {
-  window.fotosEnc = [];
+  window.fotosEnc = []; window.encValores = {}; // pedido novo começa sem nada guardado
   const fotos = encerrar ? `<div class="card" id="ps_horas" style="display:none"><b>Horário do serviço</b><br>
       Início: <input type="time" id="enc_ini" class="campo"><br>
       Fim: <input type="time" id="enc_fim" class="campo"></div>
@@ -4477,7 +4477,7 @@ function telaPedidoSS(encerrar = false) {
     ${fotos}
     <div class="nota"><b>Ao pedir, a SS entra nas pendências do SCI e aguarda oportunidade para ser executada.</b> Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos.</div>
     <select id="ps_acao" class="campo" onchange="psAcaoMudou()"><option>Só gerar</option><option>Mandar no Digiteam</option><option>Digitar e encerrar</option></select>
-    <button class="acao" style="background:#0a6e8a" onclick="usarGPSSS()">Usar minha localização (GPS)</button>
+    <button class="acao" style="background:#0a6e8a" onclick="usarGPSSS(this)">Usar minha localização (GPS)</button>
     <select id="ps_tipo" class="campo" onchange="encherEspSS()"><option value="">Tipo de serviço…</option>${Object.keys(TIPOS_SS).map(c => `<option value="${c}">${c} – ${TIPOS_SS[c][0]}</option>`).join("")}</select>
     <select id="ps_esp" class="campo" disabled onchange="mostrarEncerramento()"><option value="">Escolha o tipo primeiro</option></select>
     <select id="ps_loc" class="campo" data-end-loc="ps"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
@@ -4518,17 +4518,21 @@ function noLocalDoServico() {
 const semLocalEscolhido = () => !!(window.__gpsDecisao && Date.now() - window.__gpsDecisao.quando < 120000 && !window.__gpsDecisao.sim);
 function obterPosicao() {
   if (!noLocalDoServico()) return Promise.resolve(null);
-  return new Promise(resolver => {
+  const tentar = (alta, ms, idade) => new Promise(resolver => {
     if (!navigator.geolocation) return resolver(null);
     navigator.geolocation.getCurrentPosition(
       p => resolver({ lat: p.coords.latitude, lon: p.coords.longitude }),
       () => resolver(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+      { enableHighAccuracy: alta, timeout: ms, maximumAge: idade });
   });
+  // 20s com alta precisão e, se não vier, 15s sem alta precisão (sinal fraco em povoado e zona rural)
+  return tentar(true, 20000, 60000).then(p => p || tentar(false, 15000, 300000));
 }
-async function usarGPSSS() {
+async function usarGPSSS(btn) {
+  if (btn) { btn.disabled = true; btn.dataset.txt = btn.textContent; btn.textContent = "Procurando o sinal do GPS… (até 35s)"; }
   const pos = await obterPosicao();
-  if (!pos) { if (!semLocalEscolhido()) alert("Não consegui pegar a localização. Verifique se o GPS e a permissão do navegador estão ligados."); return; }
+  if (btn) { btn.disabled = false; btn.textContent = btn.dataset.txt || "Usar minha localização (GPS)"; }
+  if (!pos) { if (!semLocalEscolhido()) alert("Não consegui pegar a localização. Verifique se o GPS e a permissão do navegador estão ligados.\n\nVocê pode enviar o pedido sem a localização: escreva o ponto de referência no campo Logradouro."); return; }
   window.ssGps = pos;
   const psl = document.getElementById("ps_log"); psl.value = (psl.value && !/^GPS:/.test(psl.value) ? psl.value + " | " : "") + "GPS: " + pos.lat.toFixed(6) + ", " + pos.lon.toFixed(6);
   alert("Localização preenchida.");
@@ -4576,7 +4580,20 @@ function mostrarEncerramento() {
   const tipo = document.getElementById("ps_tipo").value;
   const esp = document.getElementById("ps_esp").value;
   const box = document.getElementById("ps_enc");
-  if (box) box.innerHTML = blocoEncerramento(tipo + "-" + esp);
+  if (!box) return;
+  const chave = tipo + "-" + esp;
+  if (box.dataset.chave === chave) return; // mesma SS: não redesenha
+  // guarda o que já foi digitado antes de trocar o bloco (tocar no atalho de novo não pode apagar nada)
+  if (box.dataset.chave) {
+    window.encValores = window.encValores || {};
+    const v = {}; box.querySelectorAll("[id^=enc_]").forEach(e => { if (e.value) v[e.id] = e.value; });
+    window.encValores[box.dataset.chave] = v;
+  }
+  box.innerHTML = blocoEncerramento(chave);
+  box.dataset.chave = chave;
+  const salvos = (window.encValores || {})[chave];
+  if (salvos) Object.keys(salvos).forEach(id => { const e = document.getElementById(id); if (e) e.value = salvos[id]; });
+  const obra = box.querySelector('select[onchange^="marcaOrigemObra"]'); if (obra) marcaOrigemObra(obra);
 }
 async function enviarPedidoSS(encerrar = false) {
   const tipo = document.getElementById("ps_tipo").value;
@@ -4607,13 +4624,19 @@ async function enviarPedidoSS(encerrar = false) {
   if (encerrar) {
     const c = CAMPOS_ENCERRAMENTO[tipo + "-" + esp];
     if (c) {
-      const faltam = [];
+      const faltam = []; let primeiroVazio = null;
       const dados = c.campos.map(([nome], i) => {
-        const v = (document.getElementById("enc_" + i) || {}).value || "";
-        if (!v.trim()) faltam.push(nome);
+        const el = document.getElementById("enc_" + i);
+        const v = (el || {}).value || "";
+        if (!v.trim()) { faltam.push(nome); if (el && !primeiroVazio) primeiroVazio = el; }
+        if (el) el.style.border = v.trim() ? "" : "2px solid #c62828"; // o que falta fica com borda vermelha
         return nome + ": " + v;
       });
-      if (faltam.length) { alert("Para encerrar, preencha: " + faltam.join(", ")); return; }
+      if (faltam.length) {
+        if (primeiroVazio) primeiroVazio.scrollIntoView({ behavior: "smooth", block: "center" });
+        alert("Para encerrar, preencha: " + faltam.join(", ") + ".\n\nOs campos que faltam estão com a borda vermelha nesta tela.");
+        return;
+      }
       obsFinal = "[ABRIR E ENCERRAR] " + obs + " | " + dados.join(" | ");
     } else {
       obsFinal = "[ABRIR E ENCERRAR] " + obs;
@@ -6994,7 +7017,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "06/11 17h13";
+const VERSAO_PAINEL = "06/11 17h48";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
