@@ -3331,9 +3331,26 @@ function lerExcelSCI(texto, cols = SCI_COLUNAS, obrig = SCI_OBRIGATORIAS, chaveC
   const locs = {}; linhas.forEach(l => { const n = normalizarNome(l[5].replace(/^\d+\s*-\s*/, "")); locs[n] = (locs[n] || 0) + 1; });
   return { linhas, faltam, dataFiltro: kd >= 0 ? filtro[kd + 1] || "" : "", locs };
 }
+// Lê o arquivo do SCI: HTML (como o SCI exporta) ou Excel salvo de novo (.xlsx), que é convertido para a mesma tabela.
+async function sciTextoDoArquivo(arq) {
+  const buf = await arq.arrayBuffer();
+  const texto = new TextDecoder("latin1").decode(buf);
+  if (/<table/i.test(texto)) return texto;
+  const b = new Uint8Array(buf, 0, 2);
+  if (!(b[0] === 0x50 && b[1] === 0x4B)) return texto; // não é .xlsx (zip)
+  if (!window.XLSX) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+  const wb = XLSX.read(buf, { type: "array" });
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
+  const h = rows.findIndex(r => r.some(c => String(c).trim() === "SS") && r.some(c => String(c).trim() === "Tipo"));
+  if (h < 0) return texto;
+  const esc = v => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const cab = rows[h];
+  return "<table><thead><tr>" + cab.map(c => "<th>" + esc(c) + "</th>").join("") + "</tr></thead><tbody>" +
+    rows.slice(h + 1).map(r => "<tr>" + cab.map((_, i) => "<td>" + esc(r[i] ?? "") + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
+}
 async function enviarExcelInativas(inp) {
   const arq = inp.files && inp.files[0]; inp.value = ""; if (!arq) return;
-  let texto = ""; try { texto = await arq.text(); } catch (e) {}
+  let texto = ""; try { texto = await sciTextoDoArquivo(arq); } catch (e) {}
   const x = /<table/i.test(texto) ? lerExcelSCI(texto, INAT_COLUNAS, INAT_OBRIGATORIAS, 2) : null;
   if (!x) { alert("Esse arquivo não é o Excel do SCI. Envie o arquivo exatamente como o SCI baixou (Consulta Avançada de Matrículas › Exportar para Excel)."); return; }
   if (x.faltam.length) { alert("Faltam colunas no Excel: " + x.faltam.join(", ") + ".\n\nNo SCI, marque as colunas da lista desta tela e exporte de novo."); return; }
@@ -3356,7 +3373,7 @@ async function sciEnviarLinhas(g, linhas, rotulo) {
 async function enviarExcelSCI(i, inp) {
   const g = SCI_GRUPOS_TODOS[i], arq = inp.files && inp.files[0]; inp.value = "";
   if (!arq) return;
-  let texto = ""; try { texto = await arq.text(); } catch (e) {}
+  let texto = ""; try { texto = await sciTextoDoArquivo(arq); } catch (e) {}
   const x = /<table/i.test(texto) ? lerExcelSCI(texto) : null;
   if (!x) { alert("Esse arquivo não é o Excel do SCI. Envie o arquivo exatamente como o SCI baixou (Pendências de Atendimento › Exportar para Excel)."); return; }
   if (x.faltam.length) { alert("Faltam colunas no Excel: " + x.faltam.join(", ") + ".\n\nNo SCI, marque as colunas da lista desta tela e exporte de novo."); return; }
