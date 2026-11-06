@@ -3237,9 +3237,13 @@ async function marcarPedidoDigiFeito(i, btn) {
 // Um botão por Excel/unidade. O arquivo é lido aqui e gravado em partes na aba ImportSCI;
 // o servidor atualiza o painel em até 1 minuto e grava o resultado em ImportSCIStatus.
 const SCI_GRUPOS_BOTAO = ["São Desidério", "Angico", "Catolândia", "Baianópolis"];
+// SS já vencidas para encerrar no campo: um Excel por unidade (grupo "Vencidas <unidade>"). Marca as SS e a equipe vê em Demandas de SS.
+const SCI_GRUPOS_TODOS = SCI_GRUPOS_BOTAO.concat(SCI_GRUPOS_BOTAO.map(g => "Vencidas " + g));
 const SCI_DESTINO = { "São Desidério": "Luzenildo, Joaquim, Carlito e Francisco (pedem no Digiteam)", "Angico": "Ramon e Renato (execução manual, sem Digiteam)",
   "Catolândia": "Isaque (Catolândia, Mozondó e Buriti Cortado)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis, São Marcos e Passagem de Pedra)" };
+SCI_GRUPOS_BOTAO.forEach(g => { SCI_DESTINO["Vencidas " + g] = "Campo (SS vencidas): " + SCI_DESTINO[g]; });
 const SCI_LOCS_ESPERADAS = { "São Desidério": ["saodesiderio"], "Angico": ["angico"], "Catolândia": ["catolandia", "mozondo", "buriticortado", "baianopolis"], "Baianópolis": ["baianopolis", "catolandia"] };
+SCI_GRUPOS_BOTAO.forEach(g => { SCI_LOCS_ESPERADAS["Vencidas " + g] = SCI_LOCS_ESPERADAS[g]; });
 // Colunas combinadas (nomes como aparecem no SCI). A ordem no Excel não importa.
 const SCI_COLUNAS = ["SS", "Tipo", "Especificação", "Canal de Atend", "Matrícula", "Localidade", "Bairro", "Logradouro", "Estado", "Nome do Solic", "Geração da SS", "Previsão Inicial", "Núm do Hid", "Obs da SS", "Sit da OS", "Setor", "Programado para"];
 const SCI_OBRIGATORIAS = ["SS", "Tipo", "Especificação", "Canal de Atend", "Localidade", "Estado", "Geração da SS", "Previsão Inicial", "Sit da OS"];
@@ -3286,7 +3290,7 @@ async function carregarImportarSCI() {
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
   const porG = {}; (st.dados || []).slice(1).forEach(l => { porG[l[0]] = { enviado: l[1], por: l[2], qtd: l[3], res: String(l[4] || ""), proc: l[5] }; });
   const proc = {}; (imp.dados || []).slice(1).forEach(l => { if (l[0] && !String(l[7] || "").trim()) proc[l[1]] = { enviado: l[3], por: l[2] }; });
-  box.innerHTML = SCI_GRUPOS_BOTAO.map((g, i) => {
+  box.innerHTML = SCI_GRUPOS_TODOS.map((g, i) => {
     const s = porG[g], p = proc[g];
     const desde = s ? Date.now() - new Date(s.enviado).getTime() : Infinity;
     const cor = p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : desde > 36e5 && sciHorarioComercial() ? "#c62828" : "#2e7d32";
@@ -3350,7 +3354,7 @@ async function sciEnviarLinhas(g, linhas, rotulo) {
   carregarImportarSCI();
 }
 async function enviarExcelSCI(i, inp) {
-  const g = SCI_GRUPOS_BOTAO[i], arq = inp.files && inp.files[0]; inp.value = "";
+  const g = SCI_GRUPOS_TODOS[i], arq = inp.files && inp.files[0]; inp.value = "";
   if (!arq) return;
   let texto = ""; try { texto = await arq.text(); } catch (e) {}
   const x = /<table/i.test(texto) ? lerExcelSCI(texto) : null;
@@ -5139,7 +5143,7 @@ function sspMontar(d, chave) {
     const grupo = grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
     if ((chave !== "ang" && ehCorteSS(l[1])) || /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(String(l[5] || ""))) return;
-    const it = { id: ss, ss, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
+    const it = { id: ss, ss, vencidaCampo: /^Vencida/.test(String(l[5] || "")), tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
@@ -5213,8 +5217,8 @@ async function carregarSSPend(chave) {
     const nC = lista.filter(sspFaltaCampo).length, nD = lista.filter(sspFaltaDig).length, nF = lista.filter(sspFaltaFoto).length;
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
     const barra = p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
-      : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`;
-    let visiveis = filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : lista;
+      : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`+ `<button class="acao" style="background:#b71c1c" onclick="window.sspDemandasVenc=!window.sspDemandasVenc;carregarSSPend('${chave}')">${window.sspDemandasVenc ? "Ver todas as SS" : "Demandas de SS (" + lista.filter(it => it.vencidaCampo && !it.executada).length + ")"}</button>`;
+    let visiveis = (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : lista;
     // Ordem: vencidas e paradas primeiro; no "Falta ir a campo", ordem de visita a partir do escritório
     const urg = it => (it.prazo && it.prazo.vencida) || !!it.parada;
     if (filtro === "campo") visiveis = [...sspRota(visiveis.filter(urg), SSP_LOCAIS[chave]), ...sspRota(visiveis.filter(it => !urg(it)), SSP_LOCAIS[chave])];
@@ -5229,6 +5233,7 @@ async function carregarSSPend(chave) {
       if (it.prazo) { const fal = it.prazo.fim - new Date();
         etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA há " + faltaTexto(fal) + " (venceu " + quandoVence(it.prazo.fim) + ")", vermelho) : chip((fal < 24 * 36e5 ? "⏰" : "⏳") + " Vence " + quandoVence(it.prazo.fim) + " – faltam " + faltaTexto(fal), fal < 24 * 36e5 ? laranja : "#8d6e00")); }
       if (it.parada) etapas.push(chip("⏱ Parada: " + sspEsc(it.parada), vinho));
+      if (it.vencidaCampo && !it.executada) etapas.push(chip("⚠ SS vencida – encerrar no campo", "#b71c1c"));
       if (it.tipoPedido === "digiteam") etapas.push(chip("Aguardando abertura e envio ao Digiteam", laranja));
       else {
         if (it.tipoPedido === "sci") etapas.push(chip("Aberta no SCI", "#0b5394"));
