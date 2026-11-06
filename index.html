@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 14h52</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 15h08</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3241,7 +3241,7 @@ const SCI_GRUPOS_BOTAO = ["São Desidério", "Angico", "Catolândia", "Baianópo
 const SCI_GRUPOS_TODOS = SCI_GRUPOS_BOTAO.concat(SCI_GRUPOS_BOTAO.map(g => "Vencidas " + g));
 const SCI_DESTINO = { "São Desidério": "Luzenildo, Joaquim, Carlito e Francisco (pedem no Digiteam)", "Angico": "Ramon e Renato (execução manual, sem Digiteam)",
   "Catolândia": "Isaque (Catolândia, Buriti Cortado, São Marcos e Passagem de Pedra)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis)" };
-SCI_GRUPOS_BOTAO.forEach(g => { SCI_DESTINO["Vencidas " + g] = "Campo (SS vencidas): " + SCI_DESTINO[g]; });
+SCI_GRUPOS_BOTAO.forEach(g => { SCI_DESTINO["Vencidas " + g] = "Campo (botão \"SS encerradas no SCI\"): " + SCI_DESTINO[g] + " · e para os digitadores (encerrar no sistema)"; });
 const SCI_LOCS_ESPERADAS = { "São Desidério": ["saodesiderio"], "Angico": ["angico"], "Catolândia": ["catolandia", "mozondo", "buriticortado", "baianopolis"], "Baianópolis": ["baianopolis", "catolandia"] };
 SCI_GRUPOS_BOTAO.forEach(g => { SCI_LOCS_ESPERADAS["Vencidas " + g] = SCI_LOCS_ESPERADAS[g]; });
 // Colunas combinadas (nomes como aparecem no SCI). A ordem no Excel não importa.
@@ -5149,13 +5149,16 @@ function sspMontar(d, chave) {
       fotosPedido: String(l[15] || "").split(/\s+/).filter(u => /^https?:/.test(u)) };
     itens.push(it); if (it.ss) porSS[it.ss] = it;
   });
+  // Situação de cada SS na aba SSAbertas (para marcar as vencidas que já estão na lista de execução)
+  const sitSA = {}; (d.sa || []).forEach(l => { const k = sspLimpo(l[0]); if (k && sitSA[k] === undefined) sitSA[k] = String(l[5] || ""); });
+  const ehVencida = ss => /^Vencida/.test(sitSA[ss] || "");
   // 2) SS lançadas na ExecucaoCampo (pendente) da localidade
   const cab = d.cab; const ic = n => cab.indexOf(n);
   d.ex.forEach(l => {
     if (String(l[5] || "").toLowerCase().trim() !== "pendente" || !sspMesmoLocal(l[3], loc)) return;
     const ss = sspLimpo(l[1]); if (!ss || porSS[ss]) return;
     const v = n => ic(n) >= 0 ? l[ic(n)] : "";
-    const it = { id: ss, ss, tipo: l[2], tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(v("abertura")) || sspTxtData(l[0]), tipoPedido: "ss", campos: [["Cliente", v("cliente")], ["Endereço", v("logradouro")], ["Bairro", v("bairro")],
+    const it = { id: ss, ss, vencidaCampo: ehVencida(ss), tipo: l[2], tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(v("abertura")) || sspTxtData(l[0]), tipoPedido: "ss", campos: [["Cliente", v("cliente")], ["Endereço", v("logradouro")], ["Bairro", v("bairro")],
       ["Hidrômetro", v("hidrometro")], ["Telefone", v("telefone")], ["Obs.", v("obs_ss")], ["Solicitante", v("solicitante")], ["Matrícula", v("matricula")]], gpsCol: String(v("localizacao") || ""), mat: sspLimpo(v("matricula")), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
@@ -5163,10 +5166,12 @@ function sspMontar(d, chave) {
   //    Corte e "Programada" ficam no fluxo do Digiteam (menos no Angico, que é todo manual).
   (d.sa || []).forEach(l => {
     const ss = sspLimpo(l[0]); if (!/^\d{6,}$/.test(ss) || porSS[ss]) return;
-    const grupo = grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
+    const vencCampo = /^Vencida/.test(String(l[5] || ""));
+    // SS vencida (encerrada no SCI): vale a localidade da própria SS, não o Excel em que ela entrou antes
+    const grupo = vencCampo ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
     if ((chave !== "ang" && ehCorteSS(l[1])) || /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(String(l[5] || ""))) return;
-    const it = { id: ss, ss, vencidaCampo: /^Vencida/.test(String(l[5] || "")), tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
+    const it = { id: ss, ss, vencidaCampo: vencCampo, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
@@ -5240,9 +5245,14 @@ async function carregarSSPend(chave) {
     window.sspFiltro = window.sspFiltro || {};
     const filtro = p.digitador ? (window.sspFiltro[chave] || "digitacao") : "campo"; // campo vê só o que falta ir a campo
     const nC = lista.filter(sspFaltaCampo).length, nD = lista.filter(sspFaltaDig).length, nF = lista.filter(sspFaltaFoto).length;
+    const nV = lista.filter(it => it.vencidaCampo && !it.executada).length; // encerradas no SCI, falta ir a campo
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
     const barra = p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
-      : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`+ `<button class="acao" style="background:#b71c1c" onclick="window.sspDemandasVenc=!window.sspDemandasVenc;carregarSSPend('${chave}')">${window.sspDemandasVenc ? "Ver todas as SS" : "Demandas de SS (" + lista.filter(it => it.vencidaCampo && !it.executada).length + ")"}</button>`;
+      : window.sspDemandasVenc
+        ? `<div style="background:#b71c1c;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS encerradas no SCI – fazer em campo (${nV})</div>`
+          + `<button class="acao" style="background:#0b5394" onclick="window.sspDemandasVenc=false;carregarSSPend('${chave}')">Ver todas as SS pendentes (${nC})</button>`
+        : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`
+          + (nV ? `<button class="acao" style="background:#b71c1c" onclick="window.sspDemandasVenc=true;carregarSSPend('${chave}')">SS encerradas no SCI – fazer em campo (${nV})</button>` : "");
     let visiveis = (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : lista;
     // Ordem: vencidas e paradas primeiro; no "Falta ir a campo", ordem de visita a partir do escritório
     const urg = it => (it.prazo && it.prazo.vencida) || !!it.parada;
@@ -5275,7 +5285,10 @@ async function carregarSSPend(chave) {
       const exige = sspFotoExigida(it.tipo);
       const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
       const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
-      const acoesCampo = podeCampo ? `
+      // Tela das SS encerradas no SCI: um botão só, sem foto nem informações (a SS já foi encerrada no sistema)
+      const acoesCampo = podeCampo && window.sspDemandasVenc && it.vencidaCampo
+        ? `<button class="acao" style="background:#2e7d32;font-size:18px" onclick="sspConfirmar('${id}', 'executada', this)">OK, foi executada em campo</button>`
+        : podeCampo ? `
         ${p.campo ? (minha ? `<button class="acao" style="background:#555" onclick="sspConfirmar('${id}', 'liberada', this)">Não vou mais (liberar)</button>`
           : !it.assumida ? `<button class="acao" style="background:#1565c0" onclick="sspConfirmar('${id}', 'assumida', this)">🚶 Vou executar</button>` : "") : ""}
         <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço ${exige ? `<span style="color:#c62828">(obrigatório: ${sspEsc(exige.texto)})</span>` : "(opcional)"}</b> – o app pergunta se você está no local; se sim, o GPS vai junto<br>
@@ -6936,7 +6949,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "06/11 14h52";
+const VERSAO_PAINEL = "06/11 15h08";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
