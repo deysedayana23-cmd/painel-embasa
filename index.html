@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 13h42</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 13h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5004,7 +5004,7 @@ async function responderSS(linha, mandarDigiteam) {
 // Some quando: executada + digitada + (foto anexada, se tiver foto). "Mandar no Digiteam" some quando o digitador abre e manda.
 // "Abrir e encerrar" continua em Demandas > Pedidos de SS.
 const SSP_LOCAIS = { sd: "São Desidério", cat: "Catolândia", bai: "Baianópolis", ang: "Angico" };
-const SSP_TELA = { ssPendSD: "sd", ssPendCat: "cat", ssPendBai: "bai", ssPendAng: "ang" };
+const SSP_TELA = { ssPendSD: "sd", ssPendCat: "cat", ssPendBai: "bai", ssPendAng: "ang", ssVencSD: "sd", ssVencCat: "cat", ssVencBai: "bai", ssVencAng: "ang" };
 const SSP_CONTA = { sd: "sspSD", cat: "sspCat", bai: "sspBai", ang: "sspAng" };
 const SSP_EQUIPE = { sd: ["luzenildo", "joaquim", "carlito", "francisco"], cat: ["isaque", "isaac"], bai: ["ivocarlos", "janiogualberto"], ang: ["ramon", "renato"] };
 // Excel do SCI (grupo) → tela de SS pendentes
@@ -5020,10 +5020,14 @@ function sspPedidoNaTelaLocal(loc, obs) {
 }
 const SSP_INICIO = "2026-11-04T19:00:00Z"; // pedidos respondidos antes disso já seguiram o fluxo antigo
 Object.assign(TELAS, {
-  ssPendSD: () => telaSSPend("sd"),
-  ssPendCat: () => telaSSPend("cat"),
-  ssPendBai: () => telaSSPend("bai"),
-  ssPendAng: () => telaSSPend("ang"),
+  ssPendSD: () => { window.sspDemandasVenc = false; return telaSSPend("sd"); },
+  ssPendCat: () => { window.sspDemandasVenc = false; return telaSSPend("cat"); },
+  ssPendBai: () => { window.sspDemandasVenc = false; return telaSSPend("bai"); },
+  ssPendAng: () => { window.sspDemandasVenc = false; return telaSSPend("ang"); },
+  ssVencSD: () => { window.sspDemandasVenc = true; return telaSSPend("sd", true); },
+  ssVencCat: () => { window.sspDemandasVenc = true; return telaSSPend("cat", true); },
+  ssVencBai: () => { window.sspDemandasVenc = true; return telaSSPend("bai", true); },
+  ssVencAng: () => { window.sspDemandasVenc = true; return telaSSPend("ang", true); },
   pedirSS: () => telaPedirSSUnico(),
   resumoGerencia: () => telaResumoGerencia()
 });
@@ -5035,8 +5039,10 @@ function sspPapel(chave) {
   return { campo, digitador, ve: campo || digitador };
 }
 function sspBotoesDoUsuario() {
-  return Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
-    .map(k => ({ nome: "SS pendentes – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai", ang: "ssPendAng" }[k], prioridade: true }));
+  const vencidas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo && !sspPapel(k).digitador)
+    .map(k => ({ nome: "SS encerradas no SCI – fazer em campo", tela: { sd: "ssVencSD", cat: "ssVencCat", bai: "ssVencBai", ang: "ssVencAng" }[k], prioridade: true }));
+  return vencidas.concat(Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
+    .map(k => ({ nome: "SS pendentes – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai", ang: "ssPendAng" }[k], prioridade: true })));
 }
 // Menu principal: SS pendentes no topo; para o campo, um botão só "Pedir SS"; para a gerente, "Resumo e relatório"
 const SSP_TELAS_PEDIR = ["ssVazRede", "ssVazRamal", "ssVazHid", "solicitarSS", "pedidoSS", "pedidoSSEncerrar", "ssRede", "ssRamal"];
@@ -5087,9 +5093,9 @@ function sspTxtData(v) {
   return d.toLocaleString("pt-BR", { timeZone: "America/Bahia", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).replace(",", "");
 }
 const sspHorasDesde = v => { const d = new Date(v); return isNaN(d) ? 0 : (Date.now() - d.getTime()) / 3600e3; };
-function telaSSPend(chave) {
+function telaSSPend(chave, vencidas) {
   const p = sspPapel(chave);
-  return `<h2>SS pendentes – ${SSP_LOCAIS[chave]}</h2>
+  return `<h2>${vencidas ? "SS encerradas no SCI – fazer em campo" : "SS pendentes – " + SSP_LOCAIS[chave]}</h2>
     <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.digitador ? "A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver)." : "Toque em \"Vou executar\" antes de sair e em \"" + (chave === "ang" ? "Serviço executado" : "Executei em campo") + "\" quando terminar (escreva o que foi feito no campo de informações). A SS sai da sua lista quando você executar. Se estiver no local do serviço, o GPS vai junto com a foto."}</div>
     <div id="ssp_lista">Carregando...</div>`;
 }
@@ -6927,7 +6933,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "06/11 13h42";
+const VERSAO_PAINEL = "06/11 13h45";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
