@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 06/11 17h48</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 07/11 07h35</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -227,7 +227,7 @@ const TELAS = {
 
   quimicoEstoque: () => `
     <h2>Estoque de produto químico</h2>
-    <select id="qe_local" class="campo" onchange="mostrarEstoqueQuimico()"><option value="">ETA…</option>${ETAS_QUIMICO.map(l => `<option>${l}</option>`).join("")}</select>
+    <select id="qe_local" class="campo" onchange="mostrarEstoqueQuimico()">${opcoesEtaPessoa(true)}</select>
     <select id="qe_produto" class="campo" onchange="mostrarEstoqueQuimico()"><option value="">Produto…</option>${PRODUTOS_QUIMICO.map(p => `<option>${p}</option>`).join("")}</select>
     <div id="qe_saldo" class="nota"></div>
     <button class="acao" onclick="mostrarEstoqueQuimico()">Consultar</button>`,
@@ -628,7 +628,9 @@ const TELAS = {
     <div class="card"><b>Igor e Oseias</b> em domingo e feriado: religação e vazamento de hidrômetro</div>`,
 
   consumoQuimico: () => `
-    <h2>Texto do grupo – produtos químicos ETA Mozondó</h2>
+    <h2>Texto do grupo – produtos químicos</h2>
+    <select id="qmg_eta" class="campo" onchange="carregarSaldosQuimicos()">${opcoesEtaPessoa(false)}</select>
+    <div class="nota">O texto sai com o nome desta ETA e com o que está lançado nela.</div>
     <div class="card"><b>Dicloro (kg)</b>
       <input id="cl_ant" class="campo" placeholder="Estoque do dia anterior">
       <input id="cl_rec" class="campo" placeholder="Recebido (últimas 24h)">
@@ -1902,7 +1904,21 @@ function calcularConsumosMozondo() {
 // ===== TEXTO DO GRUPO: PRODUTOS QUÍMICOS (formato de Mozondó) =====
 // Preenche o texto do grupo com o que está lançado no sistema (ETA Mozondó)
 // Período: das 07h do dia anterior às 07h de hoje. Consumo = retiradas; recebido = recebimentos
+// ETAs que a pessoa opera (a gerência vê todas)
+function etasDaPessoa() {
+  return ETAS_QUIMICO.filter(e => podeMovimentarAlmox(e));
+}
+// <option>s das ETAs da pessoa; com mais de uma (gerência) vem uma opção em branco antes
+function opcoesEtaPessoa(comBranco) {
+  const e = etasDaPessoa();
+  return (comBranco && e.length > 1 ? '<option value="">ETA…</option>' : "") + e.map(l => `<option>${l}</option>`).join("");
+}
+function etaDoTextoQuimico() {
+  return (document.getElementById("qmg_eta") || {}).value || etasDaPessoa()[0] || "";
+}
 async function carregarSaldosQuimicos() {
+  const eta = etaDoTextoQuimico();
+  if (!eta || !etasDaPessoa().includes(eta)) { alert("Você não tem uma ETA ligada ao seu usuário."); return; }
   const mapa = { cl: "Dicloro", su: "Sulfato", fl: "Flúor" };
   const acum = { cl: { ant: 0, rec: 0, cons: 0 }, su: { ant: 0, rec: 0, cons: 0 }, fl: { ant: 0, rec: 0, cons: 0 } };
   try {
@@ -1912,20 +1928,19 @@ async function carregarSaldosQuimicos() {
     const fim = new Date(hojeISO() + "T07:00:00-03:00").getTime();
     res.dados.slice(1).map(linhaQuimico).forEach(l => {
       // colunas: data_hora, usuario, local, tipo, produto, quantidade, unidade, data_movimento, observacao
-      if (l[2] !== "ETA Mozondó") return;
+      if (l[2] !== eta) return;
       const pref = Object.keys(mapa).find(k => mapa[k] === l[4]);
       if (!pref) return;
       const quando = new Date(l[7] || l[0]);
-      if (isNaN(quando)) return;
-      const t = quando.getTime();
+      const t = isNaN(quando) ? 0 : quando.getTime(); // lançamento sem data válida entra no estoque anterior, nunca se perde
       const inicio = fim - 24 * 3600 * 1000;
       const q = (parseFloat(l[5]) || 0) * (l[6] === "Gramas" ? 0.001 : 1);
       const saida = l[3] === "Retirada" || l[3] === "Consumo";
+      // tudo que é do período para cá entra como recebido/consumido (inclusive o que foi lançado depois das 07h
+      // e o que ficou com data à frente): assim o Estoque Atual do texto é igual ao saldo do painel
       if (t < inicio) {
         acum[pref].ant += saida ? -q : q;
-      } else if (t < fim) {
-        if (saida) acum[pref].cons += q; else acum[pref].rec += q;
-      }
+      } else if (saida) { acum[pref].cons += q; } else { acum[pref].rec += q; }
     });
   } catch (e) { alert("Não consegui carregar o estoque. Verifique a internet."); return; }
   Object.keys(mapa).forEach(pref => {
@@ -1934,6 +1949,8 @@ async function carregarSaldosQuimicos() {
     document.getElementById(pref + "_rec").value = Math.round(a.rec * 100) / 100;
     document.getElementById(pref + "_cons").value = Math.round(a.cons * 100) / 100;
   });
+  const neg = Object.keys(mapa).filter(p => acum[p].ant < -0.001).map(p => mapa[p]);
+  if (neg.length) alert("Atenção: o estoque do dia anterior de " + neg.join(", ") + " ficou negativo. Falta lançar o estoque inicial como Recebimento nessa ETA. Confira antes de enviar o texto.");
 }
 
 function gerarTextoQuimico() {
@@ -1958,7 +1975,7 @@ function gerarTextoQuimico() {
   };
 
   const obs = document.getElementById("qm_obs_grupo").value || "Nenhuma";
-  const texto = "Formulário Diário de Controle de Estoque de Produtos Químicos - ETA MOZONDÓ\n\n" +
+  const texto = "Formulário Diário de Controle de Estoque de Produtos Químicos - " + etaDoTextoQuimico().toUpperCase() + "\n\n" +
     "Data: " + dataStr + "\n" +
     "Horário do Registro: " + horaStr + "\n\n" +
     bloco("Dicloro", "kg", "cl", 1) + "\n\n" +
@@ -1998,6 +2015,7 @@ async function mostrarEstoqueQuimico() {
   const produto = document.getElementById("qe_produto").value;
   const box = document.getElementById("qe_saldo");
   if (!local || !produto) { box.textContent = "Escolha a ETA e o produto."; return; }
+  if (!etasDaPessoa().includes(local)) { box.textContent = "Você só pode consultar o estoque da sua ETA."; return; }
   box.textContent = "Consultando estoque...";
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Quimicos" });
@@ -7017,7 +7035,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "06/11 17h48";
+const VERSAO_PAINEL = "07/11 07h35";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
