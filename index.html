@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h06</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h16</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1676,7 +1676,7 @@ function mostrarMenu(itens, titulo) {
   if (!pilha.length && perfilAtual.startsWith("Atendente")) { // 09/11 (Thiago): sem "Pedidos ao Digiteam" e "Pedidos de SS" no principal; "Pedir SS" em Outros
     const comContagem = ["pedidosDigi", "pedidosSS", "ocorPedidos", "pendenciasEstado", "encerrarEscritorio", "gersa", "todasSS", "ssTodas", "pendExecutar", "ssDigiteam", "cortes", "substHD", "inativas", "pendAbrirEncerrar"];
     const sai = i => comContagem.includes(i.tela) || /^Contas, SCI e Digiteam/.test(i.nome || ""), pedir = itens.filter(i => i.tela === "pedirSS");
-    itens = itens.map(i => i.tela === "ssPendTodas" ? Object.assign({}, i, { nome: "SS pendentes de encerramento" }) : i);
+
     itens = itens.filter(i => !sai(i) && i.tela !== "pedirSS");
     const out = itens.find(i => i.nome === "Outros" && i.sub);
     if (out) out.sub = [...pedir, ...out.sub.filter(j => !sai(j) && j.tela !== "pedirSS")].filter((j, k, arr) => arr.findIndex(x => x.nome === j.nome) === k); else if (pedir.length) itens.push({ nome: "Outros", sub: pedir });
@@ -1822,10 +1822,7 @@ function abrir(i) {
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
     if (SSP_TELA[it.tela]) carregarSSPend(SSP_TELA[it.tela]);
-    if (it.tela === "ssPendTodas") { sspAbrirTodas();
-      carregarEncerrarEscritorio("ee_lista").then(() => { const n = document.querySelectorAll("#ee_lista .card").length, el = document.getElementById("ssp_ee_n"), bx = document.getElementById("ssp_ee_box");
-        if (el) el.textContent = "(" + n + ")"; if (bx && !n) bx.open = false; }).catch(() => {}); carregarPedidosSS().then(() => { const n = document.querySelectorAll("#pss_lista .card").length, el = document.getElementById("ssp_pedidos_n"), bx = document.getElementById("ssp_pedidos_box");
-      if (el) el.textContent = "(" + n + ")"; if (bx && !n) bx.open = false; }).catch(() => {}); carregarPedidosDigiteam(); }
+    if (it.tela === "ssPendTodas") sspTelaTodas();
     if (it.tela === "resumoGerencia") carregarResumoGerencia(0);
     if (it.tela === "cortes") carregarCortes();
     if (it.tela === "semLocalizacao") carregarSemLocalizacao();
@@ -5293,7 +5290,7 @@ const SSP_INICIO = "2026-11-04T19:00:00Z";
 // datas da planilha vêm em ISO (com T, UTC) ou "AAAA-MM-DD HH:MM:SS" (hora da Bahia)
 const sspAntesDoZero = q => { const t = String(q || ""); if (!t) return true; return /T/.test(t) ? t < SSP_ZERADO_EM : t < "2026-11-09 16:20"; }; // pedidos respondidos antes disso já seguiram o fluxo antigo
 Object.assign(TELAS, {
-  ssPendSD: () => { window.sspDemandasVenc = false; return telaSSPend("sd"); },
+  ssPendSD: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = false; return telaSSPend("sd"); },
   ssPendCat: () => { window.sspDemandasVenc = false; return telaSSPend("cat"); },
   ssPendBai: () => { window.sspDemandasVenc = false; return telaSSPend("bai"); },
   ssPendAng: () => { window.sspDemandasVenc = false; return telaSSPend("ang"); },
@@ -5302,10 +5299,13 @@ Object.assign(TELAS, {
   ssVencBai: () => { window.sspDemandasVenc = true; return telaSSPend("bai", true); },
   ssVencAng: () => { window.sspDemandasVenc = true; return telaSSPend("ang", true); },
   pedirSS: () => telaPedirSSUnico(),
-  ssPendTodas: () => { window.sspDemandasVenc = false; return `<h2>SS pendentes – todas as localidades</h2>
-    <details class="card" id="ssp_ee_box" style="margin-bottom:10px;border-left:6px solid #b71c1c" open><summary style="font-weight:bold;font-size:17px;cursor:pointer">🏢 SS para o escritório encerrar <span id="ssp_ee_n"></span></summary><div id="ee_lista">Carregando...</div></details>
-    <details class="card" id="ssp_pedidos_box" style="margin-bottom:10px;border-left:6px solid #ef6c00" open><summary style="font-weight:bold;font-size:17px;cursor:pointer">📝 Pedidos de SS – gerar e responder <span id="ssp_pedidos_n"></span></summary><div id="pss_digi"></div><div id="pss_lista">Carregando...</div></details>
-    <div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div>`; },
+  ssPendTodas: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = true; return `<h2>SS pendentes</h2>
+    <div id="ssp_cats" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
+    <div class="sspsec" data-cat="dig"><div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div></div>
+    <div class="sspsec" data-cat="ee"><div id="ee_lista">Carregando...</div></div>
+    <div class="sspsec" data-cat="ped"><div id="pss_digi"></div><div id="pss_lista">Carregando...</div></div>
+    <div class="sspsec" data-cat="rel"><div id="ssp_rel">Carregando...</div></div>
+    <div class="sspsec" data-cat="oc"><div id="ssp_oc">Carregando...</div></div>`; },
   resumoGerencia: () => telaResumoGerencia()
 });
 Object.assign(CONTAGEM_SS_TELAS, { ssPendTodas: "sspTodas", ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai", ssPendAng: "sspAng", ssVencSD: "vencsd", ssVencCat: "venccat", ssVencBai: "vencbai", ssVencAng: "vencang" });
@@ -5317,7 +5317,7 @@ function sspPapel(chave) {
 }
 function sspBotoesDoUsuario() {
   // 09/11: digitadores (e a gerente) têm um botão só, com o total de todas as localidades
-  if (Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador)) return [{ nome: "SS pendentes – todas as localidades", tela: "ssPendTodas", prioridade: true }];
+  if (Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador)) return [{ nome: "SS pendentes", tela: "ssPendTodas", prioridade: true }];
   const vencidas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo && !sspPapel(k).digitador)
     .map(k => ({ nome: "SS encerradas no SCI – fazer em campo", tela: { sd: "ssVencSD", cat: "ssVencCat", bai: "ssVencBai", ang: "ssVencAng" }[k], prioridade: true }));
   return vencidas.concat(Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
@@ -5509,6 +5509,7 @@ async function sspContagens() {
     Object.keys(SSP_LOCAIS).forEach(k => { const p = sspPapel(k); const l = p.ve ? sspMontar(d, k) : [];
       out[SSP_CONTA[k]] = l.filter(p.digitador ? sspFaltaDigitador : sspFaltaCampo).length + (p.digitador ? sspOcorrencias(oc, k).length + inatPendentesDaChave(pis, k).length : 0);
       out["venc" + k] = l.filter(it => it.vencidaCampo && !it.executada).length; // botão SS encerradas no SCI – fazer em campo
+      if (p.digitador) out["dig" + k] = l.filter(sspFaltaDigitador).length;
     });
     out.sspTodas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador).reduce((t, k) => t + (out[SSP_CONTA[k]] || 0), 0);
   } catch (e) {}
@@ -5525,11 +5526,40 @@ function sspRota(lista, loc) {
     const e = resto.splice(m, 1)[0]; rota.push(e); atual = coord(e); }
   return [...rota, ...lista.filter(x => !coord(x))];
 }
+// 09/11: tela única "SS pendentes" – categorias com contagem; tudo que o digitador faz está aqui dentro
+window.sspCatN = {};
+function sspCatsRender() {
+  const box = document.getElementById("ssp_cats"); if (!box) return;
+  const n = window.sspCatN, cats = [["dig", "Digitar / encerrar SS"], ["ee", "Escritório encerrar"], ["ped", "Pedidos de SS"], ["rel", "Religação e 2ª via"], ["oc", "Ocorrências"]];
+  if (!window.sspCat) { const c = cats.find(([k]) => n[k] > 0); window.sspCat = c ? c[0] : "dig"; }
+  box.innerHTML = cats.map(([k, rot]) => { const on = window.sspCat === k, tem = (n[k] || 0) > 0;
+    return `<button onclick="window.sspCat='${k}';sspCatsRender()" style="flex:1 1 45%;margin:3px;padding:12px 6px;border-radius:10px;font-size:15px;font-weight:bold;border:2px solid ${tem ? "#c62828" : "#9e9e9e"};background:${on ? (tem ? "#c62828" : "#757575") : "#fff"};color:${on ? "#fff" : (tem ? "#c62828" : "#757575")}">${rot} (${n[k] === undefined ? "…" : n[k]})</button>`; }).join("");
+  document.querySelectorAll(".sspsec").forEach(d => { d.style.display = d.dataset.cat === window.sspCat ? "" : "none"; });
+}
+async function sspTodasExtras() {
+  const ks = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador);
+  const [ocs, pis] = await Promise.all([listarOcorrencias().catch(() => []),
+    chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoInativa" }).then(r => inatPedidos(r.dados)).catch(() => [])]);
+  const oc = [], rel = []; ks.forEach(k => { sspOcorrencias(ocs, k).forEach(o => { if (!oc.includes(o)) oc.push(o); }); inatPendentesDaChave(pis, k).forEach(x => { if (!rel.includes(x)) rel.push(x); }); });
+  const bo = document.getElementById("ssp_oc"), br = document.getElementById("ssp_rel");
+  if (bo) bo.innerHTML = oc.length ? sspOcorrenciasHTML(oc) : "<p>Nenhuma ocorrência para abrir ou encerrar.</p>";
+  if (br) br.innerHTML = rel.length ? inatPedidosHTML(rel) : "<p>Nenhum pedido de religação ou 2ª via.</p>";
+  window.sspCatN.oc = oc.length; window.sspCatN.rel = rel.length;
+  try { const d = await sspDados(); window.sspCatN.dig = ks.reduce((t, k) => t + sspMontar(d, k).filter(sspFaltaDigitador).length, 0); } catch (e) {}
+  sspCatsRender();
+}
+function sspTelaTodas() {
+  window.sspCat = ""; window.sspCatN = {}; sspCatsRender();
+  sspAbrirTodas();
+  carregarEncerrarEscritorio("ee_lista").then(() => { window.sspCatN.ee = document.querySelectorAll("#ee_lista .card").length; sspCatsRender(); }).catch(() => {});
+  carregarPedidosSS().then(() => { window.sspCatN.ped = document.querySelectorAll("#pss_lista .card").length; sspCatsRender(); }).catch(() => {});
+  carregarPedidosDigiteam();
+}
 // Tela única dos digitadores: balões com cada localidade e o total; a lista mostra a localidade escolhida
 function sspAbrirTodas(chave) {
   const ks = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador);
   const c = window.contagemSS || {};
-  const n = k => c[SSP_CONTA[k]] || 0;
+  const n = k => c["dig" + k] !== undefined ? c["dig" + k] : (c[SSP_CONTA[k]] || 0);
   if (chave) window.sspChaveTodas = chave;
   if (!window.sspChaveTodas || !ks.includes(window.sspChaveTodas)) window.sspChaveTodas = ks.slice().sort((a, b) => n(b) - n(a))[0] || "sd";
   const atual = window.sspChaveTodas;
@@ -5546,7 +5576,8 @@ async function carregarSSPend(chave) {
     const p0 = sspPapel(chave);
     const [d, base, ocs, pis] = await Promise.all([sspDados(), carregarBaseLocalizacao(), p0.digitador ? listarOcorrencias().catch(() => []) : Promise.resolve([]),
       p0.digitador ? chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoInativa" }).then(r => inatPedidos(r.dados)).catch(() => []) : Promise.resolve([])]);
-    const ocHTML = p0.digitador ? sspOcorrenciasHTML(sspOcorrencias(ocs, chave)) + inatPedidosHTML(inatPendentesDaChave(pis, chave)) : "";
+    const ocHTML = p0.digitador && !(window.sspNaTelaTodas && document.getElementById("ssp_cats")) ? sspOcorrenciasHTML(sspOcorrencias(ocs, chave)) + inatPedidosHTML(inatPendentesDaChave(pis, chave)) : "";
+    if (window.sspNaTelaTodas && document.getElementById("ssp_cats") && !window.sspTodasRecarregando) { window.sspTodasRecarregando = true; sspTodasExtras().finally(() => { window.sspTodasRecarregando = false; }); }
     const lista = sspMontar(d, chave);
     lista.forEach(it => {
       const g = (String(it.gpsCol || "").match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || String((it.campos.find(c => /Logradouro/.test(c[0])) || [])[1] || "").match(/GPS:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || []);
@@ -7353,7 +7384,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 18h06";
+const VERSAO_PAINEL = "09/11 18h16";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
