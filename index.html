@@ -1675,7 +1675,7 @@ function mostrarMenu(itens, titulo) {
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
   if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(substNoMenu(inativasNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))))))));
   if (!pilha.length && perfilAtual.startsWith("Atendente")) { // 09/11 (Thiago): sem "Pedidos ao Digiteam" e "Pedidos de SS" no principal; "Pedir SS" em Outros
-    const comContagem = ["pedidosDigi", "pedidosSS", "ocorPedidos", "pendenciasEstado", "encerrarEscritorio", "gersa", "todasSS", "ssTodas", "pendExecutar", "ssDigiteam", "cortes", "substHD", "inativas", "pendAbrirEncerrar", "pendenciasAprovacao", "epi", "episHistorico", "tramitacao", "analiseConsumo"];
+    const comContagem = ["pedidosDigi", "pedidosSS", "ocorPedidos", "pendenciasEstado", "encerrarEscritorio", "gersa", "todasSS", "ssTodas", "pendExecutar", "ssDigiteam", "cortes", "substHD", "inativas", "pendAbrirEncerrar", "pendenciasAprovacao", "epi", "episHistorico", "tramitacao", "analiseConsumo", "pendenciasTodas"];
     const sai = i => comContagem.includes(i.tela) || /^Contas, SCI e Digiteam/.test(i.nome || ""), pedir = itens.filter(i => i.tela === "pedirSS");
 
     itens = itens.filter(i => !sai(i) && i.tela !== "pedirSS");
@@ -4694,8 +4694,8 @@ function addFotoEnc(input) {
 // A resposta vale por 2 minutos, para não perguntar várias vezes na mesma ação.
 function noLocalDoServico() {
   const d = window.__gpsDecisao;
-  if (d && Date.now() - d.quando < 120000) return d.sim;
-  const sim = confirm("Você está no local do serviço agora?\n\nOK = Sim (registra o GPS)\nCancelar = Não (vai sem GPS)");
+  if (d && Date.now() - d.quando < 15000) return d.sim; // 09/11: pergunta a cada serviço (antes valia 2 minutos); 15s só evita perguntar duas vezes no mesmo envio
+  const sim = confirm("Você está no local do serviço AGORA?\n\nOK = Sim, estou no local (registra o GPS)\nCancelar = Não, já saí / estou em casa ou no escritório (vai sem GPS)");
   window.__gpsDecisao = { quando: Date.now(), sim };
   return sim;
 }
