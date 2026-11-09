@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h42</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1709,8 +1709,18 @@ function mostrarMenu(itens, titulo) {
     const outros = pool.filter(i => i.tela !== "substHD" && i.nome !== "Outros").filter((i, k, a) => a.findIndex(j => j.nome === i.nome) === k);
     itens = [...principal.map(i => Object.assign({}, i, { prioridade: false, grande: false })), { nome: "Outros", sub: outros }];
   }
-  const gradeThiago = !pilha.length && (String(perfilAtual || "").startsWith("Atendente") || ehAgenteCampo); // 09/11: opção 4/A (grade 2×2)
-  if (gradeThiago && !ehAgenteCampo) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.tela === "telemetria" ? 3 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
+  // 09/11: Deyse, Igor e Oséias com a mesma tela do Thiago (SS pendentes de digitação, Demandas urgentes, Excel do SCI, Telemetria, Outros);
+  // o resto do menu deles continua dentro de Outros
+  const ehDigitador4 = !pilha.length && !ehAgenteCampo && !String(perfilAtual || "").startsWith("Atendente") && ["deyse", "igor", "oseias"].some(n => identidadeAtual().includes(n));
+  if (ehDigitador4) {
+    const pool = []; itens.forEach(i => { if (i.nome === "Outros" && i.sub) i.sub.forEach(j => pool.push(j)); else pool.push(i); });
+    const tirar = f => { const k = pool.findIndex(f); return k >= 0 ? pool.splice(k, 1)[0] : null; };
+    const principal = [tirar(i => i.tela === "ssPendTodas"), tirar(i => i.urgente || i.tela === "servicosUrgentes"), tirar(i => i.tela === "importarSCI"), tirar(i => i.tela === "telemetria")].filter(Boolean);
+    const outros = pool.filter(i => i.nome !== "Outros" && i.tela !== "trocarSenha").filter((i, k, a) => a.findIndex(j => j.nome === i.nome) === k);
+    itens = [...principal.map(i => Object.assign({}, i, { prioridade: false, grande: false })), { nome: "Outros", sub: [...outros, { nome: "Trocar minha senha", tela: "trocarSenha" }] }];
+  }
+  const gradeThiago = !pilha.length && (String(perfilAtual || "").startsWith("Atendente") || ehAgenteCampo || ehDigitador4); // 09/11: opção 4/A (grade 2×2)
+  if (gradeThiago && !ehAgenteCampo && !ehDigitador4) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.tela === "telemetria" ? 3 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
@@ -4261,11 +4271,15 @@ async function carregarServicosUrgentes() {
     window.qtdUrgentes = itens.filter(x => ger ? x.estado === "aguardando" : (urgAberta(x) && servicoParaMim(x.para))).length + qOc;
     const rot = { pendente: ["Aguardando execução", "#c62828"], devolvido: ["Devolvida pela gerência – refazer", "#b71c1c"], aguardando: ["Executada – aguardando validação", "#ef6c00"], validado: ["✔ Validada", "#2e7d32"] };
     const nAg = ger ? itens.filter(x => x.estado === "aguardando").length : 0;
-    const loteUrg = nAg ? `<div class="card" style="margin-bottom:8px;background:#e8f5e9;border-left:6px solid #2e7d32">
-      <label style="font-size:16px;font-weight:bold"><input type="checkbox" onchange="document.querySelectorAll('.urg_sel').forEach(c => c.checked = this.checked);urgContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas aguardando validação (${nAg})</label>
-      <button class="acao" id="urg_lote_btn" style="background:#2e7d32" onclick="validarUrgentesLote(this)">✔ Validar selecionadas (0)</button></div>` : "";
+    // 09/11: quem pode excluir marca várias e exclui de uma vez; validar em lote só vale para as "aguardando validação"
+    const podeExcl = !!window.MODO_GERENTE;
+    const loteUrg = (podeExcl || nAg) && itens.length ? `<div class="card" style="margin-bottom:8px;background:#e8f5e9;border-left:6px solid #2e7d32">
+      <label style="font-size:16px;font-weight:bold;display:block;margin-bottom:6px"><input type="checkbox" onchange="document.querySelectorAll('.urg_sel').forEach(c => c.checked = this.checked);urgContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${podeExcl ? itens.length : nAg})</label>
+      ${podeExcl ? `<label style="font-size:15px;display:block;margin-bottom:6px"><input type="checkbox" onchange="document.querySelectorAll('.urg_sel').forEach(c => c.checked = this.checked && c.dataset.estado === 'aguardando');urgContarSel()" style="transform:scale(1.3);margin-right:8px"> Só as executadas – aguardando validação (${itens.filter(x => x.estado === "aguardando").length})</label>` : ""}
+      <div style="display:flex;gap:6px">${nAg ? `<button class="acao" id="urg_lote_btn" style="background:#2e7d32" onclick="validarUrgentesLote(this)">✔ Validar selecionadas (0)</button>` : ""}
+      ${podeExcl ? `<button class="acao" id="urg_excl_btn" style="background:#c62828" onclick="excluirUrgentesLote(this)">🗑 Excluir selecionadas (0)</button>` : ""}</div></div>` : "";
     box.innerHTML = itens.length ? loteUrg + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${rot[x.estado][1]}">
-      ${ger && x.estado === "aguardando" ? `<input type="checkbox" class="urg_sel" value="${x.linha}" onchange="urgContarSel()" style="transform:scale(1.5);margin-right:8px">` : ""}<span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${rot[x.estado][1]}">${rot[x.estado][0]}</span><br>
+      ${podeExcl || (ger && x.estado === "aguardando") ? `<input type="checkbox" class="urg_sel" value="${x.linha}" data-estado="${x.estado}" onchange="urgContarSel()" style="transform:scale(1.5);margin-right:8px">` : ""}<span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${rot[x.estado][1]}">${rot[x.estado][0]}</span><br>
       <b>${sspEsc(x.desc)}</b><br><span style="font-size:14px">Para: ${sspEsc(x.para)} · enviado por ${sspEsc(x.quem)} em ${formatarQuando(x.quando)}</span>
       ${x.situacao === "feito" ? `<br><span style="font-size:14px">Executado por ${sspEsc(x.feito)}${x.dataFeito ? " em " + formatarQuando(x.dataFeito) : ""}</span>` : ""}
       ${x.estado === "devolvido" && x.ctrl.obs ? `<div style="background:#ffebee;border-radius:8px;padding:6px 10px;margin-top:6px">Motivo: ${sspEsc(x.ctrl.obs)}</div>` : ""}
@@ -4276,11 +4290,25 @@ async function carregarServicosUrgentes() {
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 function urgContarSel() {
-  const b = document.getElementById("urg_lote_btn"); if (b) b.textContent = "✔ Validar selecionadas (" + document.querySelectorAll(".urg_sel:checked").length + ")";
+  const b = document.getElementById("urg_lote_btn"); if (b) b.textContent = "✔ Validar selecionadas (" + document.querySelectorAll(".urg_sel[data-estado=aguardando]:checked").length + ")";
+  const e = document.getElementById("urg_excl_btn"); if (e) e.textContent = "🗑 Excluir selecionadas (" + document.querySelectorAll(".urg_sel:checked").length + ")";
+}
+async function excluirUrgentesLote(btn) {
+  const linhas = [...document.querySelectorAll(".urg_sel:checked")].map(c => Number(c.value));
+  if (!linhas.length) { alert("Marque as demandas que quer excluir."); return; }
+  if (!confirm("Excluir " + linhas.length + " demanda(s)? Elas somem para todos.")) return;
+  btn.disabled = true; btn.textContent = "Excluindo...";
+  try {
+    const agora = new Date().toISOString();
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes",
+      linhas: linhas.map(l => [agora, window.credenciais.usuario, "__controle__", "excluido:" + l, "controle", "", ""]) });
+    if (res.erro) { alert(res.erro); btn.disabled = false; urgContarSel(); return; }
+    carregarServicosUrgentes();
+  } catch (e) { alert("Não consegui excluir. Verifique a internet."); btn.disabled = false; urgContarSel(); }
 }
 async function validarUrgentesLote(btn) {
-  const linhas = [...document.querySelectorAll(".urg_sel:checked")].map(c => Number(c.value));
-  if (!linhas.length) { alert("Marque as demandas que quer validar."); return; }
+  const linhas = [...document.querySelectorAll(".urg_sel[data-estado=aguardando]:checked")].map(c => Number(c.value));
+  if (!linhas.length) { alert("Marque as demandas executadas que quer validar."); return; }
   if (!confirm("Validar " + linhas.length + " demanda(s)?")) return;
   btn.disabled = true; btn.textContent = "Gravando...";
   try {
@@ -7575,13 +7603,13 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 19h42";
+const VERSAO_PAINEL = "09/11 19h45";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
   try {
     const t = await (await fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" })).text();
-    const m = t.match(/const VERSAO_PAINEL = "([^"]+)"/);
+    const m = t.match(/const VERSAO_PAINEL = "09/11 19h45"]+)"/);
     if (m && m[1] !== VERSAO_PAINEL) {
       msg.innerHTML = `Nova versão ${m[1]} disponível. <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:600">Atualizar agora</button>`;
     } else msg.textContent = "Você já está na versão mais recente (" + VERSAO_PAINEL + ").";
@@ -7638,7 +7666,7 @@ function atualizarQuandoLivre(nova) {
 function checarVersaoSilenciosa() {
   if (window.__versaoNova) return atualizarQuandoLivre(window.__versaoNova);
   fetch(location.pathname + "?v=" + Date.now(), { cache: "no-store" }).then(r => r.text()).then(t => {
-    const m = t.match(/const VERSAO_PAINEL = "([^"]+)"/);
+    const m = t.match(/const VERSAO_PAINEL = "09/11 19h45"]+)"/);
     if (!m || m[1] === VERSAO_PAINEL) return;
     window.__versaoNova = m[1]; atualizarQuandoLivre(m[1]);
   }).catch(() => {});
