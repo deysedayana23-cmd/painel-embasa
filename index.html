@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h38</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1731,7 +1731,7 @@ function mostrarMenu(itens, titulo) {
     if (gradeThiago) { // 09/11: opção 4 – grade 2×2 azul, todos do mesmo tamanho, ícone + número
       const nome = it.urgente ? "Demandas urgentes" : it.tela === "importarSCI" ? "Excel do SCI para atualização da IA" : it.tela === "ssPendTodas" ? "SS pendentes de digitação"
         : /^ssPend/.test(it.tela || "") ? "SS abertas no SCI" + (it.nome.includes("–") ? " – " + it.nome.split("–").pop().trim() : "") : /^ssVenc/.test(it.tela || "") ? "SS encerradas no SCI – ir a campo"
-        : it.nome === "Solicitação no SCI" ? "Solicitações do SCI" : it.nome;
+        : it.nome === "Solicitação no SCI" ? "Solicitações do SCI" : it.tela === "pedirSS" ? "Pedir para abrir e encerrar SS" : it.nome;
       const sub = it.nome === "Solicitação no SCI" ? `<span style="font-size:12px;font-weight:normal">2ª via, análise de conta</span>` : "";
       const num = it.urgente ? (window.qtdUrgentes || 0) : contavel ? (window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : "…") : "";
       html += `<button class="btn" style="${i === itens.length - 1 && itens.length % 2 ? "grid-column:1/-1;min-height:90px;" : "min-height:130px;"}background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span>${nome}</span>${sub}<span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
@@ -6185,7 +6185,7 @@ async function enviarPedidoCorte(btn) {
 // ===== PEDIR SS: um botão só para o campo (vazamento, Digiteam e abrir e encerrar ficam dentro) =====
 function telaPedirSSUnico() {
   const atalho = (rot, t, e) => `<button class="ssp-atalho" onclick="sspAtalho(this, '${t}', '${e}')" style="flex:1 1 30%;margin:3px;padding:10px 6px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">${rot}</button>`;
-  return AVISO_DIGITINHO + telaPedidoSS(true).replace("<h2>Abrir e encerrar SS</h2>", `<h2>Pedir SS</h2>
+  return telaPedidoSS(true).replace("<h2>Abrir e encerrar SS</h2>", `<h2>Pedir para abrir e encerrar SS</h2>
     <div class="nota">Atalhos de vazamento (preenchem o tipo):</div>
     <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${atalho("Vazamento de rede", "43", "1")}${atalho("Vazamento de ramal", "43", "2")}${atalho("Vazamento de hidrômetro", "43", "3")}</div>
     <div id="ssp_atalho_msg"></div>
@@ -7563,7 +7563,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 19h38";
+const VERSAO_PAINEL = "09/11 19h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
