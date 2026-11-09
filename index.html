@@ -1574,7 +1574,6 @@ const GRUPOS_BOTAO = {
   operadores: ["igor", "oseias", "acacio", "janiolima", "eduardo", "genildo", "alan", "juvenson", "valdesandro", "sandro", "ramon", "renato"]
 };
 const REGRA_BOTAO = {
-  "Serviços urgentes": "menos_deyse",
   "Vazamento de rede": "menos_deyse",
   "Vazamento de ramal": "menos_deyse",
   "Abrir e encerrar SS": "menos_deyse",
@@ -1607,7 +1606,7 @@ function promoverDoOutros(itens, pred) {
   return [principal, resto];
 }
 function mostrarMenu(itens, titulo) {
-  if (!pilha.length) itens = [{nome: "Serviços urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
+  if (!pilha.length) itens = [{nome: "Demandas urgentes", tela: "servicosUrgentes", urgente: true}, ...itens];
   // Demandas Agersa aparece para todos; cada um vê só a(s) localidade(s) que atende
   if (!pilha.length && !window.MODO_GERENTE && !perfilAtual.startsWith("Gerente") && !itens.some(i => i.tela === "gersa")) itens = [...itens, {nome: "Demandas Agersa", tela: "gersa"}];
   itens = itens.filter(i => (pilha.length || visivelBotao(i.nome, i.tela)) && (i.tela !== "pendenciasEstado" || podeVerEstadoSS()) && (i.tela !== "alertaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "entregaPrefeitura" || podeVerAlertaPrefeitura()) && (i.tela !== "encerrarEscritorio" || podeVerEncerrarEscritorio()));
@@ -1648,8 +1647,8 @@ function mostrarMenu(itens, titulo) {
     const quem = normalizarNome(window.credenciais && window.credenciais.usuario);
     const principalOp = ["Ocorrência operacional", "Reclamação Coelba", "Estoque diário produto químico"];
     const quemId = identidadeAtual();
+    principalOp.push("Demandas urgentes"); // 09/11: todos recebem as demandas urgentes no menu principal
     if (quemId.includes("igor") || quemId.includes("oseias")) principalOp.push("SS para encerrar pelo escritório");
-    else principalOp.push("Serviços urgentes"); // demais operadores: recados da gerência no menu principal
     const ehAngico = quem.includes("ramon") || quem.includes("renato");
     if (ehAngico) principalOp.push("Níveis e macro ETA", "Níveis dos reservatórios", "Pendência de SS para executar");
     // Igor e Oseias: encerrar SS pelo escritório e pedidos de ocorrência no principal (o botão vem com outro nome do menu do operador)
@@ -1680,7 +1679,7 @@ function mostrarMenu(itens, titulo) {
   if (!pilha.length && !perfilAtual.startsWith("Gerente")) html += BANNER_VERIF;
   html += `<h2>${titulo}</h2><div class="grid">`;
   itens.forEach((it, i) => {
-    const nomeBotao = it.urgente ? `Serviços urgentes (${window.qtdUrgentes || 0})` : it.nome;
+    const nomeBotao = it.urgente ? `Demandas urgentes (${window.qtdUrgentes || 0})` : it.nome;
     const destaque = it.prioridade ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff;font-weight:bold"' : it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
     const contavel = CONTAGEM_SS_TELAS[it.tela];
     const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
@@ -2926,7 +2925,7 @@ async function carregarOcorMinhas() {
   try {
     const eu = String(window.credenciais.usuario).toLowerCase();
     const itens = (await listarOcorrencias()).filter(o => String(o.quem).toLowerCase() === eu).reverse();
-    const nomeSit = { solicitada: "Aguardando o escritório abrir", aberta: "Aberta – informe o término em Serviços urgentes", finalizada: "Término informado – aguardando encerrar no sistema", encerrada: "Encerrada no sistema" };
+    const nomeSit = { solicitada: "Aguardando o escritório abrir", aberta: "Aberta – informe o término em Demandas urgentes", finalizada: "Término informado – aguardando encerrar no sistema", encerrada: "Encerrada no sistema" };
     box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${o.situacao === "encerrada" ? "#2e7d32" : "#c62828"}">
       <b>${o.tipo}</b> · ${o.loc}${o.num ? " · nº <b>" + o.num + "</b>" : ""}<br><span style="font-size:14px">${o.end} · pedido em ${formatarQuando(o.quando)}<br>${nomeSit[o.situacao] || o.situacao}${o.fim ? " · término " + o.fim : ""}</span></div>`).join("") : "<p>Nenhuma ocorrência.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
@@ -4100,25 +4099,40 @@ function servicoParaMim(para) {
   const eu = nomesDoUsuario();
   return String(para).split(",").some(n => normalizarNome(n) && eu.includes(normalizarNome(n)));
 }
+// 09/11: demanda urgente com validação da gerência. Situação: pendente -> feito (aguardando validação) -> validado; ou devolvido (volta para o funcionário).
+function urgItens(dados) {
+  const linhas = (dados || []).slice(1).map((l, i) => ({ l, linha: i + 2 }));
+  const ctrl = {}; linhas.forEach(({ l }) => { if (l[2] !== "__controle__") return; const m = String(l[3] || "").match(/^(validado|devolvido):(\d+)(?::(.*))?$/); if (!m) return;
+    const k = Number(m[2]); if (!ctrl[k] || String(l[0]) > String(ctrl[k].quando)) ctrl[k] = { acao: m[1], quando: String(l[0]), por: l[1], obs: m[3] || "" }; });
+  return linhas.filter(({ l }) => l[2] !== "__controle__" && l[3]).map(({ l, linha }) => {
+    const x = { linha, quando: l[0], quem: l[1], para: l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "", dataFeito: String(l[6] || "") };
+    const c = ctrl[linha];
+    if (x.situacao === "feito") x.estado = c && c.quando > x.dataFeito ? (c.acao === "validado" ? "validado" : "devolvido") : "aguardando";
+    else x.estado = "pendente";
+    x.ctrl = c; return x;
+  });
+}
+const urgAberta = x => x.estado === "pendente" || x.estado === "devolvido";
 async function carregarQtdUrgentes() {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
     if (res.erro) { window.qtdUrgentes = 0; return; }
     let qOc = 0;
     try { qOc = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && ocMesmaEquipe(o.quem)).length; } catch (e) {}
-    window.qtdUrgentes = res.dados.slice(1).filter(l => l[4] !== "feito" && servicoParaMim(l[2])).length + qOc;
+    const ger = window.MODO_GERENTE && !emPrevia();
+    window.qtdUrgentes = urgItens(res.dados).filter(x => ger ? x.estado === "aguardando" : (urgAberta(x) && servicoParaMim(x.para))).length + qOc;
   } catch (e) { window.qtdUrgentes = 0; }
 }
 function telaServicosUrgentes() {
   const form = (window.MODO_GERENTE && !emPrevia()) ? `
-    <h3>Adicionar serviço urgente</h3>
+    <h3>Mandar demanda urgente</h3>
     <textarea id="su_desc" class="campo" rows="2" placeholder="O que precisa ser feito"></textarea>
     <div class="nota">Para quem (marque um ou mais, ou marque Todos):</div>
     <label style="display:block"><input type="checkbox" class="su_p" value="Todos"> Todos</label>
     ${PESSOAS.filter(p => p[0] !== "Deyse").map(p => `<label style="display:block"><input type="checkbox" class="su_p" value="${p[0]}"> ${p[0]}</label>`).join("")}
-    <button class="acao" onclick="adicionarServicoUrgente()">Adicionar serviço urgente</button>
+    <button class="acao" onclick="adicionarServicoUrgente()">Mandar demanda urgente</button>
     <h3>Lista</h3>` : "";
-  return `<h2>Serviços urgentes</h2><div id="su_ocor"></div>${form}<div id="su_lista">Carregando...</div>`;
+  return `<h2>Demandas urgentes</h2>${(window.MODO_GERENTE && !emPrevia()) ? "" : `<div class="nota">Quando terminar, toque em "Informar que foi executado". A gerência valida.</div>`}<div id="su_ocor"></div>${form}<div id="su_lista">Carregando...</div>`;
 }
 async function adicionarServicoUrgente() {
   const desc = document.getElementById("su_desc").value.trim();
@@ -4129,7 +4143,7 @@ async function adicionarServicoUrgente() {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes",
       linhas: [[new Date().toISOString(), window.credenciais.usuario, paraTxt, desc, "pendente", "", ""]] });
     if (res.erro) { alert(res.erro); return; }
-    alert("Serviço urgente adicionado.");
+    alert("Demanda urgente enviada.");
     renderAtual();
   } catch (e) { alert("Não consegui adicionar: " + (e && e.message ? e.message : "resposta inválida do servidor")); }
 }
@@ -4140,15 +4154,34 @@ async function carregarServicosUrgentes() {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
     if (res.erro) { box.textContent = res.erro; return; }
-    const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], para: l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "" }))
-      .filter(x => (window.MODO_GERENTE && !emPrevia()) || servicoParaMim(x.para)).reverse();
+    const ger = window.MODO_GERENTE && !emPrevia();
+    const ordem = { aguardando: 0, devolvido: 1, pendente: 2, validado: 3 };
+    let itens = urgItens(res.dados).filter(x => ger || servicoParaMim(x.para)).reverse();
+    // validadas há mais de 7 dias saem da lista
+    itens = itens.filter(x => x.estado !== "validado" || (Date.now() - new Date(x.ctrl.quando).getTime()) < 7 * 864e5)
+      .sort((a, b) => (ger ? ordem[a.estado] - ordem[b.estado] : (urgAberta(b) - urgAberta(a))) || String(b.quando).localeCompare(String(a.quando)));
     const qOc = await carregarOcorParaFinalizar("su_ocor");
-    window.qtdUrgentes = itens.filter(x => x.situacao !== "feito" && servicoParaMim(x.para)).length + qOc;
-    box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${x.situacao === "feito" ? "#2e7d32" : "#c62828"}">
-      <b>${x.desc}</b><br><span style="font-size:14px">Para: ${x.para} · adicionado por ${x.quem} em ${formatarQuando(x.quando)}</span>
-      ${x.situacao === "feito" ? `<br><span style="font-size:14px">Feito por ${x.feito}</span>` : (!(window.MODO_GERENTE && !emPrevia()) && servicoParaMim(x.para) ? `<br><button class="acao" onclick="concluirServicoUrgente(${x.linha})">Marcar como feito</button>` : "")}
-    </div>`).join("") : "<p>Nenhum serviço urgente.</p>";
+    window.qtdUrgentes = itens.filter(x => ger ? x.estado === "aguardando" : (urgAberta(x) && servicoParaMim(x.para))).length + qOc;
+    const rot = { pendente: ["Aguardando execução", "#c62828"], devolvido: ["Devolvida pela gerência – refazer", "#b71c1c"], aguardando: ["Executada – aguardando validação", "#ef6c00"], validado: ["✔ Validada", "#2e7d32"] };
+    box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${rot[x.estado][1]}">
+      <span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${rot[x.estado][1]}">${rot[x.estado][0]}</span><br>
+      <b>${sspEsc(x.desc)}</b><br><span style="font-size:14px">Para: ${sspEsc(x.para)} · enviado por ${sspEsc(x.quem)} em ${formatarQuando(x.quando)}</span>
+      ${x.situacao === "feito" ? `<br><span style="font-size:14px">Executado por ${sspEsc(x.feito)}${x.dataFeito ? " em " + formatarQuando(x.dataFeito) : ""}</span>` : ""}
+      ${x.estado === "devolvido" && x.ctrl.obs ? `<div style="background:#ffebee;border-radius:8px;padding:6px 10px;margin-top:6px">Motivo: ${sspEsc(x.ctrl.obs)}</div>` : ""}
+      ${!ger && urgAberta(x) && servicoParaMim(x.para) ? `<button class="acao" onclick="concluirServicoUrgente(${x.linha})">Informar que foi executado</button>` : ""}
+      ${ger && x.estado === "aguardando" ? `<div style="display:flex;gap:6px"><button class="acao" style="background:#2e7d32" onclick="validarUrgente(${x.linha}, 'validado')">✔ Validar</button><button class="acao" style="background:#b71c1c" onclick="validarUrgente(${x.linha}, 'devolvido')">Devolver</button></div>` : ""}
+    </div>`).join("") : "<p>Nenhuma demanda urgente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function validarUrgente(linha, acao) {
+  let obs = "";
+  if (acao === "devolvido") { obs = (prompt("Motivo para devolver (o funcionário vê):") || "").replace(/[:|\n]/g, " ").trim(); if (!obs) return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "__controle__", acao + ":" + linha + (obs ? ":" + obs : ""), "controle", "", ""]] });
+    if (res.erro) { alert(res.erro); return; }
+    carregarServicosUrgentes();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 async function concluirServicoUrgente(linha) {
   try {
