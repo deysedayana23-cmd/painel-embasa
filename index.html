@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h27</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h29</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5482,6 +5482,8 @@ function sspMontar(d, chave) {
     if (it.finalizada) return false;
     if (!sspFiltroEquipeSD([it], chave).length) return false; // divisão operacional x comercial em São Desidério
     if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
+    // 09/11: corte de São Desidério é só pelo Digiteam – não aparece para o digitador (nem como "escritório encerrar")
+    if (it.escritorioEncerrar && !SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(it.tipoCurto || it.tipo)) return false;
     // 09/11: SS do escritório marcada como digitada e sem execução vai para o campo, no botão "SS encerradas no SCI, mas não em campo"
     if (it.escritorioEncerrar && it.digitada && !it.executada && !(!SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(it.tipoCurto || it.tipo))) { it.escritorioEncerrar = false; it.vencidaCampo = true; return true; }
     if (it.escritorioEncerrar) return !it.digitada; // só sai quando o digitador encerrar no SCI
@@ -7389,7 +7391,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 18h27";
+const VERSAO_PAINEL = "09/11 18h29";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
