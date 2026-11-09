@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h49</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h52</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5557,6 +5557,10 @@ function sspRota(lista, loc) {
   return [...rota, ...lista.filter(x => !coord(x))];
 }
 // 09/11: Telemetria – link, usuário e senha ficam na aba "Telemetria" da planilha (não no código público do painel)
+async function telCopiarEAbrir(btn) {
+  try { await navigator.clipboard.writeText(window.telTudo || ""); btn.textContent = "✔ Dados copiados – abrindo..."; } catch (e) { alert(window.telTudo || ""); }
+  window.open(window.telLink, "_blank", "noopener");
+}
 async function carregarTelemetria() {
   const box = document.getElementById("tel_box"); if (!box) return;
   try {
@@ -5566,7 +5570,11 @@ async function carregarTelemetria() {
     const [link, cust, usu, sen] = [0, 1, 2, 3].map(k => String(l[k] || "").trim()); // aba Telemetria: link | customer | usuario | senha
     const copiar = v => `<button onclick="navigator.clipboard.writeText(${JSON.stringify(v).replace(/"/g, "&quot;")}).then(() => { this.textContent = '✔ Copiado'; }).catch(() => {})" style="padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">📋 Copiar</button>`;
     const linha = (rot, v) => v ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f6f9fc;border-radius:8px;padding:10px 12px;margin:8px 0"><div><div style="font-size:13px;color:#555">${rot}</div><div style="font-size:20px;font-weight:bold;word-break:break-all">${sspEsc(v)}</div></div>${copiar(v)}</div>` : "";
-    box.innerHTML = `<a href="${sspEsc(link)}" target="_blank" rel="noopener" class="acao" style="display:block;text-align:center;text-decoration:none;font-size:20px;padding:18px">Abrir a telemetria</a>
+    const tudo = [cust && "Customer: " + cust, usu && "Login: " + usu, sen && "Senha: " + sen].filter(Boolean).join("\n");
+    window.telTudo = tudo; window.telLink = link;
+    box.innerHTML = `<button class="acao" style="display:block;width:100%;font-size:20px;padding:18px;background:#2e7d32" onclick="telCopiarEAbrir(this)">📋 Copiar os dados e abrir a telemetria</button>
+      <div class="nota">O botão copia Customer, Login e Senha de uma vez e já abre o site. Lá, toque e segure no campo e escolha "Colar" para ver os dados.</div>
+      <a href="${sspEsc(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;margin:6px 0 10px">Só abrir a telemetria</a>
       ${linha("Customer", cust)}${linha("Login", usu)}${linha("Senha", sen)}
       <div class="nota">No primeiro acesso, digite o usuário e a senha e toque em "Salvar senha" quando o celular perguntar. Depois o login entra sozinho.</div>`;
   } catch (e) { box.textContent = "Não consegui carregar a telemetria. Verifique a internet."; }
@@ -7478,7 +7486,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 18h49";
+const VERSAO_PAINEL = "09/11 18h52";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
