@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 07/11 07h35</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 15h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3183,7 +3183,7 @@ function telaSSLista(titulo) {
   const ger = window.MODO_GERENTE && !emPrevia();
   return `<h2>${titulo}</h2>
     ${ger ? `<select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option><option>Só gerar</option></select>`
-      : `<input type="hidden" id="sl_acao" value="Mandar no Digiteam"><div class="nota"><b>Como pedir:</b> escolha o tipo de serviço e o bairro, confira as SS marcadas e toque em <b>Pedir no meu Digiteam</b>. As SS vão para o seu Digiteam em até 1 hora (horário comercial). SS já pedida por um colega não aparece aqui.</div>
+      : `<input type="hidden" id="sl_acao" value="Mandar no Digiteam"><div class="nota"><b>Como pedir:</b> escolha o tipo de serviço e o bairro, confira as SS marcadas e toque em <b>Pedir no meu Digiteam</b>. As SS vão para o seu Digiteam às 8h ou às 13h30. SS já pedida por um colega não aparece aqui.</div>
         <label style="display:block;font-weight:600;margin-top:6px">Data para o Digiteam <input type="date" id="sl_data" class="campo" value="${hojeISO()}"></label>`}
     <button class="acao" onclick="enviarSSLista()">${ger ? "Enviar as marcadas" : "Pedir no meu Digiteam"}</button>
     <div id="sl_lista">Carregando...</div>`;
@@ -3206,7 +3206,7 @@ function lerPedidosDigiteam(acsDados, saDados) {
   return Object.values(lotes).map(p => { const f = [...p.grupos].map(g => feitos[g]).filter(Boolean); p.feito = f.length === p.grupos.size; if (f.length) { p.feitoPor = f[0].por; p.feitoEm = f[0].em; } return p; })
     .sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
 }
-Object.assign(TELAS, { pedidosDigi: () => `<h2>Pedidos ao Digiteam</h2><div class="nota">Pedidos dos agentes para receber SS no Digiteam. O Claude despacha de hora em hora (horário comercial) e marca aqui. Se despachar na mão, toque em "Marcar como despachado" que o agente é avisado.</div><div id="pdg_lista">Carregando...</div>` });
+Object.assign(TELAS, { pedidosDigi: () => `<h2>Pedidos ao Digiteam</h2><div class="nota">Pedidos dos agentes para receber SS no Digiteam. Os pedidos são colocados no Digiteam só às 8h e às 13h30. Se despachar na mão, toque em "Marcar como despachado" que o agente é avisado.</div><div id="pdg_lista">Carregando...</div>` });
 Object.assign(CONTAGEM_SS_TELAS, { pedidosDigi: "pedidosDigi" });
 function ehDigitadorPainel() { return (window.MODO_GERENTE && !emPrevia()) || SSP_DIGITADORES.some(n => identidadeAtual().includes(n)); }
 function pedidosDigiNoMenu(itens) {
@@ -5087,6 +5087,20 @@ const SSP_EQUIPE = { sd: ["luzenildo", "joaquim", "carlito", "francisco"], cat: 
 // Excel do SCI (grupo) → tela de SS pendentes
 const SSP_GRUPO_CHAVE = { "São Desidério": "sd", "Catolândia": "cat", "Baianópolis": "bai", "Angico": "ang" };
 const SSP_DIGITADORES = ["deyse", "thiago", "tiago", "oseias", "igor"];
+// 09/11: São Desidério dividido por tipo de serviço.
+// Operacional (Carlito e Francisco): vazamento, falta de água, ligação nova, transferência de hidrômetro.
+// Comercial (Joaquim e Luzenildo): substituição de hidrômetro, corte, entrega de contas e o restante.
+const SSP_SD_OPERACIONAL = ["carlito", "francisco"];
+const SSP_SD_COMERCIAL = ["joaquim", "luzenildo"];
+const sspEhOperacional = t => /VAZ|FALT|LIG(ACAO|\.)?\s*NOVA|NOVA\s*LIG|TRANSF/i.test(String(t || ""));
+function sspFiltroEquipeSD(lista, chave) {
+  if (chave !== "sd" || (window.MODO_GERENTE && !emPrevia())) return lista;
+  const id = identidadeAtual();
+  if (SSP_DIGITADORES.some(n => id.includes(n))) return lista;
+  if (SSP_SD_OPERACIONAL.some(n => id.includes(n))) return lista.filter(it => sspEhOperacional(it.tipoCurto || it.tipo));
+  if (SSP_SD_COMERCIAL.some(n => id.includes(n))) return lista.filter(it => !sspEhOperacional(it.tipoCurto || it.tipo));
+  return lista;
+}
 const SSP_ORIGEM = { "São Desidério": [-12.3654726, -44.9743524], "Catolândia": [-12.314725, -44.8615625], "Baianópolis": [-12.307875, -44.53859375] };
 // Foto obrigatória por tipo de serviço (no "Executei em campo")
 const SSP_FOTO_MIN = [{ re: /PAVI/i, n: 2, texto: "serviço com pavimento: tire pelo menos 2 fotos (antes e depois)" }];
@@ -5119,7 +5133,7 @@ function sspBotoesDoUsuario() {
   const vencidas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo && !sspPapel(k).digitador)
     .map(k => ({ nome: "SS encerradas no SCI – fazer em campo", tela: { sd: "ssVencSD", cat: "ssVencCat", bai: "ssVencBai", ang: "ssVencAng" }[k], prioridade: true }));
   return vencidas.concat(Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
-    .map(k => ({ nome: "SS pendentes – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai", ang: "ssPendAng" }[k], prioridade: true })));
+    .map(k => ({ nome: "SS em aberto no sistema – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai", ang: "ssPendAng" }[k], prioridade: true })));
 }
 // Menu principal: SS pendentes no topo; para o campo, um botão só "Pedir SS"; para a gerente, "Resumo e relatório"
 const SSP_TELAS_PEDIR = ["ssVazRede", "ssVazRamal", "ssVazHid", "solicitarSS", "pedidoSS", "pedidoSSEncerrar", "ssRede", "ssRamal"];
@@ -5172,7 +5186,7 @@ function sspTxtData(v) {
 const sspHorasDesde = v => { const d = new Date(v); return isNaN(d) ? 0 : (Date.now() - d.getTime()) / 3600e3; };
 function telaSSPend(chave, vencidas) {
   const p = sspPapel(chave);
-  return `<h2>${vencidas ? "SS encerradas no SCI – fazer em campo" : "SS pendentes – " + SSP_LOCAIS[chave]}</h2>
+  return `<h2>${vencidas ? "SS encerradas no SCI – fazer em campo" : "SS em aberto no sistema – " + SSP_LOCAIS[chave]}</h2>
     <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.digitador ? "A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver)." : "Toque em \"Vou executar\" antes de sair e em \"" + (chave === "ang" ? "Serviço executado" : "Executei em campo") + "\" quando terminar (escreva o que foi feito no campo de informações). A SS sai da sua lista quando você executar. Se estiver no local do serviço, o GPS vai junto com a foto."}</div>
     <div id="ssp_lista">Carregando...</div>`;
 }
@@ -5270,6 +5284,7 @@ function sspMontar(d, chave) {
     return it;
   }).filter(it => {
     if (it.finalizada) return false;
+    if (!sspFiltroEquipeSD([it], chave).length) return false; // divisão operacional x comercial em São Desidério
     if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
     if (it.escritorioEncerrar) return !it.digitada; // só sai quando o digitador encerrar no SCI
     if (it.tipoPedido === "digiteam") return true;
@@ -5369,7 +5384,9 @@ async function carregarSSPend(chave) {
       const ficha = sspFicha(it.campos);
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
       const exige = sspFotoExigida(it.tipo);
-      const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
+      const corteDigi = ehCorteSS(it.tipoCurto || it.tipo); // corte: exclusivo pelo Digiteam, o campo não encerra pelo painel
+      if (corteDigi && !it.executada) etapas.push(chip("✂ Corte: executar e encerrar só pelo Digiteam", "#c62828"));
+      const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && !corteDigi && it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
       const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
       // Tela das SS encerradas no SCI: um botão só, sem foto nem informações (a SS já foi encerrada no sistema)
       const acoesCampo = podeCampo && window.sspDemandasVenc && it.vencidaCampo
@@ -5594,9 +5611,12 @@ function menuAgenteCampo(itens) {
   const pequeno = (nome, lista) => !lista.length ? null : lista.length === 1 ? { nome, tela: lista[0].tela } : { nome, sub: lista };
   // 05/11: o agente pega as SS sempre pelo Digiteam. "Solicitação ao Digiteam" é o botão principal;
   // "SS pendentes" (Executei em campo) vai para Outros.
-  const menu = [urg, ...ssv.map(i => Object.assign({}, i, { prioridade: true, grande: true })), Object.assign({}, digi, { prioridade: true }), Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }),
+  // 09/11: o botão principal passa a ser "SS em aberto no sistema" (o escritório abre e encerra; o Digiteam
+  // recebe pedidos só às 8h e às 13h30). "Solicitação ao Digiteam" vai para Outros.
+  const abertas = ssPend.map(i => Object.assign({}, i, { prioridade: true, nome: ssPend.length > 1 ? i.nome : "SS em aberto no sistema" }));
+  const menu = [urg, ...ssv.map(i => Object.assign({}, i, { prioridade: true, grande: true })), ...abertas, Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }),
     cortes, agersa, pequeno("Níveis dos reservatórios", niv), pequeno("Escala da ETA", esc)].filter(Boolean);
-  const outros = [...ssPend.map(i => Object.assign({}, i, { prioridade: false })), ...pool];
+  const outros = [Object.assign({}, digi, { prioridade: false }), ...pool];
   if (outros.length) menu.push({ nome: "Outros", sub: outros });
   return menu;
 }
@@ -7035,7 +7055,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "07/11 07h35";
+const VERSAO_PAINEL = "09/11 15h45";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
