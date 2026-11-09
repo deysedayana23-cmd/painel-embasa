@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h51</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h57</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3386,7 +3386,10 @@ function lerExcelSCI(texto, cols = SCI_COLUNAS, obrig = SCI_OBRIGATORIAS, chaveC
   const tabs = [...doc.querySelectorAll("table")]; if (!tabs.length) return null;
   const tab = doc.getElementById("form-grid-grid") || [...tabs].sort((a, b) => b.rows.length - a.rows.length)[0];
   const ths = [...tab.querySelectorAll("thead th")].map(t => t.textContent.replace(/\s+/g, " ").trim());
-  const idx = n => ths.findIndex(t => normalizarNome(t) === normalizarNome(n));
+  const idx = n => { const a = normalizarNome(n); let k = ths.findIndex(t => normalizarNome(t) === a);
+    if (k < 0 && a.length >= 2) k = ths.findIndex(t => normalizarNome(t).startsWith(a)); // aceita "Tipo da Solicitação", "SS Nº" etc.
+    if (k < 0 && a === "ss") k = ths.findIndex(t => ["solicitacao", "numerodass", "numerodasolicitacao", "nss"].includes(normalizarNome(t)));
+    return k; };
   const faltam = obrig.filter(n => idx(n) < 0);
   const linhas = [...tab.querySelectorAll("tbody tr")].map(tr => { const tds = [...tr.children];
     return cols.map(n => { const k = idx(n); return k >= 0 && tds[k] ? tds[k].textContent.replace(/\s+/g, " ").trim() : ""; }); })
@@ -3394,7 +3397,7 @@ function lerExcelSCI(texto, cols = SCI_COLUNAS, obrig = SCI_OBRIGATORIAS, chaveC
   const filtro = tabs[0] !== tab ? [...tabs[0].querySelectorAll("td")].map(t => t.textContent.trim()) : [];
   const kd = filtro.indexOf("data");
   const locs = {}; linhas.forEach(l => { const n = normalizarNome(l[5].replace(/^\d+\s*-\s*/, "")); locs[n] = (locs[n] || 0) + 1; });
-  return { linhas, faltam, dataFiltro: kd >= 0 ? filtro[kd + 1] || "" : "", locs };
+  return { linhas, faltam, dataFiltro: kd >= 0 ? filtro[kd + 1] || "" : "", locs, ncols: ths.length };
 }
 // Lê o arquivo do SCI: HTML (como o SCI exporta) ou Excel salvo de novo (.xlsx), que é convertido para a mesma tabela.
 async function sciTextoDoArquivo(arq) {
@@ -3468,14 +3471,14 @@ async function enviarExcelSCI(i, inp) {
   let x = /<table/i.test(texto) ? lerExcelSCI(texto) : null;
   // Excel do tipo "Resultado da Solicitação em Lote": só tem os números das SS
   // 09/11: só é "Resultado em Lote" quando não tem nem a coluna Tipo; faltar outras colunas não impede o envio
-  const xLote = x && x.faltam.includes("Tipo") ? lerExcelLoteSCI(texto) : null;
+  const xLote = x && x.faltam.includes("Tipo") && (x.ncols || 0) <= 4 ? lerExcelLoteSCI(texto) : null;
   if (xLote) {
     if (!SCI_GRUPO_SO_MARCA(g)) { alert("Este Excel traz só os números das SS (Resultado da Solicitação em Lote).\n\nEle serve nos botões \"Escritório ...\" e \"Vencidas ...\". No Excel de " + g + ", que atualiza a lista inteira da unidade, ele apagaria as outras SS do painel."); return; }
     if (!confirm("Excel \"Resultado da Solicitação em Lote\": " + xLote.linhas.length + " SS geradas" + (xLote.recusadas ? " · " + xLote.recusadas + " linha(s) recusada(s) pelo SCI (não entram)" : "") + ".\n\nEnviar como " + g + "?")) return;
     x = xLote;
   }
   if (!x) { alert("Esse arquivo não é o Excel do SCI. Envie o arquivo exatamente como o SCI baixou (Pendências de Atendimento › Exportar para Excel)."); return; }
-  if (!x.lote && x.faltam.includes("Tipo")) { alert("Este Excel não tem a coluna Tipo. No SCI, exporte as Pendências de Atendimento com pelo menos SS e Tipo."); return; }
+  if (!x.lote && x.faltam.includes("SS")) { alert("Não achei a coluna SS (número da solicitação) neste Excel. Exporte de novo com a coluna SS marcada."); return; }
   if (!x.lote && !x.linhas.length && !confirm("O Excel de " + g + " veio sem nenhuma SS. Isso tira todas as SS de " + g + " do painel. Confirmar?")) return;
   const mf = x.dataFiltro.match(/(\d{2})\/(\d{2})\/(\d{4})/);
   if (mf && new Date(Number(mf[3]), Number(mf[2]) - 1, Number(mf[1])) - sciDesdeData() > 864e5 &&
@@ -7220,7 +7223,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h51";
+const VERSAO_PAINEL = "09/11 16h57";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
