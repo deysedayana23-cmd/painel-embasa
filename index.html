@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h05</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h20</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3279,24 +3279,52 @@ function sciNoMenu(itens) {
   return itens;
 }
 Object.assign(TELAS, { importarSCI: () => `<h2>Exportação Excel Pendências para IA</h2>
-  <div class="card" style="margin-bottom:10px;font-size:15px;line-height:1.45">
-    <b>Como baixar no SCI</b><br>
+  <details class="card" style="margin-bottom:10px;font-size:15px;line-height:1.45"><summary style="font-weight:bold;cursor:pointer">Como baixar no SCI (toque para ver)</summary>
     1. Atendimento e Serviços › Ordem de Serviço › Pendências › <b>Pendências de Atendimento</b><br>
     2. Data de abertura <b>desde ${sciDesde()}</b><br>
     3. Uma unidade por vez: São Desidério, Angico, Catolândia e Baianópolis<br>
     4. Em "Alterar colunas visíveis", deixe marcadas <b>só estas ${SCI_COLUNAS.length} colunas</b>:
     <ol style="margin:6px 0 6px 18px;padding:0;columns:2;column-gap:18px">${SCI_COLUNAS.map(c => `<li>${c}</li>`).join("")}</ol>
     <span style="font-size:13px;color:#555">A coluna OS não precisa. A ordem das colunas não importa.</span><br>
-    5. Exporte para Excel e envie no botão da unidade, aqui embaixo.
-  </div>
-  <div class="card" style="margin-bottom:10px;font-size:15px;line-height:1.45">
+    5. Exporte para Excel e envie no botão da unidade, aqui embaixo.<br><br>
     <b>Inativas (um Excel só, com todas as localidades)</b><br>
     Gerenciais › Cadastro › <b>Consulta Avançada de Matrículas</b>, Situação da Água: <b>Inativa</b> e <b>Cortada não revisada</b>. Colunas:
     <ol style="margin:6px 0 6px 18px;padding:0;columns:2;column-gap:18px">${INAT_COLUNAS.map(c => `<li>${c}</li>`).join("")}</ol>
-    Envie no último botão, "Excel Inativas".
-  </div>
+    Envie em "Todas (Inativas)".
+  </details>
   <div class="nota">Cada Excel é a lista completa daquela equipe: a SS que não vier nele sai do painel. Confira o último envio de cada unidade antes de mandar de novo.</div>
   <div id="sci_status">Carregando...</div>` });
+// ===== PDF com os débitos das matrículas em corte (a gerência manda; o agente consulta na tela Cortes) =====
+async function debitosCorteLista() {
+  const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "DebitosCorte" });
+  if (!r || r.erro) return [];
+  return (r.dados || []).slice(1).filter(l => l[3]).map(l => ({ quando: l[0], por: l[1], loc: l[2], url: l[3], nome: l[4] || "PDF" }));
+}
+function debitosCorteCardHTML(loc, pdfs) {
+  const meus = pdfs.filter(p => sspMesmoLocal(p.loc, loc)).sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+  const ult = meus[0];
+  return `<div class="card" style="margin-bottom:10px;border-left:6px solid #6a1b9a">
+    <div style="font-size:18px;font-weight:bold">PDF débitos dos cortes – ${loc}</div>
+    <div style="font-size:13px;color:#555">Vai para: tela "Cortes" dos agentes de ${loc}, para consultar os débitos antes de cortar.</div>
+    <div style="font-size:15px;margin:6px 0">${ult ? `Último envio: <b>${formatarQuando(ult.quando)}</b> por <b>${sspEsc(sspNome(ult.por))}</b> · <a href="${sspEsc(ult.url)}" target="_blank">abrir PDF</a>` : "Ainda não enviado."}</div>
+    <button class="acao" style="background:#6a1b9a" onclick="document.getElementById('dc_arq').click()">Enviar PDF de débitos de ${loc}</button>
+    <input type="file" id="dc_arq" accept="application/pdf,.pdf" style="display:none" onchange="enviarDebitosCorte('${loc}', this)">
+  </div>`;
+}
+async function enviarDebitosCorte(loc, input) {
+  const arq = input.files && input.files[0]; input.value = ""; if (!arq) return;
+  if (arq.size > 15 * 1024 * 1024) { alert("O PDF passa de 15 MB. Diminua e tente de novo."); return; }
+  const base64 = await new Promise((ok, erro) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.onerror = erro; fr.readAsDataURL(arq); });
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  try {
+    const r = await chamarApi({ acao: "salvarFoto", ...cred, base64, tipo: "application/pdf", nome: "Debitos cortes " + loc + " " + new Date().toLocaleDateString("pt-BR").replace(/\//g, "-") + ".pdf" });
+    if (r.erro) { alert(r.erro); return; }
+    const g = await chamarApi({ acao: "gravarVarias", ...cred, aba: "DebitosCorte", linhas: [[new Date().toISOString(), cred.usuario, loc, r.url, arq.name]] });
+    if (g.erro) { alert(g.erro); return; }
+    alert("PDF enviado. Os agentes de " + loc + " já veem na tela Cortes.");
+    carregarImportarSCI();
+  } catch (e) { alert("Não consegui enviar o PDF: " + (e && e.message ? e.message : "erro") + "."); }
+}
 function sciHorarioComercial(d = new Date()) {
   const dia = d.getDay(), m = d.getHours() * 60 + d.getMinutes();
   return dia >= 1 && dia <= 5 && ((m >= 450 && m < 720) || (m >= 810 && m < 1050));
@@ -3311,7 +3339,7 @@ async function carregarImportarSCI() {
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
   const porG = {}; (st.dados || []).slice(1).forEach(l => { porG[l[0]] = { enviado: l[1], por: l[2], qtd: l[3], res: String(l[4] || ""), proc: l[5] }; });
   const proc = {}; (imp.dados || []).slice(1).forEach(l => { if (l[0] && !String(l[7] || "").trim()) proc[l[1]] = { enviado: l[3], por: l[2] }; });
-  box.innerHTML = SCI_GRUPOS_TODOS.map((g, i) => {
+  const cards = {}; SCI_GRUPOS_TODOS.forEach((g, i) => { cards[g] = (() => {
     const s = porG[g], p = proc[g];
     const desde = s ? Date.now() - new Date(s.enviado).getTime() : Infinity;
     const cor = p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : desde > 36e5 && sciHorarioComercial() ? "#c62828" : "#2e7d32";
@@ -3325,7 +3353,8 @@ async function carregarImportarSCI() {
       <button class="acao" onclick="document.getElementById('sci_arq_${i}').click()">Enviar Excel de ${g}</button>
       <input type="file" id="sci_arq_${i}" accept=".xls,.xlsx,.htm,.html" style="display:none" onchange="enviarExcelSCI(${i}, this)">
     </div>`;
-  }).join("") + (() => { const s = porG["Inativas"], p = proc["Inativas"];
+  })(); });
+  cards["Inativas"] = (() => { const s = porG["Inativas"], p = proc["Inativas"];
     return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : "#2e7d32"}">
       <div style="font-size:18px;font-weight:bold">Excel Inativas (todas as localidades)</div>
       <div style="font-size:13px;color:#555">Vai para: botão "Inativas" dos agentes, cada equipe vê as suas</div>
@@ -3333,6 +3362,22 @@ async function carregarImportarSCI() {
       <button class="acao" onclick="document.getElementById('sci_arq_inat').click()">Enviar Excel de Inativas</button>
       <input type="file" id="sci_arq_inat" accept=".xls,.xlsx,.htm,.html" style="display:none" onchange="enviarExcelInativas(this)">
     </div>`; })();
+  // 09/11: tela enxuta. Primeiro a localidade, depois o tipo de envio.
+  const pdfs = await debitosCorteLista().catch(() => []);
+  const locs = [...SCI_GRUPOS_BOTAO, "Todas (Inativas)"];
+  const loc = window.sciLoc || "";
+  const corDe = g => { const s = porG[g], p = proc[g]; return p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : "#2e7d32"; };
+  const bt = (rot, ativo, onclick, cor) => `<button onclick="${onclick}" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor || "#0b5394"};background:${ativo ? (cor || "#0b5394") : "#fff"};color:${ativo ? "#fff" : (cor || "#0b5394")}">${rot}</button>`;
+  let html = `<h3 style="margin:6px 0">1. Localidade</h3><div style="display:flex;flex-wrap:wrap">${locs.map(l => bt(l, l === loc, `window.sciLoc='${l}';window.sciTipo='';carregarImportarSCI()`)).join("")}</div>`;
+  if (loc === "Todas (Inativas)") html += cards["Inativas"];
+  else if (loc) {
+    const tipos = [["Pendências", loc], ["Vencidas (encerrar no campo)", "Vencidas " + loc], ["Escritório encerrar", "Escritório " + loc], ["PDF débitos dos cortes", "pdf"]];
+    const tipo = window.sciTipo || "";
+    html += `<h3 style="margin:10px 0 6px">2. O que você está mandando de ${loc}?</h3><div style="display:flex;flex-wrap:wrap">${tipos.map(([rot, g]) => bt(rot, g === tipo, `window.sciTipo='${g}';carregarImportarSCI()`, g === "pdf" ? "#6a1b9a" : corDe(g))).join("")}</div>`;
+    if (tipo === "pdf") html += debitosCorteCardHTML(loc, pdfs);
+    else if (tipo && cards[tipo]) html += cards[tipo];
+  }
+  box.innerHTML = html;
   clearTimeout(window.sciTimer);
   if (Object.keys(proc).length) window.sciTimer = setTimeout(() => { if (document.getElementById("sci_status")) carregarImportarSCI(); }, 15000);
 }
@@ -5092,6 +5137,9 @@ const SSP_DIGITADORES = ["deyse", "thiago", "tiago", "oseias", "igor"];
 // Comercial (Joaquim e Luzenildo): substituição de hidrômetro, corte, revisão de corte, entrega de contas, religação e o restante.
 const SSP_SD_OPERACIONAL = ["carlito", "francisco"];
 const SSP_SD_COMERCIAL = ["joaquim", "luzenildo"];
+// 09/11: em Catolândia e Baianópolis o campo pode encerrar qualquer SS, inclusive corte (com a leitura do corte obrigatória); depois vai para o digitador.
+const SSP_CORTE_NO_CAMPO = ["ang", "cat", "bai"];
+const sspCorteComLeitura = (it, chave) => ["cat", "bai"].includes(chave) && ehCorteSS(it.tipoCurto || it.tipo);
 const sspEhOperacional = t => /VAZ|FALT|LIG(ACAO|\.)?\s*NOVA|NOVA\s*LIG|TRANSF|MANUT.*REDE|REDE.*MANUT|RECOMP|PAVIM|LIMPEZA/i.test(String(t || ""));
 function sspFiltroEquipeSD(lista, chave) {
   if (chave !== "sd" || (window.MODO_GERENTE && !emPrevia())) return lista;
@@ -5266,7 +5314,7 @@ function sspMontar(d, chave) {
     const locTemTela = !!grupoDono("", sspLimpo(l[2])) || Object.values(SSP_LOCAIS).some(x => sspMesmoLocal(l[2], x));
     const grupo = (vencCampo || escrSS) && locTemTela ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
-    if ((chave !== "ang" && ehCorteSS(l[1])) || (!escrSS && /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(sitSS))) return;
+    if ((!SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(l[1])) || (!escrSS && /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(sitSS))) return;
     const it = { id: ss, ss, vencidaCampo: vencCampo, escritorioEncerrar: escrSS, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
@@ -5384,7 +5432,7 @@ async function carregarSSPend(chave) {
       const ficha = sspFicha(it.campos);
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
       const exige = sspFotoExigida(it.tipo);
-      const corteDigi = ehCorteSS(it.tipoCurto || it.tipo); // corte: exclusivo pelo Digiteam, o campo não encerra pelo painel
+      const corteDigi = !SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(it.tipoCurto || it.tipo); // corte em São Desidério: exclusivo pelo Digiteam
       if (corteDigi && !it.executada) etapas.push(chip("✂ Corte: executar e encerrar só pelo Digiteam", "#c62828"));
       const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && !corteDigi && it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
       const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
@@ -5400,6 +5448,7 @@ async function carregarSSPend(chave) {
           <input type="file" id="sspcam_${id}" accept="image/*" capture="environment" style="display:none" onchange="sspAddFoto('${id}', this)">
           <input type="file" id="sspgal_${id}" accept="image/*" multiple style="display:none" onchange="sspAddFoto('${id}', this)">
           <div id="sspfotos_${id}" class="nota">${((window.fotosSsp || {})[it.id] || []).length} foto(s)</div></div>
+        ${sspCorteComLeitura(it, chave) ? `<input id="sspleit_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro no corte (obrigatório)" style="border:2px solid #c62828">` : ""}
         <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Informações do serviço (o que foi feito, materiais, observações)"></textarea>
         <button class="acao" onclick="sspExecutar('${id}', this)">${chave === "ang" ? "Serviço executado" : "Executei em campo"}</button>
         ${it.ss ? naoExecFormHTML(it.ss, it) : ""}` : "";
@@ -5497,6 +5546,9 @@ async function sspExecutar(id, btn) {
   const fotos = (window.fotosSsp || {})[id] || [];
   const exige = sspFotoExigida(it.tipo);
   if (exige && fotos.length < exige.n) { alert("Foto obrigatória: " + exige.texto + ". Você anexou " + fotos.length + "."); return; }
+  const leitEl = document.getElementById("sspleit_" + id);
+  const leitura = leitEl ? String(leitEl.value || "").trim() : "";
+  if (leitEl && !leitura) { alert("Informe a leitura do hidrômetro no corte."); leitEl.focus(); return; }
   sspTravar(btn, "Pegando o GPS...");
   try {
     const pos = await obterPosicao();
@@ -5510,7 +5562,7 @@ async function sspExecutar(id, btn) {
       if (r.erro) { alert("Não consegui enviar a foto: " + r.erro); sspDestravar(btn); return; }
       links.push(r.url);
     }
-    const info = String((document.getElementById("sspinfo_" + id) || {}).value || "").replace(/[|\n\r]+/g, " / ").trim();
+    const info = ((leitura ? "Leitura do corte: " + leitura + " / " : "") + String((document.getElementById("sspinfo_" + id) || {}).value || "")).replace(/[|\n\r]+/g, " / ").replace(/\s*\/\s*$/, "").trim();
     const confirmado = window.credenciais.usuario + (info ? " | Info: " + info : "") + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "") + (links.length ? " | Fotos: " + links.join(" ") : "");
     const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo",
       linhas: [[new Date().toISOString(), "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), "executada", confirmado]] });
@@ -5622,7 +5674,8 @@ function menuAgenteCampo(itens) {
 }
 function telaCortes() {
   const locs = cortesLocais();
-  return `<h2>Cortes (42.1)</h2>${AVISO_CORTE}
+  return `<h2>Cortes (42.1)</h2>${locs.some(l => /desiderio/.test(normalizarNome(l))) || !locs.length ? AVISO_CORTE : `<div class="nota" style="background:#e8f5e9;border-left:6px solid #2e7d32"><b>Catolândia e Baianópolis:</b> o corte pode ser encerrado pelo painel, em "SS em aberto no sistema", informando a leitura do hidrômetro no corte. Depois vai para o digitador.</div>`}
+    <div id="ct_pdf"></div>
     <div class="nota">Esta tela é só para consulta. Para receber cortes no Digiteam, escolha o bairro abaixo e envie.</div>
     <h3>Pedir cortes de um bairro no Digiteam</h3>
     <select id="ct_loc" class="campo" onchange="cortesBairros()">${locs.length > 1 ? `<option value="">Localidade…</option>` : ""}${locs.map(l => `<option>${l}</option>`).join("")}</select>
@@ -5640,6 +5693,9 @@ function cortesBairros() {
 }
 async function carregarCortes() {
   cortesBairros();
+  debitosCorteLista().then(pdfs => { const el = document.getElementById("ct_pdf"); if (!el) return;
+    const locs = cortesLocais(); const ult = {}; pdfs.forEach(p => { const l = locs.find(x => sspMesmoLocal(p.loc, x)); if (l && (!ult[l] || String(p.quando) > String(ult[l].quando))) ult[l] = p; });
+    el.innerHTML = Object.entries(ult).map(([l, p]) => `<a href="${sspEsc(p.url)}" target="_blank" class="acao" style="display:block;text-align:center;text-decoration:none;background:#6a1b9a;margin-bottom:6px">📄 Débitos das matrículas em corte – ${sspEsc(l)} (${formatarQuando(p.quando)})</a>`).join(""); }).catch(() => {});
   const box = document.getElementById("ct_lista"); if (!box) return;
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
@@ -7055,7 +7111,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h05";
+const VERSAO_PAINEL = "09/11 16h20";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
