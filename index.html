@@ -1705,10 +1705,9 @@ function mostrarMenu(itens, titulo) {
     const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
     const rotulo = it.prioridade ? `${it.nome} (${window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : 0})` : contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
     if (gradeThiago) { // 09/11: opção 4 – grade 2×2 azul, todos do mesmo tamanho, ícone + número
-      const ic = it.urgente ? "🔔" : it.tela === "ssPendTodas" ? "📋" : it.tela === "importarSCI" ? "📊" : it.nome === "Outros" ? "⋯" : "•";
-      const nome = it.urgente ? "Demandas urgentes" : it.tela === "importarSCI" ? "Excel para IA" : it.tela === "ssPendTodas" ? "SS pendentes" : it.nome;
+      const nome = it.urgente ? "Demandas urgentes" : it.tela === "importarSCI" ? "Excel do SCI para atualização da IA" : it.tela === "ssPendTodas" ? "SS pendentes de digitação" : it.nome;
       const num = it.urgente ? (window.qtdUrgentes || 0) : contavel ? (window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : "…") : "";
-      html += `<button class="btn" style="background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;min-height:130px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span style="font-size:30px;line-height:1">${ic}</span><span>${nome}</span><span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
+      html += `<button class="btn" style="background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;min-height:130px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span>${nome}</span><span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
       return;
     }
     html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${nomeExibido}" onclick="abrir(${i})">${rotulo}</button>`;
