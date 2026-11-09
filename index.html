@@ -1675,7 +1675,7 @@ function mostrarMenu(itens, titulo) {
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
   if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(substNoMenu(inativasNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))))))));
   if (!pilha.length && perfilAtual.startsWith("Atendente")) { // 09/11 (Thiago): sem "Pedidos ao Digiteam" e "Pedidos de SS" no principal; "Pedir SS" em Outros
-    const comContagem = ["pedidosDigi", "pedidosSS", "ocorPedidos", "pendenciasEstado", "encerrarEscritorio", "gersa", "todasSS", "ssTodas", "pendExecutar", "ssDigiteam", "cortes", "substHD", "inativas", "pendAbrirEncerrar", "pendenciasAprovacao", "epi", "episHistorico"];
+    const comContagem = ["pedidosDigi", "pedidosSS", "ocorPedidos", "pendenciasEstado", "encerrarEscritorio", "gersa", "todasSS", "ssTodas", "pendExecutar", "ssDigiteam", "cortes", "substHD", "inativas", "pendAbrirEncerrar", "pendenciasAprovacao", "epi", "episHistorico", "tramitacao", "analiseConsumo"];
     const sai = i => comContagem.includes(i.tela) || /^Contas, SCI e Digiteam/.test(i.nome || ""), pedir = itens.filter(i => i.tela === "pedirSS");
 
     itens = itens.filter(i => !sai(i) && i.tela !== "pedirSS");
@@ -5307,7 +5307,8 @@ Object.assign(TELAS, {
     <div class="sspsec" data-cat="sci">
       <h3 style="margin:6px 0">Pedidos de SS <span id="ssp_ped_n"></span></h3><div id="pss_digi"></div><div id="pss_lista">Carregando...</div>
       <h3 style="margin:14px 0 6px">Religação e 2ª via</h3><div id="ssp_rel">Carregando...</div>
-      <h3 style="margin:14px 0 6px">Ocorrências</h3><div id="ssp_oc">Carregando...</div></div>`; },
+      <h3 style="margin:14px 0 6px">Ocorrências</h3><div id="ssp_oc">Carregando...</div>
+      <h3 style="margin:14px 0 6px">Tramitar SS para a localidade certa</h3><div id="ssp_trm">Carregando...</div></div>`; },
   resumoGerencia: () => telaResumoGerencia()
 });
 Object.assign(CONTAGEM_SS_TELAS, { ssPendTodas: "sspTodas", ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai", ssPendAng: "sspAng", ssVencSD: "vencsd", ssVencCat: "venccat", ssVencBai: "vencbai", ssVencAng: "vencang" });
@@ -5518,6 +5519,7 @@ async function sspContagens() {
       if (p.digitador) out["dig" + k] = l.filter(sspFaltaDigitador).length;
     });
     out.sspTodas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador).reduce((t, k) => t + (out[SSP_CONTA[k]] || 0), 0);
+    if (dig) out.sspTodas += sspTramitar(d).length; // SS para tramitar entram no total
   } catch (e) {}
   return out;
 }
@@ -5532,12 +5534,47 @@ function sspRota(lista, loc) {
     const e = resto.splice(m, 1)[0]; rota.push(e); atual = coord(e); }
   return [...rota, ...lista.filter(x => !coord(x))];
 }
+// 09/11: SS que precisam ser tramitadas no SCI para a unidade certa
+// Buriti Cortado é atendido por Catolândia (no SCI fica em Baianópolis); São Marcos e Passagem de Pedra são atendidos por Baianópolis (no SCI ficam em Catolândia)
+function sspTramitar(d) {
+  const feitas = new Set((d.ex || []).filter(l => /tramitada/i.test(String(l[5] || ""))).map(l => sspLimpo(l[1])));
+  const out = [];
+  (d.sa || []).forEach(l => {
+    const ss = sspLimpo(l[0]); if (!/^\d{6,}$/.test(ss) || feitas.has(ss) || /encerrad|cancelad|conclu|saiu/i.test(String(l[5] || ""))) return;
+    const loc = normalizarNome(l[2]), onde = normalizarNome([l[2], l[9], l[21], l[8]].join(" "));
+    let de = "", para = "";
+    if (/buriti/.test(onde) && !/catolandia/.test(loc)) { de = "Baianópolis"; para = "Catolândia"; }
+    else if (/saomarcos|passagemdepedra/.test(onde) && !/baianopolis/.test(loc)) { de = "Catolândia"; para = "Baianópolis"; }
+    if (de) out.push({ ss, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), loc: sspLimpo(l[2]), setor: sspLimpo(l[21]), bairro: sspLimpo(l[9]), cliente: String(l[6] || "").replace(/\|.*$/, ""), mat: sspLimpo(l[7]), de, para });
+  });
+  return out;
+}
+function sspTramitarHTML(lista) {
+  if (!lista.length) return "<p>Nenhuma SS para tramitar.</p>";
+  window.trmCache = {}; lista.forEach(x => { window.trmCache[x.ss] = x; });
+  return lista.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #6a1b9a">
+    <div style="font-size:20px;font-weight:bold;color:#0b5394">SS ${sspEsc(x.ss)}</div>
+    <div style="font-weight:600">${sspEsc(x.tipo)}</div>
+    <div style="background:#6a1b9a;color:#fff;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:bold">↔ Tramitar no SCI de ${sspEsc(x.de)} para ${sspEsc(x.para)}</div>
+    <div style="font-size:14px">${sspEsc(x.cliente)}${x.mat ? " · Matrícula " + sspEsc(x.mat) : ""}<br>${sspEsc([x.loc, x.setor, x.bairro].filter(Boolean).join(" · "))}</div>
+    <button class="acao" style="background:#6a1b9a" onclick="sspTramitei('${sspEsc(x.ss)}', this)">Tramitei no SCI</button></div>`).join("");
+}
+async function sspTramitei(ss, btn) {
+  const x = (window.trmCache || {})[ss]; if (!x) return;
+  sspTravar(btn);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo",
+      linhas: [[new Date().toISOString(), "'" + ss, x.tipo, x.para, nomesDoUsuario(), "tramitada", window.credenciais.usuario + " | de " + x.de + " para " + x.para]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    btn.closest(".card").remove(); window.sspCatN.trm = Math.max(0, (window.sspCatN.trm || 1) - 1); sspCatsRender();
+  } catch (e) { alert("Não consegui registrar. Tente de novo."); sspDestravar(btn); }
+}
 // 09/11: tela única "SS pendentes" – categorias com contagem; tudo que o digitador faz está aqui dentro
 window.sspCatN = {};
 function sspCatsRender() {
   const box = document.getElementById("ssp_cats"); if (!box) return;
   const c = window.sspCatN, soma = ks => ks.some(k => c[k] === undefined) ? undefined : ks.reduce((t, k) => t + c[k], 0);
-  const n = { enc: soma(["dig", "ee"]), sci: soma(["ped", "rel", "oc"]) }, cats = [["enc", "Encerrar SS"], ["sci", "Pedidos do SCI (SS, religação, 2ª via, ocorrência)"]];
+  const n = { enc: soma(["dig", "ee"]), sci: soma(["ped", "rel", "oc", "trm"]) }, cats = [["enc", "Encerrar SS"], ["sci", "Pedidos do SCI (SS, religação, 2ª via, ocorrência, tramitação)"]];
   if (!window.sspCat) window.sspCat = "enc";
   box.innerHTML = cats.map(([k, rot]) => { const on = window.sspCat === k, tem = (n[k] || 0) > 0;
     return `<button onclick="window.sspCat='${k}';sspCatsRender()" style="flex:1 1 100%;margin:3px;padding:14px 6px;border-radius:10px;font-size:15px;font-weight:bold;border:2px solid ${tem ? "#c62828" : "#9e9e9e"};background:${on ? (tem ? "#c62828" : "#757575") : "#fff"};color:${on ? "#fff" : (tem ? "#c62828" : "#757575")}">${rot} (${n[k] === undefined ? "…" : n[k]})</button>`; }).join("");
@@ -5552,7 +5589,8 @@ async function sspTodasExtras() {
   if (bo) bo.innerHTML = oc.length ? sspOcorrenciasHTML(oc) : "<p>Nenhuma ocorrência para abrir ou encerrar.</p>";
   if (br) br.innerHTML = rel.length ? inatPedidosHTML(rel) : "<p>Nenhum pedido de religação ou 2ª via.</p>";
   window.sspCatN.oc = oc.length; window.sspCatN.rel = rel.length;
-  try { const d = await sspDados(); window.sspCatN.dig = ks.reduce((t, k) => t + sspMontar(d, k).filter(sspFaltaDigitador).length, 0); } catch (e) {}
+  try { const d = await sspDados(); window.sspCatN.dig = ks.reduce((t, k) => t + sspMontar(d, k).filter(sspFaltaDigitador).length, 0);
+    const trm = sspTramitar(d); window.sspCatN.trm = trm.length; const bt = document.getElementById("ssp_trm"); if (bt) bt.innerHTML = sspTramitarHTML(trm); } catch (e) {}
   sspCatsRender();
 }
 function sspTelaTodas() {
