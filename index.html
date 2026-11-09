@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h36</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h51</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3467,14 +3467,15 @@ async function enviarExcelSCI(i, inp) {
   let texto = ""; try { texto = await sciTextoDoArquivo(arq); } catch (e) {}
   let x = /<table/i.test(texto) ? lerExcelSCI(texto) : null;
   // Excel do tipo "Resultado da Solicitação em Lote": só tem os números das SS
-  const xLote = x && x.faltam.length ? lerExcelLoteSCI(texto) : null;
+  // 09/11: só é "Resultado em Lote" quando não tem nem a coluna Tipo; faltar outras colunas não impede o envio
+  const xLote = x && x.faltam.includes("Tipo") ? lerExcelLoteSCI(texto) : null;
   if (xLote) {
     if (!SCI_GRUPO_SO_MARCA(g)) { alert("Este Excel traz só os números das SS (Resultado da Solicitação em Lote).\n\nEle serve nos botões \"Escritório ...\" e \"Vencidas ...\". No Excel de " + g + ", que atualiza a lista inteira da unidade, ele apagaria as outras SS do painel."); return; }
     if (!confirm("Excel \"Resultado da Solicitação em Lote\": " + xLote.linhas.length + " SS geradas" + (xLote.recusadas ? " · " + xLote.recusadas + " linha(s) recusada(s) pelo SCI (não entram)" : "") + ".\n\nEnviar como " + g + "?")) return;
     x = xLote;
   }
   if (!x) { alert("Esse arquivo não é o Excel do SCI. Envie o arquivo exatamente como o SCI baixou (Pendências de Atendimento › Exportar para Excel)."); return; }
-  if (x.faltam.length) { alert("Faltam colunas no Excel: " + x.faltam.join(", ") + ".\n\nNo SCI, marque as colunas da lista desta tela e exporte de novo."); return; }
+  if (!x.lote && x.faltam.includes("Tipo")) { alert("Este Excel não tem a coluna Tipo. No SCI, exporte as Pendências de Atendimento com pelo menos SS e Tipo."); return; }
   if (!x.lote && !x.linhas.length && !confirm("O Excel de " + g + " veio sem nenhuma SS. Isso tira todas as SS de " + g + " do painel. Confirmar?")) return;
   const mf = x.dataFiltro.match(/(\d{2})\/(\d{2})\/(\d{4})/);
   if (mf && new Date(Number(mf[3]), Number(mf[2]) - 1, Number(mf[1])) - sciDesdeData() > 864e5 &&
@@ -3490,7 +3491,7 @@ async function enviarExcelSCI(i, inp) {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ImportSCI",
       linhas: partes.map((p, k) => [lote, g, window.credenciais.usuario, enviado, k + 1, partes.length, JSON.stringify(p), "", ""]) });
     if (res.erro) { alert(res.erro); carregarImportarSCI(); return; }
-    alert("Excel de " + g + " recebido: " + x.linhas.length + " SS. O painel atualiza em até 1 minuto.");
+    alert("Excel de " + g + " recebido: " + x.linhas.length + " SS. O painel atualiza em até 1 minuto." + (!x.lote && x.faltam.length ? "\n\nObs.: vieram sem as colunas " + x.faltam.join(", ") + ". Atualizei mesmo assim; essas informações ficam em branco no card." : ""));
   } catch (e) { alert("Não consegui enviar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); }
   carregarImportarSCI();
 }
@@ -7219,7 +7220,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h36";
+const VERSAO_PAINEL = "09/11 16h51";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
