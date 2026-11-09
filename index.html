@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h34</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h38</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3764,7 +3764,7 @@ function inatPedidosHTML(lista) {
   window.inatPedCache = {}; lista.forEach((p, i) => { window.inatPedCache[i] = p; });
   return `<div style="background:#2e7d32;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Religação e 2ª via – pedidos do campo (${lista.length})</div>` +
     lista.map((p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">
-      <div style="font-size:18px;font-weight:bold;color:${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">${p.tipo === "2via" ? "📄 2ª via para entregar ao cliente" : p.tipo === "religacao_ss" ? "💧 Água religada em campo (SS de corte " + sspEsc(p.ssOrigem) + ") – religar no SCI" : "🔌 Religação feita em campo – abrir e encerrar no SCI"}</div>
+      <div style="font-size:18px;font-weight:bold;color:${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">${p.tipo === "2via" ? "📄 2ª via para entregar ao cliente" : p.tipo === "religacao_ss" ? "💧 Água religada em campo – encerrar a SS " + sspEsc(p.ssOrigem) + " como não executada e gerar a religação" : "🔌 Religação feita em campo – abrir e encerrar no SCI"}</div>
       ${p.mat ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="font-size:22px;font-weight:bold;letter-spacing:1px;background:#fff8e1;border:2px solid #f9a825;border-radius:8px;padding:4px 10px">Matrícula ${sspEsc(p.mat)}</span><button onclick="navigator.clipboard.writeText('${sspEsc(p.mat)}').then(() => { this.textContent = '✔ Copiada'; }).catch(() => alert('Matrícula: ${sspEsc(p.mat)}'))" style="padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">📋 Copiar</button></div>`
         : `<div style="background:#c62828;color:#fff;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:bold">⚠ Matrícula não informada pelo campo – peça ao agente antes de gerar</div>`}
       <div style="font-size:16px;font-weight:600">${sspEsc(p.nome)}</div>
@@ -5424,17 +5424,19 @@ function telaSSPend(chave, vencidas) {
 }
 async function sspDados() {
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-  const [ex, pe, sa, enc, ist] = await Promise.all([
+  const [ex, pe, sa, enc, ist, pin] = await Promise.all([
     chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }),
     chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" }),
     chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] })),
     chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] })),
-    chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }).catch(() => ({ dados: [] }))
+    chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }).catch(() => ({ dados: [] })),
+    chamarApi({ acao: "listar", ...cred, aba: "PedidoInativa" }).catch(() => ({ dados: [] }))
   ]);
+  const religPedida = new Set(((pin && pin.dados) || []).slice(1).filter(l => l[3] === "religacao_ss" && l[11]).map(l => sspLimpo(l[11])));
   const imp = {}; ((ist && ist.dados) || []).slice(1).forEach(l => { if (l[0]) imp[String(l[0]).trim()] = String(l[1] || ""); });
   if (ex.erro) throw new Error(ex.erro);
   if (pe.erro) throw new Error(pe.erro);
-  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp,
+  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
     naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => sspLimpo(l[2]))) };
 }
 // Monta a lista da localidade a partir das abas
@@ -5528,6 +5530,7 @@ function sspMontar(d, chave) {
     if (it.finalizada) return false;
     if (!sspFiltroEquipeSD([it], chave).length) return false; // divisão operacional x comercial em São Desidério
     if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
+    if (it.ss && d.religPedida && d.religPedida.has(it.ss)) return false; // 09/11: revisão de corte já religada em campo – o digitador gera a religação
     // 09/11: corte de São Desidério é só pelo Digiteam – não aparece para o digitador (nem como "escritório encerrar")
     if (it.escritorioEncerrar && !SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(it.tipoCurto || it.tipo)) return false;
     // 09/11: SS do escritório marcada como digitada e sem execução vai para o campo, no botão "SS encerradas no SCI, mas não em campo"
@@ -5733,13 +5736,6 @@ async function carregarSSPend(chave) {
     if (F.de) visiveis = visiveis.filter(it => dataDe(it) && dataDe(it) >= F.de);
     if (F.ate) visiveis = visiveis.filter(it => dataDe(it) && dataDe(it) <= F.ate);
     if (F.cesta) visiveis = visiveis.filter(it => it.cesta);
-    // 09/11: filtro por prazo – vencidas, vence em até 24h, vence em até 48h
-    const faltaH = it => it.prazo ? (it.prazo.fim - new Date()) / 36e5 : Infinity;
-    const noPrazo = { venc: it => !!(it.prazo && it.prazo.vencida), h24: it => !(it.prazo && it.prazo.vencida) && faltaH(it) <= 24, h48: it => !(it.prazo && it.prazo.vencida) && faltaH(it) <= 48 };
-    const nPrazo = { venc: visiveis.filter(noPrazo.venc).length, h24: visiveis.filter(noPrazo.h24).length, h48: visiveis.filter(noPrazo.h48).length };
-    if (F.prazo && noPrazo[F.prazo]) visiveis = visiveis.filter(noPrazo[F.prazo]);
-    const balaoP = (rot, val, n, cor) => { const on = F.prazo === val; return `<button onclick="window.sspF.prazo=${on ? "''" : "'" + val + "'"};carregarSSPend('${chave}')" style="flex:1 1 30%;margin:3px;padding:10px 4px;border-radius:10px;font-size:14px;font-weight:bold;border:2px solid ${cor};background:${on ? cor : "#fff"};color:${on ? "#fff" : cor}">${rot} (${n})</button>`; };
-    const prazoHTML = `<div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${balaoP("Vencidas", "venc", nPrazo.venc, "#b71c1c")}${balaoP("Vence em até 24h", "h24", nPrazo.h24, "#ef6c00")}${balaoP("Vence em até 48h", "h48", nPrazo.h48, "#8d6e00")}</div>`;
     // balões com os tipos de serviço (sempre à vista), com a quantidade de cada um
     const contTipo = {}; visiveis.forEach(it => { const t = tipoDe(it) || "Sem tipo"; contTipo[t] = (contTipo[t] || 0) + 1; });
     const tiposDisp = Object.keys(contTipo).sort((a, b) => contTipo[b] - contTipo[a] || a.localeCompare(b));
@@ -5747,8 +5743,15 @@ async function carregarSSPend(chave) {
     const nAntesTipo = visiveis.length;
     if (F.tipo) visiveis = visiveis.filter(it => (tipoDe(it) || "Sem tipo") === F.tipo);
     const balao = (rot, val, n) => { const on = (F.tipo || "") === val; return `<button onclick="window.sspF.tipo=${JSON.stringify(val).replace(/"/g, "&quot;")};carregarSSPend('${chave}')" style="margin:3px;padding:8px 12px;border-radius:20px;font-size:14px;font-weight:bold;border:2px solid #0b5394;background:${on ? "#0b5394" : "#fff"};color:${on ? "#fff" : "#0b5394"}">${sspEsc(rot)} (${n})</button>`; };
+    // 09/11: filtro por prazo – vencidas, vence em até 24h, vence em até 48h
+    const faltaH = it => it.prazo ? (it.prazo.fim - new Date()) / 36e5 : Infinity;
+    const noPrazo = { venc: it => !!(it.prazo && it.prazo.vencida), h24: it => !(it.prazo && it.prazo.vencida) && faltaH(it) <= 24, h48: it => !(it.prazo && it.prazo.vencida) && faltaH(it) <= 48 };
+    const nPrazo = { venc: visiveis.filter(noPrazo.venc).length, h24: visiveis.filter(noPrazo.h24).length, h48: visiveis.filter(noPrazo.h48).length };
+    if (F.prazo && noPrazo[F.prazo]) visiveis = visiveis.filter(noPrazo[F.prazo]);
+    const balaoP = (rot, val, n, cor) => { const on = F.prazo === val; return `<button onclick="window.sspF.prazo=${on ? "''" : "'" + val + "'"};carregarSSPend('${chave}')" style="flex:1 1 30%;margin:3px;padding:10px 4px;border-radius:10px;font-size:14px;font-weight:bold;border:2px solid ${cor};background:${on ? cor : "#fff"};color:${on ? "#fff" : cor}">${rot} (${n})</button>`; };
+    const prazoHTML = `<div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${balaoP("Vencidas", "venc", nPrazo.venc, "#b71c1c")}${balaoP("Vence em até 24h", "h24", nPrazo.h24, "#ef6c00")}${balaoP("Vence em até 48h", "h48", nPrazo.h48, "#8d6e00")}</div>`;
     const extras = [F.de, F.ate, F.cesta].filter(Boolean).length;
-    const filtrosHTML = prazoHTML + (tiposDisp.length > 1 ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${balao("Todos", "", nAntesTipo)}${tiposDisp.map(t => balao(t.replace(/^\d+\s*-\s*/, ""), t, contTipo[t])).join("")}</div>` : "")
+    const filtrosHTML = (tiposDisp.length ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${balao("Todos", "", nAntesTipo)}${tiposDisp.map(t => balao(t.replace(/^\d+\s*-\s*/, ""), t, contTipo[t])).join("")}</div>` : "") + prazoHTML
       + (telaUnica ? "" : `<details class="card" style="margin-bottom:8px"${extras ? " open" : ""}><summary style="font-weight:bold;cursor:pointer">📅 Período e cesta ${extras ? `(${visiveis.length} de ${totalAntes})` : ""}</summary>
       <div style="display:flex;gap:6px"><label style="flex:1;font-size:14px">De<input type="date" class="campo" value="${F.de || ""}" onchange="window.sspF.de=this.value;carregarSSPend('${chave}')"></label>
         <label style="flex:1;font-size:14px">Até<input type="date" class="campo" value="${F.ate || ""}" onchange="window.sspF.ate=this.value;carregarSSPend('${chave}')"></label></div>
@@ -5821,7 +5824,12 @@ async function carregarSSPend(chave) {
           : `<input id="sspleit_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (opcional)">`}
         <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Observação (opcional): o que foi feito, materiais"></textarea>
         <button class="acao" onclick="sspExecutar('${id}', this)">${chave === "ang" ? "Serviço executado" : "Executei em campo"}</button>
-        ${it.ss ? naoExecFormHTML(it.ss, it) : ""}` : "";
+        ${it.ss ? naoExecFormHTML(it.ss, it) : ""}
+        ${it.ss && /REV.*(CORT|SIT.*ABAST)/i.test(String(it.tipo || "")) ? `<button class="acao" style="background:#2e7d32" onclick="document.getElementById('rlg_${id}').style.display='block'">💧 Água já religada em campo</button>
+          <div id="rlg_${id}" style="display:none;margin-top:6px;background:#e8f5e9;border-radius:8px;padding:8px">
+            <div style="font-size:14px;margin-bottom:4px">O escritório encerra esta revisão como não executada e gera a religação no SCI.</div>
+            <input id="rlgl_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (obrigatório)" style="border:2px solid #2e7d32">
+            <button class="acao" style="background:#2e7d32" onclick="sspReligadaCampo('${id}', this)">Enviar ao escritório</button></div>` : ""}` : "";
       let acoesDig = "";
       if (p.digitador) {
         if (it.tipoPedido === "digiteam") acoesDig = `<input id="sspn_${id}" class="campo" placeholder="Número da SS aberta">${selectDigiteam("sspd_" + it.id)}
@@ -5947,6 +5955,21 @@ async function sspExecutar(id, btn, semFotoObrig) {
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
 }
+// 09/11: revisão de corte já religada em campo – pede ao digitador: encerrar a revisão como não executada e gerar a religação (ele devolve o número)
+async function sspReligadaCampo(id, btn) {
+  const it = (window.sspCache || {})[id]; if (!it) return;
+  const leitura = String((document.getElementById("rlgl_" + id) || {}).value || "").trim();
+  if (!leitura) { alert("Informe a leitura do hidrômetro."); return; }
+  sspTravar(btn);
+  const v = n => ((it.campos || []).find(c => c[0] === n) || [])[1] || "";
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoInativa",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "'" + sspLimpo(it.mat || v("Matrícula")), "religacao_ss", SSP_CHAVE_GRUPO[it._chave || window.sspChave] || grupoSCIDoUsuario(), v("Cliente"), [v("Endereço"), v("Bairro")].filter(Boolean).join(" – "), leitura, "Água já religada em campo. Encerrar a revisão " + it.ss + " como não executada e gerar a religação.", "", "pendente", "'" + it.ss, ""]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    alert("Enviado. O escritório gera a religação e a SS sai da sua lista.");
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui enviar. Tente de novo."); sspDestravar(btn); }
+}
 // Decisões da gerente para SS vencida: "nova" = encerrar como não executada e abrir outra igual (vai aos digitadores);
 // "exec" = digitadores encerram como executada e o campo recebe em "SS encerradas no SCI, mas não em campo"
 async function gerVencida(id, modo, btn) {
@@ -6026,7 +6049,7 @@ async function sspResponder(id, digiteam, btn) {
 // ===== CORTES (42.1): um botão só, para consulta. Execução exclusivamente pelo Digiteam. =====
 // Lista os cortes em aberto da aba SSAbertas (por localidade) e tem um formulário simples:
 // o funcionário escolhe a localidade e o bairro, e o pedido vai para "Pedidos para o Digiteam" (aba AcaoSS).
-const ehCorteSS = t => { const s = String(t || "").toUpperCase(); return !/RELIG|RESTAB/.test(s) && (/^\s*(20|42)\s*[-.]/.test(s) || /CORTE/.test(s)); };
+const ehCorteSS = t => { const s = String(t || "").toUpperCase(); return !/RELIG|RESTAB|REVIS/.test(s) && (/^\s*(20|42)\s*[-.]/.test(s) || /CORTE/.test(s)); }; // 09/11: revisão de ligação cortada não é corte (o campo pode executar ou informar que já religou)
 const CORTE_TIPO = "42.1 - CORTE POR FALTA DE PAGAMENTO";
 const AVISO_CORTE = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:10px">⚠ Executar exclusivamente pelo Digiteam.</div>`;
 Object.assign(TELAS, { cortes: () => telaCortes() });
@@ -7540,7 +7563,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 19h34";
+const VERSAO_PAINEL = "09/11 19h38";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
