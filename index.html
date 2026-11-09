@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h58</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h00</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5570,13 +5570,13 @@ async function carregarTelemetria() {
     const [link, cust, usu, sen] = [0, 1, 2, 3].map(k => String(l[k] || "").trim()); // aba Telemetria: link | customer | usuario | senha
     const copiar = v => `<button onclick="navigator.clipboard.writeText(${JSON.stringify(v).replace(/"/g, "&quot;")}).then(() => { this.textContent = '✔ Copiado'; }).catch(() => {})" style="padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">📋 Copiar</button>`;
     const linha = (rot, v) => v ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f6f9fc;border-radius:8px;padding:10px 12px;margin:8px 0"><div><div style="font-size:13px;color:#555">${rot}</div><div style="font-size:20px;font-weight:bold;word-break:break-all">${sspEsc(v)}</div></div>${copiar(v)}</div>` : "";
-    // 09/11: o site abre DENTRO do painel; os dados ficam numa faixa fixa em cima, com Copiar (não precisa sair da tela)
-    const chipC = (rot, v) => v ? `<button onclick="navigator.clipboard.writeText(${JSON.stringify(v).replace(/"/g, "&quot;")}).then(() => { this.style.background = '#2e7d32'; this.querySelector('b').textContent = '✔ copiado'; setTimeout(() => { this.style.background = '#0C447C'; this.querySelector('b').textContent = ${JSON.stringify(v).replace(/"/g, "&quot;")}; }, 1500); }).catch(() => {})" style="flex:1 1 30%;margin:2px;padding:8px 4px;border-radius:8px;border:none;background:#0C447C;color:#fff;font-size:12px;line-height:1.2">${rot}<br><b style="font-size:14px">${sspEsc(v)}</b></button>` : "";
-    box.innerHTML = `<div style="position:sticky;top:0;z-index:5;background:#e3f2fd;border-radius:10px;padding:6px;margin-bottom:6px">
-        <div style="font-size:13px;margin:0 0 4px 4px">Toque no dado para copiar e cole no campo do site:</div>
-        <div style="display:flex;flex-wrap:wrap">${chipC("Customer", cust)}${chipC("Login", usu)}${chipC("Senha", sen)}</div></div>
-      <iframe src="${sspEsc(link)}" style="width:100%;height:78vh;border:1px solid #ccc;border-radius:10px;background:#fff" allow="fullscreen"></iframe>
-      <a href="${sspEsc(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;margin:8px 0">Se não carregar aqui, abrir em outra tela</a>`;
+    // 09/11: dentro do painel o site não aceita o login (bloqueia a sessão). Abre em outra tela; os dados ficam grandes para ler e digitar.
+    const linhaG = (rot, v) => v ? `<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #cfd8dc;padding:10px 4px"><span style="font-size:15px;color:#555">${rot}</span><span style="font-size:24px;font-weight:bold;letter-spacing:.5px">${sspEsc(v)}</span></div>` : "";
+    box.innerHTML = `<div style="background:#fff;border:2px solid #0C447C;border-radius:12px;padding:8px 12px;margin-bottom:10px">
+        <div style="font-size:14px;color:#0C447C;font-weight:bold;margin:4px 0">Dados de acesso (veja e digite no site)</div>
+        ${linhaG("Customer", cust)}${linhaG("Login", usu)}${linhaG("Senha", sen)}</div>
+      <a href="${sspEsc(link)}" target="_blank" rel="noopener" class="acao" style="display:block;text-align:center;text-decoration:none;font-size:20px;padding:18px">Abrir a telemetria</a>
+      <div class="nota">Os dados são curtos: guarde de cabeça ou tire um print desta tela antes de abrir. No site, se o celular perguntar "Salvar senha?", toque em Salvar.</div>`;
   } catch (e) { box.textContent = "Não consegui carregar a telemetria. Verifique a internet."; }
 }
 // 09/11: SS que precisam ser tramitadas no SCI para a unidade certa
@@ -7486,7 +7486,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 18h58";
+const VERSAO_PAINEL = "09/11 19h00";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
