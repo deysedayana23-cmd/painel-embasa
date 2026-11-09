@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h20</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h23</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5520,7 +5520,9 @@ async function carregarSSPend(chave) {
       const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
       // Tela das SS encerradas no SCI: um botão só, sem foto nem informações (a SS já foi encerrada no sistema)
       const acoesCampo = podeCampo && window.sspDemandasVenc && it.vencidaCampo
-        ? `<button class="acao" style="background:#2e7d32;font-size:18px" onclick="sspConfirmar('${id}', 'executada', this)">OK, foi executada em campo</button>`
+        ? `<input id="sspleit_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (opcional)">
+          <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
+          <button class="acao" style="background:#2e7d32;font-size:18px" onclick="sspExecutar('${id}', this, true)">OK, foi executada em campo</button>`
         : podeCampo ? `
         ${p.campo ? (minha ? `<button class="acao" style="background:#555" onclick="sspConfirmar('${id}', 'liberada', this)">Não vou mais (liberar)</button>`
           : !it.assumida ? `<button class="acao" style="background:#1565c0" onclick="sspConfirmar('${id}', 'assumida', this)">🚶 Vou executar</button>` : "") : ""}
@@ -5530,8 +5532,9 @@ async function carregarSSPend(chave) {
           <input type="file" id="sspcam_${id}" accept="image/*" capture="environment" style="display:none" onchange="sspAddFoto('${id}', this)">
           <input type="file" id="sspgal_${id}" accept="image/*" multiple style="display:none" onchange="sspAddFoto('${id}', this)">
           <div id="sspfotos_${id}" class="nota">${((window.fotosSsp || {})[it.id] || []).length} foto(s)</div></div>
-        ${sspCorteComLeitura(it, chave) ? `<input id="sspleit_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro no corte (obrigatório)" style="border:2px solid #c62828">` : ""}
-        <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Informações do serviço (o que foi feito, materiais, observações)"></textarea>
+        ${sspCorteComLeitura(it, chave) ? `<input id="sspleit_${id}" data-obrig="1" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro no corte (obrigatório)" style="border:2px solid #c62828">`
+          : `<input id="sspleit_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (opcional)">`}
+        <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Observação (opcional): o que foi feito, materiais"></textarea>
         <button class="acao" onclick="sspExecutar('${id}', this)">${chave === "ang" ? "Serviço executado" : "Executei em campo"}</button>
         ${it.ss ? naoExecFormHTML(it.ss, it) : ""}` : "";
       let acoesDig = "";
@@ -5623,14 +5626,14 @@ function sspAddFoto(id, input) {
 }
 function sspTravar(btn, texto) { if (!btn) return; btn.disabled = true; btn.dataset.txt = btn.textContent; btn.textContent = texto || "Enviando..."; }
 function sspDestravar(btn) { if (!btn) return; btn.disabled = false; if (btn.dataset.txt) btn.textContent = btn.dataset.txt; }
-async function sspExecutar(id, btn) {
+async function sspExecutar(id, btn, semFotoObrig) {
   const it = (window.sspCache || {})[id]; if (!it || (btn && btn.disabled)) return;
   const fotos = (window.fotosSsp || {})[id] || [];
   const exige = sspFotoExigida(it.tipo);
-  if (exige && fotos.length < exige.n) { alert("Foto obrigatória: " + exige.texto + ". Você anexou " + fotos.length + "."); return; }
+  if (exige && !semFotoObrig && fotos.length < exige.n) { alert("Foto obrigatória: " + exige.texto + ". Você anexou " + fotos.length + "."); return; }
   const leitEl = document.getElementById("sspleit_" + id);
   const leitura = leitEl ? String(leitEl.value || "").trim() : "";
-  if (leitEl && !leitura) { alert("Informe a leitura do hidrômetro no corte."); leitEl.focus(); return; }
+  if (leitEl && leitEl.dataset.obrig && !leitura) { alert("Informe a leitura do hidrômetro no corte."); leitEl.focus(); return; }
   sspTravar(btn, "Pegando o GPS...");
   try {
     const pos = await obterPosicao();
@@ -5644,7 +5647,7 @@ async function sspExecutar(id, btn) {
       if (r.erro) { alert("Não consegui enviar a foto: " + r.erro); sspDestravar(btn); return; }
       links.push(r.url);
     }
-    const info = ((leitura ? "Leitura do corte: " + leitura + " / " : "") + String((document.getElementById("sspinfo_" + id) || {}).value || "")).replace(/[|\n\r]+/g, " / ").replace(/\s*\/\s*$/, "").trim();
+    const info = ((leitura ? (leitEl && leitEl.dataset.obrig ? "Leitura do corte: " : "Leitura do HD: ") + leitura + " / " : "") + String((document.getElementById("sspinfo_" + id) || {}).value || "")).replace(/[|\n\r]+/g, " / ").replace(/\s*\/\s*$/, "").trim();
     const confirmado = window.credenciais.usuario + (info ? " | Info: " + info : "") + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "") + (links.length ? " | Fotos: " + links.join(" ") : "");
     const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo",
       linhas: [[new Date().toISOString(), "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), "executada", confirmado]] });
@@ -7211,7 +7214,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h20";
+const VERSAO_PAINEL = "09/11 16h23";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
