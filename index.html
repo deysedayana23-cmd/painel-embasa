@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 15h55</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h05</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3182,7 +3182,7 @@ async function enviarPedidoUNBA() {
 function telaSSLista(titulo) {
   const ger = window.MODO_GERENTE && !emPrevia();
   return `<h2>${titulo}</h2>
-    ${ger ? `<select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option><option>Só gerar</option></select>`
+    ${ger ? `<select id="sl_acao" class="campo"><option>Mandar no Digiteam</option><option>Digitar e encerrar</option></select>`
       : `<input type="hidden" id="sl_acao" value="Mandar no Digiteam"><div class="nota"><b>Como pedir:</b> escolha o tipo de serviço e o bairro, confira as SS marcadas e toque em <b>Pedir no meu Digiteam</b>. As SS vão para o seu Digiteam às 8h ou às 13h30. SS já pedida por um colega não aparece aqui.</div>
         <label style="display:block;font-weight:600;margin-top:6px">Data para o Digiteam <input type="date" id="sl_data" class="campo" value="${hojeISO()}"></label>`}
     <button class="acao" onclick="enviarSSLista()">${ger ? "Enviar as marcadas" : "Pedir no meu Digiteam"}</button>
@@ -4482,7 +4482,7 @@ function blocoEncerramento(chave) {
 }
 function telaPedidoSS(encerrar = false) {
   window.fotosEnc = []; window.encValores = {}; // pedido novo começa sem nada guardado
-  const fotos = encerrar ? `<div class="card" id="ps_horas" style="display:none"><b>Horário do serviço</b><br>
+  const fotos = encerrar ? `<div class="card" id="ps_horas"><b>Horário do serviço</b><br>
       Início: <input type="time" id="enc_ini" class="campo"><br>
       Fim: <input type="time" id="enc_fim" class="campo"></div>
     <div class="card"><b>Fotos do local (até 10)</b> – a coordenada GPS entra na foto automaticamente<br>
@@ -4494,7 +4494,7 @@ function telaPedidoSS(encerrar = false) {
   return `<h2>${encerrar ? "Abrir e encerrar SS" : "Pedir abertura de SS"}</h2>
     ${fotos}
     <div class="nota"><b>Ao pedir, a SS entra nas pendências do SCI e aguarda oportunidade para ser executada.</b> Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos.</div>
-    <select id="ps_acao" class="campo" onchange="psAcaoMudou()"><option>Só gerar</option><option>Mandar no Digiteam</option><option>Digitar e encerrar</option></select>
+    <select id="ps_acao" class="campo" onchange="psAcaoMudou()"><option value="Digitar e encerrar">Abrir e encerrar</option><option>Mandar no Digiteam</option></select>
     <button class="acao" style="background:#0a6e8a" onclick="usarGPSSS(this)">Usar minha localização (GPS)</button>
     <select id="ps_tipo" class="campo" onchange="encherEspSS()"><option value="">Tipo de serviço…</option>${Object.keys(TIPOS_SS).map(c => `<option value="${c}">${c} – ${TIPOS_SS[c][0]}</option>`).join("")}</select>
     <select id="ps_esp" class="campo" disabled onchange="mostrarEncerramento()"><option value="">Escolha o tipo primeiro</option></select>
@@ -4504,7 +4504,7 @@ function telaPedidoSS(encerrar = false) {
     <input id="ps_mat" class="campo" placeholder="Matrícula (se souber)">
     <input id="ps_hd" class="campo" placeholder="Nº do hidrômetro (se souber)">
     <textarea id="ps_obs" class="campo" rows="3" placeholder="Observação (o que foi observado no local)"></textarea>
-    <div id="ps_enc" style="display:none"></div>
+    <div id="ps_enc"${encerrar ? "" : ' style="display:none"'}></div>
     <button class="acao" onclick="enviarPedidoSS(${encerrar})">${encerrar ? "Enviar pedido de abertura e encerramento" : "Enviar pedido de SS"}</button>`;
 }
 // Dados de encerramento e horário só aparecem (e só são exigidos) em "Digitar e encerrar"
@@ -4622,7 +4622,7 @@ async function enviarPedidoSS(encerrar = false) {
   const nomeEsp = TIPOS_SS[tipo][1].find(x => String(x[0]) === esp)[1];
   let obsFinal = obs;
   let urls = "";
-  const acaoEscolhida = (document.getElementById("ps_acao") || {}).value || "Só gerar";
+  const acaoEscolhida = (document.getElementById("ps_acao") || {}).value || "Digitar e encerrar";
   const fotosSoAbrir = encerrar && acaoEscolhida !== "Digitar e encerrar" ? (window.fotosEnc || []) : [];
   encerrar = encerrar && acaoEscolhida === "Digitar e encerrar"; // só exige os dados de encerramento quando for encerrar
   if (fotosSoAbrir.length) {
@@ -5681,7 +5681,7 @@ function telaPedirSSUnico() {
     <div class="nota">Atalhos de vazamento (preenchem o tipo):</div>
     <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${atalho("Vazamento de rede", "43", "1")}${atalho("Vazamento de ramal", "43", "2")}${atalho("Vazamento de hidrômetro", "43", "3")}</div>
     <div id="ssp_atalho_msg"></div>
-    <div class="nota"><b>O que fazer com a SS:</b> "Só gerar" (o escritório abre), "Mandar no Digiteam" (abre e manda para alguém) ou "Digitar e encerrar" (já foi feito; pede os dados do encerramento).</div>`).replace(">Enviar pedido de abertura e encerramento</button>", ">Enviar pedido de SS</button>");
+    <div class="nota"><b>O que fazer com a SS:</b> "Abrir e encerrar" (o serviço já foi feito; o escritório abre e encerra a SS) ou "Mandar no Digiteam" (o escritório abre e manda para alguém às 8h ou às 13h30).</div>`).replace(">Enviar pedido de abertura e encerramento</button>", ">Enviar pedido de SS</button>");
 }
 // Atalho de vazamento: preenche o tipo, marca o botão e leva a tela até o formulário
 function sspAtalho(btn, tipo, esp) {
@@ -7055,7 +7055,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 15h55";
+const VERSAO_PAINEL = "09/11 16h05";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
