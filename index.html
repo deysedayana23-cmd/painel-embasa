@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h55</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 20h00</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5609,7 +5609,7 @@ function sspMontar(d, chave) {
     // SS vencida (encerrada no SCI): vale a localidade da própria SS, não o Excel em que ela entrou antes.
     // Se a localidade não tem tela própria (Mozondó, por exemplo), continua valendo a unidade do Excel.
     const locTemTela = !!grupoDono("", sspLimpo(l[2])) || Object.values(SSP_LOCAIS).some(x => sspMesmoLocal(l[2], x));
-    const grupo = (vencCampo || escrSS) && locTemTela ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
+    const grupo = unidadeDaLoc(sspLimpo(l[2])) || ((vencCampo || escrSS) && locTemTela ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2])));
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
     { const gImp = sspLimpo(l[13]) || grupo || ""; const quando = (d.imp || {})[gImp] || (d.imp || {})[grupo] || "";
       if (!quando || quando < SSP_ZERADO_EM) return; } // listas zeradas: volta só depois de importar o Excel de novo
@@ -6167,11 +6167,14 @@ function grupoSCIDoUsuario() {
   return "";
 }
 // Buriti Cortado é sempre do Isaque (Catolândia), mesmo quando a SS vem no Excel de Baianópolis
+// 09/11: a localidade da própria SS manda (Excel de Catolândia enviado no botão de Baianópolis não leva a SS para o Ivo).
+// Só quando a localidade não tem equipe própria (Mozondó, por exemplo) vale a unidade do Excel.
+function unidadeDaLoc(loc) { const n = normalizarNome(loc); if (["buriticortado", "saomarcos", "passagemdepedra"].includes(n)) return "Catolândia"; return SCI_GRUPOS_BOTAO.find(g => normalizarNome(g) === n) || ""; }
 function grupoDono(grupo, loc) { return ["buriticortado", "saomarcos", "passagemdepedra"].includes(normalizarNome(loc)) ? "Catolândia" : String(grupo || "").trim(); } // Buriti Cortado, São Marcos e Passagem de Pedra são do Isaque
 function ssDoMeuGrupo(grupo, loc) {
   if (window.MODO_GERENTE && !emPrevia()) return true;
   const g = grupoSCIDoUsuario();
-  if (String(grupo || "").trim()) return !!g && grupoDono(grupo, loc) === g; // sem equipe reconhecida, não mostra SS de equipe nenhuma
+  if (String(grupo || "").trim()) return !!g && (unidadeDaLoc(loc) || grupoDono(grupo, loc)) === g; // sem equipe reconhecida, não mostra SS de equipe nenhuma
   return cortesLocais().includes(String(loc).trim());
 }
 function cortesLocais() {
@@ -7669,7 +7672,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 19h55";
+const VERSAO_PAINEL = "09/11 20h00";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
