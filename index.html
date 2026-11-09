@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h08</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h11</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5491,10 +5491,10 @@ async function carregarSSPend(chave) {
     let visiveis = (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : filtro === "escritorio" ? lista.filter(sspEscritorio) : lista;
     // 09/11: filtros de visualização (tipo de serviço, período de abertura e cesta)
     const F = window.sspF = window.sspF || {};
-    const tipoDe = it => String(it.tipoCurto || it.tipo || "").split(" · ")[0].trim();
+    const tipoDe = it => { const t = String(it.tipoCurto || it.tipo || "").split(" · ")[0].trim(); return /RELIG|RESTAB/i.test(t) ? "Religação / Restabelecimento" : t; }; // religação e restabelecimento juntos
     const dataDe = it => { const m = String(it.abertura || "").match(/(\d{2})\/(\d{2})\/(\d{4})/); if (m) return m[3] + "-" + m[2] + "-" + m[1];
       const q = String(it.quando || ""); return /^\d{4}-\d{2}-\d{2}/.test(q) ? q.slice(0, 10) : ""; };
-    const tiposDisp = [...new Set(visiveis.map(tipoDe).filter(Boolean))].sort((a, b) => (parseInt(a) || 0) - (parseInt(b) || 0));
+    const tiposDisp = [...new Set(visiveis.map(tipoDe).filter(Boolean))].sort((a, b) => (parseInt(a) || 9999) - (parseInt(b) || 9999) || a.localeCompare(b));
     const totalAntes = visiveis.length;
     if (F.tipo) visiveis = visiveis.filter(it => tipoDe(it) === F.tipo);
     if (F.de) visiveis = visiveis.filter(it => dataDe(it) && dataDe(it) >= F.de);
@@ -7268,7 +7268,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 17h08";
+const VERSAO_PAINEL = "09/11 17h11";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
