@@ -1675,7 +1675,7 @@ function mostrarMenu(itens, titulo) {
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
   if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(substNoMenu(inativasNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))))))));
   if (!pilha.length && perfilAtual.startsWith("Atendente")) { // 09/11 (Thiago): sem "Pedidos ao Digiteam" e "Pedidos de SS" no principal; "Pedir SS" em Outros
-    const comContagem = ["pedidosDigi", "pedidosSS", "ocorPedidos", "pendenciasEstado", "encerrarEscritorio", "gersa", "todasSS", "ssTodas", "pendExecutar", "ssDigiteam", "cortes", "substHD", "inativas", "pendAbrirEncerrar", "pendenciasAprovacao"];
+    const comContagem = ["pedidosDigi", "pedidosSS", "ocorPedidos", "pendenciasEstado", "encerrarEscritorio", "gersa", "todasSS", "ssTodas", "pendExecutar", "ssDigiteam", "cortes", "substHD", "inativas", "pendAbrirEncerrar", "pendenciasAprovacao", "epi", "episHistorico"];
     const sai = i => comContagem.includes(i.tela) || /^Contas, SCI e Digiteam/.test(i.nome || ""), pedir = itens.filter(i => i.tela === "pedirSS");
 
     itens = itens.filter(i => !sai(i) && i.tela !== "pedirSS");
