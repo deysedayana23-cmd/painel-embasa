@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h57</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h03</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5497,10 +5497,18 @@ async function carregarSSPend(chave) {
     const verde = "#2e7d32", vermelho = "#c62828", laranja = "#ef6c00", vinho = "#7f0000";
     const eu = normalizarNome(window.credenciais.usuario);
     const selecionaveis = p.digitador ? visiveis.filter(it => it.ss && !it.digitada) : [];
+    const podeLoteCampo = it => (p.campo || (window.MODO_GERENTE && !emPrevia())) && !p.digitador && it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar
+      && !(it.subst && !it.subst.liberado) && !(!SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(it.tipoCurto || it.tipo)) && !sspCorteComLeitura(it, chave) && !sspFotoExigida(it.tipo);
+    window.sspPodeLoteCampo = podeLoteCampo;
+    const selCampo = visiveis.filter(podeLoteCampo);
+    const loteCampo = selCampo.length > 1 ? `<div class="card" style="margin-bottom:8px;background:#e8f5e9;border-left:6px solid #2e7d32">
+      <label style="font-size:16px;font-weight:bold"><input type="checkbox" onchange="document.querySelectorAll('.sspc_sel').forEach(c => c.checked = this.checked);sspContarSelCampo()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${selCampo.length})</label>
+      <div class="nota" style="margin:4px 0">Marque as SS que você já executou. Para colocar foto, leitura ou observação, use o botão de cada SS.</div>
+      <button class="acao" id="sspc_lote_btn" style="background:#2e7d32" onclick="sspExecutarLote(this)">✔ Marcar selecionadas como executadas (0)</button></div>` : "";
     const lote = selecionaveis.length ? `<div class="card" style="margin-bottom:8px;background:#f3e5f5;border-left:6px solid #6a1b9a">
       <label style="font-size:16px;font-weight:bold"><input type="checkbox" id="ssp_sel_todas" onchange="document.querySelectorAll('.ssp_sel').forEach(c => c.checked = this.checked);sspContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${selecionaveis.length})</label>
       <button class="acao" id="ssp_lote_btn" style="background:#6a1b9a" onclick="sspDigitarLote(this)">Marcar selecionadas como digitadas (0)</button></div>` : "";
-    box.innerHTML = ocHTML + barra + lote + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
+    box.innerHTML = ocHTML + barra + lote + loteCampo + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
       const id = sspEsc(it.id);
       const etapas = [];
       if (it.cesta) etapas.push(chip("🎯 CESTA DE METAS", "#b71c1c"));
@@ -5558,7 +5566,7 @@ async function carregarSSPend(chave) {
       }
       return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.prazo && it.prazo.vencida ? vermelho : it.parada ? vinho : it.tipoPedido === "digiteam" ? laranja : "#0b5394"}">
         ${filtro === "campo" ? `<span style="float:right;font-weight:bold;color:#0b5394">${n + 1}º</span>` : ""}
-        <div style="font-size:20px;font-weight:bold;color:#0b5394">${p.digitador && it.ss && !it.digitada ? `<input type="checkbox" class="ssp_sel" value="${id}" onchange="sspContarSel()" style="transform:scale(1.5);margin-right:10px">` : ""}${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</div>
+        <div style="font-size:20px;font-weight:bold;color:#0b5394">${p.digitador && it.ss && !it.digitada ? `<input type="checkbox" class="ssp_sel" value="${id}" onchange="sspContarSel()" style="transform:scale(1.5);margin-right:10px">` : ""}${selCampo.length > 1 && podeLoteCampo(it) ? `<input type="checkbox" class="sspc_sel" value="${id}" onchange="sspContarSelCampo()" style="transform:scale(1.5);margin-right:10px">` : ""}${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</div>
         <div style="font-weight:600">${sspEsc(it.tipo)}</div>
         <span style="font-size:13px;color:#555">${it.pedidoPor ? "Pedido por " + sspEsc(sspNome(it.pedidoPor)) + " em " : it.tipoPedido === "sci" ? "Aberta em " : "Lançada em "}${it.tipoPedido === "sci" ? sspEsc(it.abertura) : formatarQuando(it.quando)}</span>
         <div style="margin:6px 0">${etapas.join("")}</div>
@@ -5662,6 +5670,25 @@ async function sspExecutar(id, btn, semFotoObrig) {
       linhas: [[new Date().toISOString(), "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), "executada", confirmado]] });
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
     if (window.fotosSsp) delete window.fotosSsp[id];
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
+function sspContarSelCampo() {
+  const b = document.getElementById("sspc_lote_btn"); if (b) b.textContent = "✔ Marcar selecionadas como executadas (" + document.querySelectorAll(".sspc_sel:checked").length + ")";
+}
+async function sspExecutarLote(btn) {
+  const ids = [...document.querySelectorAll(".sspc_sel:checked")].map(c => c.value);
+  if (!ids.length) { alert("Marque as SS que você já executou."); return; }
+  if (!confirm("Informar que " + ids.length + " SS foram executadas em campo? Elas vão para o digitador.")) return;
+  sspTravar(btn, "Pegando o GPS...");
+  try {
+    const pos = await obterPosicao().catch(() => null);
+    const agora = new Date().toISOString(), quem = nomesDoUsuario();
+    const conf = window.credenciais.usuario + " | Info: executada (marcada em lote)" + (pos ? " | GPS: " + pos.lat.toFixed(6) + "," + pos.lon.toFixed(6) : "");
+    const linhas = ids.map(id => (window.sspCache || {})[id]).filter(Boolean)
+      .map(it => [agora, "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, quem, "executada", conf]);
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo", linhas });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
 }
@@ -7223,7 +7250,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h57";
+const VERSAO_PAINEL = "09/11 17h03";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
