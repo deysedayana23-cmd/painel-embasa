@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h18</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h21</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -862,7 +862,6 @@ const PERFIS = {
     {nome:"Entrega de contas da prefeitura", tela:"entregaPrefeitura"},
     {nome:"EPI", tela:"epi"},
     {nome:"Análise de consumo", tela:"analiseConsumo"},
-    {nome:"SS em aberto por localidade", tela:"ssAbertoLocal"},
   ],
   "Gerente (você)": [
     {nome:"Adicionar informações", sub:[{nome:"Metas", tela:"metasAdmin"}]},
@@ -1574,6 +1573,7 @@ const GRUPOS_BOTAO = {
   operadores: ["igor", "oseias", "acacio", "janiolima", "eduardo", "genildo", "alan", "juvenson", "valdesandro", "sandro", "ramon", "renato"]
 };
 const REGRA_BOTAO = {
+  "SS em aberto por localidade": ["deyse"], // 09/11: saiu dos digitadores
   "Vazamento de rede": "menos_deyse",
   "Vazamento de ramal": "menos_deyse",
   "Abrir e encerrar SS": "menos_deyse",
@@ -1801,6 +1801,7 @@ function abrir(i) {
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
     if (SSP_TELA[it.tela]) carregarSSPend(SSP_TELA[it.tela]);
+    if (it.tela === "ssPendTodas") sspAbrirTodas();
     if (it.tela === "resumoGerencia") carregarResumoGerencia(0);
     if (it.tela === "cortes") carregarCortes();
     if (it.tela === "semLocalizacao") carregarSemLocalizacao();
@@ -2902,7 +2903,8 @@ async function carregarOcorParaFinalizar(boxId) {
       <div style="display:flex;gap:8px"><input id="${k}_d" type="date" class="campo" style="flex:1"><input id="${k}_h" type="time" class="campo" style="flex:1"></div>
       <button class="acao" style="background:#0a6e8a" onclick="(()=>{const t=ocDataLocal(new Date()).split('T');document.getElementById('${k}_d').value=t[0];document.getElementById('${k}_h').value=t[1];})()">Terminou agora</button>
       ${ocObsCampos(k, OC_OBS_FIM)}
-      <button class="acao" onclick="finalizarOcorrencia(${o.linha})">Informar término do serviço</button></div>`; }).join("") : "";
+      <button class="acao" onclick="finalizarOcorrencia(${o.linha})">Informar término do serviço</button>
+      ${window.MODO_GERENTE ? `<button class="acao" style="background:#757575" onclick="excluirOcorrenciaPainel(${o.linha}, '${boxId}')">🗑 Excluir do painel (só a gerente)</button>` : ""}</div>`; }).join("") : "";
     return itens.length;
   } catch (e) { box.textContent = ""; return 0; }
 }
@@ -2965,6 +2967,16 @@ async function responderOcorrencia(linha, boxId = "oc_ger") {
     alert("Número devolvido para a equipe.");
     carregarOcorrenciasGerente(boxId);
   } catch (e) { alert("Não consegui responder. Verifique a internet."); }
+}
+// 09/11: só a gerente – tira a ocorrência do painel de todos (marca como encerrada na planilha)
+async function excluirOcorrenciaPainel(linha, boxId) {
+  if (!window.MODO_GERENTE) return;
+  if (!confirm("Excluir esta ocorrência do painel? Ela some para todos os funcionários.")) return;
+  try {
+    const res = await chamarApi({ acao: "encerrarOcorrencia", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linha });
+    if (res.erro) { alert(res.erro); return; }
+    if (boxId) carregarOcorParaFinalizar(boxId); else renderAtual();
+  } catch (e) { alert("Não consegui excluir. Verifique a internet."); }
 }
 async function encerrarOcorrencia(linha, boxId = "oc_ger") {
   try {
@@ -5244,9 +5256,10 @@ Object.assign(TELAS, {
   ssVencBai: () => { window.sspDemandasVenc = true; return telaSSPend("bai", true); },
   ssVencAng: () => { window.sspDemandasVenc = true; return telaSSPend("ang", true); },
   pedirSS: () => telaPedirSSUnico(),
+  ssPendTodas: () => { window.sspDemandasVenc = false; return `<h2>SS pendentes – todas as localidades</h2><div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div>`; },
   resumoGerencia: () => telaResumoGerencia()
 });
-Object.assign(CONTAGEM_SS_TELAS, { ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai", ssPendAng: "sspAng", ssVencSD: "vencsd", ssVencCat: "venccat", ssVencBai: "vencbai", ssVencAng: "vencang" });
+Object.assign(CONTAGEM_SS_TELAS, { ssPendTodas: "sspTodas", ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai", ssPendAng: "sspAng", ssVencSD: "vencsd", ssVencCat: "venccat", ssVencBai: "vencbai", ssVencAng: "vencang" });
 function sspPapel(chave) {
   const id = identidadeAtual();
   const digitador = SSP_DIGITADORES.some(n => id.includes(n)) || (window.MODO_GERENTE && !emPrevia());
@@ -5254,6 +5267,8 @@ function sspPapel(chave) {
   return { campo, digitador, ve: campo || digitador };
 }
 function sspBotoesDoUsuario() {
+  // 09/11: digitadores (e a gerente) têm um botão só, com o total de todas as localidades
+  if (Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador)) return [{ nome: "SS pendentes – todas as localidades", tela: "ssPendTodas", prioridade: true }];
   const vencidas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo && !sspPapel(k).digitador)
     .map(k => ({ nome: "SS encerradas no SCI – fazer em campo", tela: { sd: "ssVencSD", cat: "ssVencCat", bai: "ssVencBai", ang: "ssVencAng" }[k], prioridade: true }));
   return vencidas.concat(Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
@@ -5445,6 +5460,7 @@ async function sspContagens() {
       out[SSP_CONTA[k]] = l.filter(p.digitador ? sspFaltaDigitador : sspFaltaCampo).length + (p.digitador ? sspOcorrencias(oc, k).length + inatPendentesDaChave(pis, k).length : 0);
       out["venc" + k] = l.filter(it => it.vencidaCampo && !it.executada).length; // botão SS encerradas no SCI – fazer em campo
     });
+    out.sspTodas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador).reduce((t, k) => t + (out[SSP_CONTA[k]] || 0), 0);
   } catch (e) {}
   return out;
 }
@@ -5458,6 +5474,18 @@ function sspRota(lista, loc) {
   while (resto.length) { let m = 0, dm = Infinity; resto.forEach((x, k) => { const dd = dist(atual, coord(x)); if (dd < dm) { dm = dd; m = k; } });
     const e = resto.splice(m, 1)[0]; rota.push(e); atual = coord(e); }
   return [...rota, ...lista.filter(x => !coord(x))];
+}
+// Tela única dos digitadores: balões com cada localidade e o total; a lista mostra a localidade escolhida
+function sspAbrirTodas(chave) {
+  const ks = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador);
+  const c = window.contagemSS || {};
+  const n = k => c[SSP_CONTA[k]] || 0;
+  if (chave) window.sspChaveTodas = chave;
+  if (!window.sspChaveTodas || !ks.includes(window.sspChaveTodas)) window.sspChaveTodas = ks.slice().sort((a, b) => n(b) - n(a))[0] || "sd";
+  const atual = window.sspChaveTodas;
+  const box = document.getElementById("ssp_locs");
+  if (box) box.innerHTML = `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${ks.map(k => `<button onclick="sspAbrirTodas('${k}')" style="flex:1 1 45%;margin:3px;padding:12px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid #c62828;background:${k === atual ? "#c62828" : "#fff"};color:${k === atual ? "#fff" : "#c62828"}">${SSP_LOCAIS[k]} (${n(k)})</button>`).join("")}</div>`;
+  carregarSSPend(atual);
 }
 async function carregarSSPend(chave) {
   const box = document.getElementById("ssp_lista");
@@ -7274,7 +7302,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 17h18";
+const VERSAO_PAINEL = "09/11 17h21";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
