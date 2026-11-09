@@ -5323,8 +5323,9 @@ Object.assign(TELAS, {
   telemetria: () => { setTimeout(carregarTelemetria, 0); return `<h2>Telemetria</h2><div class="nota">Painel ao vivo dos reservatórios.</div><div id="tel_box">Carregando...</div>`; },
   ssPendTodas: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = true; return `<h2>SS pendentes</h2>
     <div id="ssp_cats" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
-    <div class="sspsec" data-cat="enc"><div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div>
-      <h3 style="margin:14px 0 6px">Pedidos de encerramento do campo <span id="ssp_ee_n"></span></h3><div id="ee_lista">Carregando...</div></div>
+    <div class="sspsec" data-cat="enc"><div id="ssp_encsub" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
+      <div id="ssp_enc_dig"><div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div></div>
+      <div id="ssp_enc_ee"><span id="ssp_ee_n" style="display:none"></span><div id="ee_lista">Carregando...</div></div></div>
     <div class="sspsec" data-cat="sci">
       <h3 style="margin:6px 0">Pedidos de SS <span id="ssp_ped_n"></span></h3><div id="pss_digi"></div><div id="pss_lista">Carregando...</div>
       <h3 style="margin:14px 0 6px">Religação e 2ª via</h3><div id="ssp_rel">Carregando...</div>
@@ -5615,6 +5616,17 @@ function sspCatsRender() {
   box.innerHTML = cats.map(([k, rot]) => { const on = window.sspCat === k, tem = (n[k] || 0) > 0;
     return `<button onclick="window.sspCat='${k}';sspCatsRender()" style="flex:1 1 100%;margin:3px;padding:14px 6px;border-radius:10px;font-size:15px;font-weight:bold;border:2px solid ${tem ? "#c62828" : "#9e9e9e"};background:${on ? (tem ? "#c62828" : "#757575") : "#fff"};color:${on ? "#fff" : (tem ? "#c62828" : "#757575")}">${rot} (${n[k] === undefined ? "…" : n[k]})</button>`; }).join("");
   document.querySelectorAll(".sspsec").forEach(d => { d.style.display = d.dataset.cat === window.sspCat ? "" : "none"; });
+  // 09/11: dentro de "Encerrar SS", dois botões com contagem – nada fica escondido no fim da tela
+  const sub = document.getElementById("ssp_encsub");
+  if (sub) {
+    const nd = c.dig, ne = c.ee;
+    if (!window.sspEncSub && nd !== undefined && ne !== undefined) window.sspEncSub = nd > 0 || !ne ? "dig" : "ee";
+    const at = window.sspEncSub || "dig";
+    const b = (k, rot, n) => `<button onclick="window.sspEncSub='${k}';sspCatsRender()" style="flex:1 1 45%;margin:3px;padding:12px 6px;border-radius:10px;font-size:15px;font-weight:bold;border:2px solid #0b5394;background:${at === k ? "#0b5394" : "#fff"};color:${at === k ? "#fff" : "#0b5394"}">${rot} (${n === undefined ? "…" : n})</button>`;
+    sub.innerHTML = b("dig", "SS das localidades", nd) + b("ee", "Pedidos de encerramento do campo", ne);
+    const d1 = document.getElementById("ssp_enc_dig"), d2 = document.getElementById("ssp_enc_ee");
+    if (d1) d1.style.display = at === "dig" ? "" : "none"; if (d2) d2.style.display = at === "ee" ? "" : "none";
+  }
 }
 async function sspTodasExtras() {
   const ks = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador);
@@ -5630,7 +5642,7 @@ async function sspTodasExtras() {
   sspCatsRender();
 }
 function sspTelaTodas() {
-  window.sspCat = ""; window.sspCatN = {}; sspCatsRender();
+  window.sspCat = ""; window.sspEncSub = ""; window.sspCatN = {}; sspCatsRender();
   sspAbrirTodas();
   carregarEncerrarEscritorio("ee_lista").then(() => { window.sspCatN.ee = document.querySelectorAll("#ee_lista .card").length; const e = document.getElementById("ssp_ee_n"); if (e) e.textContent = "(" + window.sspCatN.ee + ")"; sspCatsRender(); }).catch(() => {});
   carregarPedidosSS().then(() => { window.sspCatN.ped = document.querySelectorAll("#pss_lista .card").length; const e = document.getElementById("ssp_ped_n"); if (e) e.textContent = "(" + window.sspCatN.ped + ")"; sspCatsRender(); }).catch(() => {});
