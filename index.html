@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 20h09</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 20h14</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1695,7 +1695,7 @@ function mostrarMenu(itens, titulo) {
     if (out) { if (!out.sub.some(j => j.tela === "trocarSenha")) out.sub = [...out.sub, ts]; } else itens = [...itens, { nome: "Outros", sub: [ts] }];
   }
   // 09/11: agentes de campo – painel enxuto (opção A): SS abertas, SS encerradas no SCI, Demandas urgentes, Solicitações do SCI, Pedir SS, Telemetria e Outros
-  const ehAgenteCampo = !pilha.length && !(window.MODO_GERENTE && !emPrevia()) && GRUPO_CAMPO.some(n => identidadeAtual().includes(n));
+  const ehAgenteCampo = !pilha.length && !(window.MODO_GERENTE && !emPrevia()) && (GRUPO_CAMPO.some(n => identidadeAtual().includes(n)) || ["ramon", "renato"].some(n => identidadeAtual().includes(n))); // 09/11: Ramon e Renato com a tela do Joaquim (SS do Angico)
   if (ehAgenteCampo) {
     const pool = []; itens.forEach(i => { if (i.nome === "Outros" && i.sub) i.sub.forEach(j => pool.push(j)); else pool.push(i); });
     const tirar = f => { const k = pool.findIndex(f); return k >= 0 ? pool.splice(k, 1)[0] : null; };
@@ -1704,6 +1704,7 @@ function mostrarMenu(itens, titulo) {
     while ((x = tirar(i => /^ssVenc/.test(i.tela || "")))) principal.push(x);
     if ((x = tirar(i => i.urgente || i.tela === "servicosUrgentes"))) principal.push(x);
     if ((x = tirar(i => i.nome === "Solicitação no SCI"))) principal.push(x);
+    else if (["ramon", "renato"].some(n => identidadeAtual().includes(n))) { const sciAg = (PERFIS["Agente de campo (exemplo: Luzenildo)"] || []).find(i => i.nome === "Solicitação no SCI"); if (sciAg) principal.push(sciAg); } // Angico: mesma tela do Joaquim
     if ((x = tirar(i => i.tela === "pedirSS"))) principal.push(x);
     if ((x = tirar(i => i.tela === "telemetria"))) principal.push(x);
     const outros = pool.filter(i => i.tela !== "substHD" && i.nome !== "Outros").filter((i, k, a) => a.findIndex(j => j.nome === i.nome) === k);
@@ -7686,7 +7687,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 20h09";
+const VERSAO_PAINEL = "09/11 20h14";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
