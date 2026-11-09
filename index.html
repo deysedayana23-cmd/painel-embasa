@@ -54,7 +54,7 @@
   <button id="btnInstalar" onclick="instalarApp()" style="display:none;margin-top:8px;background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">📲 Instalar aplicativo</button>
   <div id="versaoMsg" style="font-size:13px;margin-top:6px"></div>
 </header>
-<div class="aviso-proto">As SS são atualizadas pelo escritório com o Excel do SCI, em horário comercial (segunda a sexta, 7h30 às 12h e 13h30 às 17h30).</div>
+<div class="aviso-proto" style="display:none">As SS são atualizadas pelo escritório com o Excel do SCI, em horário comercial (segunda a sexta, 7h30 às 12h e 13h30 às 17h30).</div>
 
 <div id="login" style="position:fixed;inset:0;background:#0b5394;display:flex;align-items:center;justify-content:center;z-index:9">
   <div style="background:#fff;padding:24px;border-radius:12px;width:90%;max-width:340px">
@@ -1685,13 +1685,17 @@ function mostrarMenu(itens, titulo) {
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
+  if (!pilha.length && !itens.some(i => i.tela === "telemetria")) { // 09/11: Telemetria no menu principal de todos (antes de Outros)
+    const k = itens.findIndex(i => i.nome === "Outros"); const t = { nome: "Telemetria", tela: "telemetria" };
+    itens = k >= 0 ? [...itens.slice(0, k), t, ...itens.slice(k)] : [...itens, t];
+  }
   if (!pilha.length) { // 09/11: "Trocar minha senha" sai do topo e vai para o fim de Outros (para todos)
     const ts = { nome: "Trocar minha senha", tela: "trocarSenha" };
     const out = itens.find(i => i.nome === "Outros" && i.sub);
     if (out) { if (!out.sub.some(j => j.tela === "trocarSenha")) out.sub = [...out.sub, ts]; } else itens = [...itens, { nome: "Outros", sub: [ts] }];
   }
   const gradeThiago = !pilha.length && String(perfilAtual || "").startsWith("Atendente"); // 09/11: opção 4 (grade 2×2)
-  if (gradeThiago) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
+  if (gradeThiago) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.tela === "telemetria" ? 3 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
@@ -1701,7 +1705,7 @@ function mostrarMenu(itens, titulo) {
     const q = window.contagemSS && window.contagemSS.ssDigiteam !== undefined ? window.contagemSS.ssDigiteam : "…";
     html += `<div id="lembreteSCI" class="aviso" style="background:#e3f2fd;border-left-color:#0b5394"><b>Existem <span id="lembreteSCIq">${q}</span> SS em aberto no SCI.</b> Caso esteja disponível, solicite o envio ao seu Digiteam em "Solicitação ao Digiteam".</div>`;
   }
-  if (!pilha.length && !perfilAtual.startsWith("Gerente")) html += BANNER_VERIF;
+  // 09/11: aviso "As SS são atualizadas pelo escritório..." retirado a pedido da gerência
   html += `<h2>${titulo}</h2><div class="grid"${gradeThiago ? ' style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"' : ""}>`;
   itens.forEach((it, i) => {
     const nomeBotao = it.urgente ? `Demandas urgentes (${window.qtdUrgentes || 0})` : it.nome;
@@ -1712,7 +1716,7 @@ function mostrarMenu(itens, titulo) {
     if (gradeThiago) { // 09/11: opção 4 – grade 2×2 azul, todos do mesmo tamanho, ícone + número
       const nome = it.urgente ? "Demandas urgentes" : it.tela === "importarSCI" ? "Excel do SCI para atualização da IA" : it.tela === "ssPendTodas" ? "SS pendentes de digitação" : it.nome;
       const num = it.urgente ? (window.qtdUrgentes || 0) : contavel ? (window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : "…") : "";
-      html += `<button class="btn" style="background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;min-height:130px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span>${nome}</span><span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
+      html += `<button class="btn" style="${i === itens.length - 1 && itens.length % 2 ? "grid-column:1/-1;min-height:90px;" : "min-height:130px;"}background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span>${nome}</span><span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
       return;
     }
     html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${nomeExibido}" onclick="abrir(${i})">${rotulo}</button>`;
@@ -5316,6 +5320,7 @@ Object.assign(TELAS, {
   ssVencAng: () => { window.sspDemandasVenc = true; return telaSSPend("ang", true); },
   pedirSS: () => telaPedirSSUnico(),
   trocarSenha: () => { setTimeout(telaTrocarSenha, 0); return "Carregando..."; }, // 09/11: "Trocar minha senha" fica dentro de Outros
+  telemetria: () => { setTimeout(carregarTelemetria, 0); return `<h2>Telemetria</h2><div class="nota">Painel ao vivo dos reservatórios.</div><div id="tel_box">Carregando...</div>`; },
   ssPendTodas: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = true; return `<h2>SS pendentes</h2>
     <div id="ssp_cats" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
     <div class="sspsec" data-cat="enc"><div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div>
@@ -5549,6 +5554,21 @@ function sspRota(lista, loc) {
   while (resto.length) { let m = 0, dm = Infinity; resto.forEach((x, k) => { const dd = dist(atual, coord(x)); if (dd < dm) { dm = dd; m = k; } });
     const e = resto.splice(m, 1)[0]; rota.push(e); atual = coord(e); }
   return [...rota, ...lista.filter(x => !coord(x))];
+}
+// 09/11: Telemetria – link, usuário e senha ficam na aba "Telemetria" da planilha (não no código público do painel)
+async function carregarTelemetria() {
+  const box = document.getElementById("tel_box"); if (!box) return;
+  try {
+    const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Telemetria" });
+    const l = r && r.dados ? r.dados.slice(1).find(x => x[0]) : null;
+    if (!l) { box.innerHTML = "<p>O link da telemetria ainda não foi cadastrado.</p>"; return; }
+    const [link, cust, usu, sen] = [0, 1, 2, 3].map(k => String(l[k] || "").trim()); // aba Telemetria: link | customer | usuario | senha
+    const copiar = v => `<button onclick="navigator.clipboard.writeText(${JSON.stringify(v).replace(/"/g, "&quot;")}).then(() => { this.textContent = '✔ Copiado'; }).catch(() => {})" style="padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">📋 Copiar</button>`;
+    const linha = (rot, v) => v ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f6f9fc;border-radius:8px;padding:10px 12px;margin:8px 0"><div><div style="font-size:13px;color:#555">${rot}</div><div style="font-size:20px;font-weight:bold;word-break:break-all">${sspEsc(v)}</div></div>${copiar(v)}</div>` : "";
+    box.innerHTML = `<a href="${sspEsc(link)}" target="_blank" rel="noopener" class="acao" style="display:block;text-align:center;text-decoration:none;font-size:20px;padding:18px">Abrir a telemetria</a>
+      ${linha("Customer", cust)}${linha("Login", usu)}${linha("Senha", sen)}
+      <div class="nota">No primeiro acesso, digite o usuário e a senha e toque em "Salvar senha" quando o celular perguntar. Depois o login entra sozinho.</div>`;
+  } catch (e) { box.textContent = "Não consegui carregar a telemetria. Verifique a internet."; }
 }
 // 09/11: SS que precisam ser tramitadas no SCI para a unidade certa
 // Buriti Cortado é atendido por Catolândia (no SCI fica em Baianópolis); São Marcos e Passagem de Pedra são atendidos por Baianópolis (no SCI ficam em Catolândia)
