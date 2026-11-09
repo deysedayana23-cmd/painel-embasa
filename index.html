@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h16</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h23</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5301,11 +5301,12 @@ Object.assign(TELAS, {
   pedirSS: () => telaPedirSSUnico(),
   ssPendTodas: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = true; return `<h2>SS pendentes</h2>
     <div id="ssp_cats" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
-    <div class="sspsec" data-cat="dig"><div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div></div>
-    <div class="sspsec" data-cat="ee"><div id="ee_lista">Carregando...</div></div>
-    <div class="sspsec" data-cat="ped"><div id="pss_digi"></div><div id="pss_lista">Carregando...</div></div>
-    <div class="sspsec" data-cat="rel"><div id="ssp_rel">Carregando...</div></div>
-    <div class="sspsec" data-cat="oc"><div id="ssp_oc">Carregando...</div></div>`; },
+    <div class="sspsec" data-cat="enc"><div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div>
+      <h3 style="margin:14px 0 6px">Pedidos de encerramento do campo <span id="ssp_ee_n"></span></h3><div id="ee_lista">Carregando...</div></div>
+    <div class="sspsec" data-cat="sci">
+      <h3 style="margin:6px 0">Pedidos de SS <span id="ssp_ped_n"></span></h3><div id="pss_digi"></div><div id="pss_lista">Carregando...</div>
+      <h3 style="margin:14px 0 6px">Religação e 2ª via</h3><div id="ssp_rel">Carregando...</div>
+      <h3 style="margin:14px 0 6px">Ocorrências</h3><div id="ssp_oc">Carregando...</div></div>`; },
   resumoGerencia: () => telaResumoGerencia()
 });
 Object.assign(CONTAGEM_SS_TELAS, { ssPendTodas: "sspTodas", ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai", ssPendAng: "sspAng", ssVencSD: "vencsd", ssVencCat: "venccat", ssVencBai: "vencbai", ssVencAng: "vencang" });
@@ -5530,10 +5531,11 @@ function sspRota(lista, loc) {
 window.sspCatN = {};
 function sspCatsRender() {
   const box = document.getElementById("ssp_cats"); if (!box) return;
-  const n = window.sspCatN, cats = [["dig", "Digitar / encerrar SS"], ["ee", "Escritório encerrar"], ["ped", "Pedidos de SS"], ["rel", "Religação e 2ª via"], ["oc", "Ocorrências"]];
-  if (!window.sspCat) { const c = cats.find(([k]) => n[k] > 0); window.sspCat = c ? c[0] : "dig"; }
+  const c = window.sspCatN, soma = ks => ks.some(k => c[k] === undefined) ? undefined : ks.reduce((t, k) => t + c[k], 0);
+  const n = { enc: soma(["dig", "ee"]), sci: soma(["ped", "rel", "oc"]) }, cats = [["enc", "Encerrar SS"], ["sci", "Pedidos do SCI (SS, religação, 2ª via, ocorrência)"]];
+  if (!window.sspCat) window.sspCat = "enc";
   box.innerHTML = cats.map(([k, rot]) => { const on = window.sspCat === k, tem = (n[k] || 0) > 0;
-    return `<button onclick="window.sspCat='${k}';sspCatsRender()" style="flex:1 1 45%;margin:3px;padding:12px 6px;border-radius:10px;font-size:15px;font-weight:bold;border:2px solid ${tem ? "#c62828" : "#9e9e9e"};background:${on ? (tem ? "#c62828" : "#757575") : "#fff"};color:${on ? "#fff" : (tem ? "#c62828" : "#757575")}">${rot} (${n[k] === undefined ? "…" : n[k]})</button>`; }).join("");
+    return `<button onclick="window.sspCat='${k}';sspCatsRender()" style="flex:1 1 100%;margin:3px;padding:14px 6px;border-radius:10px;font-size:15px;font-weight:bold;border:2px solid ${tem ? "#c62828" : "#9e9e9e"};background:${on ? (tem ? "#c62828" : "#757575") : "#fff"};color:${on ? "#fff" : (tem ? "#c62828" : "#757575")}">${rot} (${n[k] === undefined ? "…" : n[k]})</button>`; }).join("");
   document.querySelectorAll(".sspsec").forEach(d => { d.style.display = d.dataset.cat === window.sspCat ? "" : "none"; });
 }
 async function sspTodasExtras() {
@@ -5551,8 +5553,8 @@ async function sspTodasExtras() {
 function sspTelaTodas() {
   window.sspCat = ""; window.sspCatN = {}; sspCatsRender();
   sspAbrirTodas();
-  carregarEncerrarEscritorio("ee_lista").then(() => { window.sspCatN.ee = document.querySelectorAll("#ee_lista .card").length; sspCatsRender(); }).catch(() => {});
-  carregarPedidosSS().then(() => { window.sspCatN.ped = document.querySelectorAll("#pss_lista .card").length; sspCatsRender(); }).catch(() => {});
+  carregarEncerrarEscritorio("ee_lista").then(() => { window.sspCatN.ee = document.querySelectorAll("#ee_lista .card").length; const e = document.getElementById("ssp_ee_n"); if (e) e.textContent = "(" + window.sspCatN.ee + ")"; sspCatsRender(); }).catch(() => {});
+  carregarPedidosSS().then(() => { window.sspCatN.ped = document.querySelectorAll("#pss_lista .card").length; const e = document.getElementById("ssp_ped_n"); if (e) e.textContent = "(" + window.sspCatN.ped + ")"; sspCatsRender(); }).catch(() => {});
   carregarPedidosDigiteam();
 }
 // Tela única dos digitadores: balões com cada localidade e o total; a lista mostra a localidade escolhida
@@ -5585,20 +5587,21 @@ async function carregarSSPend(chave) {
     });
     window.sspCache = {}; lista.forEach(it => { window.sspCache[it.id] = it; });
     const p = sspPapel(chave);
-    if (!lista.length) { box.innerHTML = ocHTML + "<p>Nenhuma SS pendente.</p>"; return; }
+    if (!lista.length) { box.innerHTML = ocHTML + "<p>Nenhuma SS pendente nesta localidade.</p>"; return; }
     window.sspFiltro = window.sspFiltro || {};
-    const filtro = p.digitador ? (window.sspFiltro[chave] || "digitacao") : "campo"; // campo vê só o que falta ir a campo
+    const telaUnica = !!(window.sspNaTelaTodas && document.getElementById("ssp_cats") && p.digitador);
+    const filtro = telaUnica ? "pend" : p.digitador ? (window.sspFiltro[chave] || "digitacao") : "campo"; // campo vê só o que falta ir a campo; tela única: só o que falta ao digitador
     const nC = lista.filter(sspFaltaCampo).length, nD = lista.filter(sspFaltaDig).length, nF = lista.filter(sspFaltaFoto).length;
     const nV = lista.filter(it => it.vencidaCampo && !it.executada).length; // encerradas no SCI, falta ir a campo
     const nE = lista.filter(sspEscritorio).length; // o escritório precisa encerrar no SCI
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
-    const barra = p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${nE ? btnF("escritorio", "Escritório encerrar", nE, "#b71c1c") : ""}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
+    const barra = telaUnica ? "" : p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${nE ? btnF("escritorio", "Escritório encerrar", nE, "#b71c1c") : ""}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
       : window.sspDemandasVenc
         ? `<div style="background:#b71c1c;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS encerradas no SCI – fazer em campo (${nV})</div>`
           + `<button class="acao" style="background:#0b5394" onclick="window.sspDemandasVenc=false;carregarSSPend('${chave}')">Ver todas as SS pendentes (${nC})</button>`
         : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`
           + (nV ? `<button class="acao" style="background:#b71c1c" onclick="window.sspDemandasVenc=true;carregarSSPend('${chave}')">SS encerradas no SCI – fazer em campo (${nV})</button>` : "");
-    let visiveis = (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : filtro === "escritorio" ? lista.filter(sspEscritorio) : lista;
+    let visiveis = filtro === "pend" ? lista.filter(sspFaltaDigitador) : (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : filtro === "escritorio" ? lista.filter(sspEscritorio) : lista;
     // 09/11: filtros de visualização (tipo de serviço, período de abertura e cesta)
     const F = window.sspF = window.sspF || {};
     const tipoDe = it => { const t = String(it.tipoCurto || it.tipo || "").split(" · ")[0].trim(); return /RELIG|RESTAB/i.test(t) ? "Religação / Restabelecimento" : t; }; // religação e restabelecimento juntos
@@ -7384,7 +7387,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 18h16";
+const VERSAO_PAINEL = "09/11 18h23";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
