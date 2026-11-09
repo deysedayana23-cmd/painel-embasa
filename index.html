@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 20h00</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 20h03</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3376,7 +3376,8 @@ const SCI_DESTINO = { "São Desidério": "Luzenildo, Joaquim, Carlito e Francisc
   "Catolândia": "Isaque (Catolândia, Buriti Cortado, São Marcos e Passagem de Pedra)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis)" };
 SCI_GRUPOS_BOTAO.forEach(g => { SCI_DESTINO["Vencidas " + g] = "Campo (botão \"SS encerradas no SCI\"): " + SCI_DESTINO[g] + " · e para os digitadores (encerrar no sistema)";
   SCI_DESTINO["Escritório " + g] = "Somente os digitadores (Deyse, Thiago, Oseias e Igor), no filtro \"Escritório encerrar\" de " + g + ". O campo não recebe."; });
-const SCI_LOCS_ESPERADAS = { "São Desidério": ["saodesiderio"], "Angico": ["angico"], "Catolândia": ["catolandia", "mozondo", "buriticortado", "baianopolis"], "Baianópolis": ["baianopolis", "catolandia"] };
+// 09/11: a maioria das SS tem que ser da própria unidade (o Excel de Catolândia no botão de Baianópolis tirou todas as SS de Baianópolis do painel)
+const SCI_LOCS_ESPERADAS = { "São Desidério": ["saodesiderio"], "Angico": ["angico"], "Catolândia": ["catolandia", "mozondo", "buriticortado", "saomarcos", "passagemdepedra"], "Baianópolis": ["baianopolis"] };
 SCI_GRUPOS_BOTAO.forEach(g => { SCI_LOCS_ESPERADAS["Vencidas " + g] = SCI_LOCS_ESPERADAS[g]; SCI_LOCS_ESPERADAS["Escritório " + g] = SCI_LOCS_ESPERADAS[g]; });
 // Colunas combinadas (nomes como aparecem no SCI). A ordem no Excel não importa.
 const SCI_COLUNAS = ["SS", "Tipo", "Especificação", "Canal de Atend", "Matrícula", "Localidade", "Bairro", "Logradouro", "Estado", "Nome do Solic", "Geração da SS", "Previsão Inicial", "Núm do Hid", "Obs da SS", "Sit da OS", "Setor", "Programado para"];
@@ -3617,7 +3618,7 @@ async function enviarExcelSCI(i, inp) {
   if (mf && new Date(Number(mf[3]), Number(mf[2]) - 1, Number(mf[1])) - sciDesdeData() > 864e5 &&
     !confirm("Este Excel foi filtrado desde " + mf[0] + ", mas deveria ser desde " + sciDesde() + ". As SS abertas antes de " + mf[0] + " sairiam do painel.\n\nEnviar mesmo assim?")) return;
   const maior = Object.keys(x.locs).sort((a, b) => x.locs[b] - x.locs[a])[0];
-  if (!x.lote && maior && !SCI_LOCS_ESPERADAS[g].includes(maior) && !confirm("Este Excel parece ser de outra unidade (a maioria das SS é de " + maior.toUpperCase() + ").\n\nEnviar mesmo assim como Excel de " + g + "?")) return;
+  if (!x.lote && maior && !SCI_LOCS_ESPERADAS[g].includes(maior) && !confirm("⚠ ATENÇÃO: este Excel parece ser de outra unidade (a maioria das SS é de " + maior.toUpperCase() + ").\n\nSe enviar no botão de " + g + ", as SS de " + g + " que não estão neste arquivo SAEM do painel.\n\nEnviar mesmo assim como Excel de " + g + "?")) return;
   const partes = []; let atual = [], tam = 2;
   x.linhas.forEach(l => { const t = JSON.stringify(l).length + 1; if (atual.length && tam + t > 30000) { partes.push(atual); atual = []; tam = 2; } atual.push(l); tam += t; });
   partes.push(atual);
@@ -7672,7 +7673,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 20h00";
+const VERSAO_PAINEL = "09/11 20h03";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
