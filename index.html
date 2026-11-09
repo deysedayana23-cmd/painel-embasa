@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h11</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h15</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3389,6 +3389,7 @@ function lerExcelSCI(texto, cols = SCI_COLUNAS, obrig = SCI_OBRIGATORIAS, chaveC
   const idx = n => { const a = normalizarNome(n); let k = ths.findIndex(t => normalizarNome(t) === a);
     if (k < 0 && a.length >= 2) k = ths.findIndex(t => normalizarNome(t).startsWith(a)); // aceita "Tipo da Solicitação", "SS Nº" etc.
     if (k < 0 && a === "ss") k = ths.findIndex(t => ["solicitacao", "numerodass", "numerodasolicitacao", "nss"].includes(normalizarNome(t)));
+    if (k < 0 && a === "tipo") k = ths.findIndex(t => ["servico", "tipodeservico", "tiposervico"].includes(normalizarNome(t))); // o SCI às vezes chama a coluna Tipo de "Serviço"
     return k; };
   const faltam = obrig.filter(n => idx(n) < 0);
   const linhas = [...tab.querySelectorAll("tbody tr")].map(tr => { const tds = [...tr.children];
@@ -7268,7 +7269,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 17h11";
+const VERSAO_PAINEL = "09/11 17h15";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
