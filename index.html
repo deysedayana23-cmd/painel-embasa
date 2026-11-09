@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h17</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h27</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1694,13 +1694,28 @@ function mostrarMenu(itens, titulo) {
     const out = itens.find(i => i.nome === "Outros" && i.sub);
     if (out) { if (!out.sub.some(j => j.tela === "trocarSenha")) out.sub = [...out.sub, ts]; } else itens = [...itens, { nome: "Outros", sub: [ts] }];
   }
-  const gradeThiago = !pilha.length && String(perfilAtual || "").startsWith("Atendente"); // 09/11: opção 4 (grade 2×2)
-  if (gradeThiago) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.tela === "telemetria" ? 3 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
+  // 09/11: agentes de campo – painel enxuto (opção A): SS abertas, SS encerradas no SCI, Demandas urgentes, Solicitações do SCI, Pedir SS, Telemetria e Outros
+  const ehAgenteCampo = !pilha.length && !(window.MODO_GERENTE && !emPrevia()) && GRUPO_CAMPO.some(n => identidadeAtual().includes(n));
+  if (ehAgenteCampo) {
+    const pool = []; itens.forEach(i => { if (i.nome === "Outros" && i.sub) i.sub.forEach(j => pool.push(j)); else pool.push(i); });
+    const tirar = f => { const k = pool.findIndex(f); return k >= 0 ? pool.splice(k, 1)[0] : null; };
+    const principal = [];
+    let x; while ((x = tirar(i => /^ssPend/.test(i.tela || "")))) principal.push(x);
+    while ((x = tirar(i => /^ssVenc/.test(i.tela || "")))) principal.push(x);
+    if ((x = tirar(i => i.urgente || i.tela === "servicosUrgentes"))) principal.push(x);
+    if ((x = tirar(i => i.nome === "Solicitação no SCI"))) principal.push(x);
+    if ((x = tirar(i => i.tela === "pedirSS"))) principal.push(x);
+    if ((x = tirar(i => i.tela === "telemetria"))) principal.push(x);
+    const outros = pool.filter(i => i.tela !== "substHD" && i.nome !== "Outros").filter((i, k, a) => a.findIndex(j => j.nome === i.nome) === k);
+    itens = [...principal.map(i => Object.assign({}, i, { prioridade: false, grande: false })), { nome: "Outros", sub: outros }];
+  }
+  const gradeThiago = !pilha.length && (String(perfilAtual || "").startsWith("Atendente") || ehAgenteCampo); // 09/11: opção 4/A (grade 2×2)
+  if (gradeThiago && !ehAgenteCampo) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.tela === "telemetria" ? 3 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
   if (pilha.length) html += `<button class="voltar" onclick="voltar()">← Voltar</button>`;
-  if (!pilha.length && perfilAtual.startsWith("Agente")) html += AVISO_DIGITINHO;
+  // 09/11: aviso "Antes de solicitar SS: confirme que você está logado no Digiteam" retirado do início
   if (!pilha.length && itens.some(i => i.tela === "ssDigiteam") && !(window.MODO_GERENTE && !emPrevia())) {
     const q = window.contagemSS && window.contagemSS.ssDigiteam !== undefined ? window.contagemSS.ssDigiteam : "…";
     html += `<div id="lembreteSCI" class="aviso" style="background:#e3f2fd;border-left-color:#0b5394"><b>Existem <span id="lembreteSCIq">${q}</span> SS em aberto no SCI.</b> Caso esteja disponível, solicite o envio ao seu Digiteam em "Solicitação ao Digiteam".</div>`;
@@ -1714,9 +1729,12 @@ function mostrarMenu(itens, titulo) {
     const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
     const rotulo = it.prioridade ? `${it.nome} (${window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : 0})` : contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
     if (gradeThiago) { // 09/11: opção 4 – grade 2×2 azul, todos do mesmo tamanho, ícone + número
-      const nome = it.urgente ? "Demandas urgentes" : it.tela === "importarSCI" ? "Excel do SCI para atualização da IA" : it.tela === "ssPendTodas" ? "SS pendentes de digitação" : it.nome;
+      const nome = it.urgente ? "Demandas urgentes" : it.tela === "importarSCI" ? "Excel do SCI para atualização da IA" : it.tela === "ssPendTodas" ? "SS pendentes de digitação"
+        : /^ssPend/.test(it.tela || "") ? "SS abertas no SCI" + (it.nome.includes("–") ? " – " + it.nome.split("–").pop().trim() : "") : /^ssVenc/.test(it.tela || "") ? "SS encerradas no SCI – ir a campo"
+        : it.nome === "Solicitação no SCI" ? "Solicitações do SCI" : it.nome;
+      const sub = it.nome === "Solicitação no SCI" ? `<span style="font-size:12px;font-weight:normal">2ª via, análise de conta</span>` : "";
       const num = it.urgente ? (window.qtdUrgentes || 0) : contavel ? (window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : "…") : "";
-      html += `<button class="btn" style="${i === itens.length - 1 && itens.length % 2 ? "grid-column:1/-1;min-height:90px;" : "min-height:130px;"}background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span>${nome}</span><span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
+      html += `<button class="btn" style="${i === itens.length - 1 && itens.length % 2 ? "grid-column:1/-1;min-height:90px;" : "min-height:130px;"}background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span>${nome}</span>${sub}<span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
       return;
     }
     html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${nomeExibido}" onclick="abrir(${i})">${rotulo}</button>`;
@@ -7513,7 +7531,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 19h17";
+const VERSAO_PAINEL = "09/11 19h27";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
