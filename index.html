@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h09</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h15</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3671,7 +3671,9 @@ function inatPedidosHTML(lista) {
   return `<div style="background:#2e7d32;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Religação e 2ª via – pedidos do campo (${lista.length})</div>` +
     lista.map((p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">
       <div style="font-size:18px;font-weight:bold;color:${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">${p.tipo === "2via" ? "📄 2ª via para entregar ao cliente" : p.tipo === "religacao_ss" ? "💧 Água religada em campo (SS de corte " + sspEsc(p.ssOrigem) + ") – religar no SCI" : "🔌 Religação feita em campo – abrir e encerrar no SCI"}</div>
-      <div style="font-size:16px;font-weight:600">Matrícula ${sspEsc(p.mat)} · ${sspEsc(p.nome)}</div>
+      ${p.mat ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="font-size:22px;font-weight:bold;letter-spacing:1px;background:#fff8e1;border:2px solid #f9a825;border-radius:8px;padding:4px 10px">Matrícula ${sspEsc(p.mat)}</span><button onclick="navigator.clipboard.writeText('${sspEsc(p.mat)}').then(() => { this.textContent = '✔ Copiada'; }).catch(() => alert('Matrícula: ${sspEsc(p.mat)}'))" style="padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">📋 Copiar</button></div>`
+        : `<div style="background:#c62828;color:#fff;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:bold">⚠ Matrícula não informada pelo campo – peça ao agente antes de gerar</div>`}
+      <div style="font-size:16px;font-weight:600">${sspEsc(p.nome)}</div>
       <div style="font-size:14px">📍 ${sspEsc(p.end)}</div>
       ${p.tipo !== "2via" ? `<div style="font-size:15px">Leitura: <b>${sspEsc(p.leitura)}</b>${p.obs ? "<br>Obs.: " + sspEsc(p.obs) : ""}</div>` : ""}
       ${p.fotos.length ? `<div style="font-size:14px">Fotos: ${p.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : ""}
@@ -7187,7 +7189,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h09";
+const VERSAO_PAINEL = "09/11 16h15";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
