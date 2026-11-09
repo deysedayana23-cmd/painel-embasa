@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h52</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h58</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5570,13 +5570,13 @@ async function carregarTelemetria() {
     const [link, cust, usu, sen] = [0, 1, 2, 3].map(k => String(l[k] || "").trim()); // aba Telemetria: link | customer | usuario | senha
     const copiar = v => `<button onclick="navigator.clipboard.writeText(${JSON.stringify(v).replace(/"/g, "&quot;")}).then(() => { this.textContent = '✔ Copiado'; }).catch(() => {})" style="padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">📋 Copiar</button>`;
     const linha = (rot, v) => v ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f6f9fc;border-radius:8px;padding:10px 12px;margin:8px 0"><div><div style="font-size:13px;color:#555">${rot}</div><div style="font-size:20px;font-weight:bold;word-break:break-all">${sspEsc(v)}</div></div>${copiar(v)}</div>` : "";
-    const tudo = [cust && "Customer: " + cust, usu && "Login: " + usu, sen && "Senha: " + sen].filter(Boolean).join("\n");
-    window.telTudo = tudo; window.telLink = link;
-    box.innerHTML = `<button class="acao" style="display:block;width:100%;font-size:20px;padding:18px;background:#2e7d32" onclick="telCopiarEAbrir(this)">📋 Copiar os dados e abrir a telemetria</button>
-      <div class="nota">O botão copia Customer, Login e Senha de uma vez e já abre o site. Lá, toque e segure no campo e escolha "Colar" para ver os dados.</div>
-      <a href="${sspEsc(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;margin:6px 0 10px">Só abrir a telemetria</a>
-      ${linha("Customer", cust)}${linha("Login", usu)}${linha("Senha", sen)}
-      <div class="nota">No primeiro acesso, digite o usuário e a senha e toque em "Salvar senha" quando o celular perguntar. Depois o login entra sozinho.</div>`;
+    // 09/11: o site abre DENTRO do painel; os dados ficam numa faixa fixa em cima, com Copiar (não precisa sair da tela)
+    const chipC = (rot, v) => v ? `<button onclick="navigator.clipboard.writeText(${JSON.stringify(v).replace(/"/g, "&quot;")}).then(() => { this.style.background = '#2e7d32'; this.querySelector('b').textContent = '✔ copiado'; setTimeout(() => { this.style.background = '#0C447C'; this.querySelector('b').textContent = ${JSON.stringify(v).replace(/"/g, "&quot;")}; }, 1500); }).catch(() => {})" style="flex:1 1 30%;margin:2px;padding:8px 4px;border-radius:8px;border:none;background:#0C447C;color:#fff;font-size:12px;line-height:1.2">${rot}<br><b style="font-size:14px">${sspEsc(v)}</b></button>` : "";
+    box.innerHTML = `<div style="position:sticky;top:0;z-index:5;background:#e3f2fd;border-radius:10px;padding:6px;margin-bottom:6px">
+        <div style="font-size:13px;margin:0 0 4px 4px">Toque no dado para copiar e cole no campo do site:</div>
+        <div style="display:flex;flex-wrap:wrap">${chipC("Customer", cust)}${chipC("Login", usu)}${chipC("Senha", sen)}</div></div>
+      <iframe src="${sspEsc(link)}" style="width:100%;height:78vh;border:1px solid #ccc;border-radius:10px;background:#fff" allow="fullscreen"></iframe>
+      <a href="${sspEsc(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;margin:8px 0">Se não carregar aqui, abrir em outra tela</a>`;
   } catch (e) { box.textContent = "Não consegui carregar a telemetria. Verifique a internet."; }
 }
 // 09/11: SS que precisam ser tramitadas no SCI para a unidade certa
@@ -7486,7 +7486,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 18h52";
+const VERSAO_PAINEL = "09/11 18h58";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
