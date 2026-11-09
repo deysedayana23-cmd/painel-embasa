@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h23</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h36</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5413,12 +5413,17 @@ function sspMontar(d, chave) {
     if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
     if (it.escritorioEncerrar) return !it.digitada; // só sai quando o digitador encerrar no SCI
     if (it.tipoPedido === "digiteam") return true;
-    if (it.digitada && (!it.fotos.length || it.fotoAnexada)) return false; // 09/11: digitada = encerrada no SCI, sai para todos
+    // 09/11: digitada sem execução em campo = encerrada no SCI, falta o campo. Sai da lista normal e vai para
+    // "SS encerradas no SCI – fazer em campo" (menos corte de São Desidério, que é só pelo Digiteam).
+    if (it.digitada && !it.executada) {
+      if (!SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(it.tipoCurto || it.tipo)) return false;
+      it.vencidaCampo = true; return true;
+    }
     return !(it.executada && it.digitada && (!it.fotos.length || it.fotoAnexada));
   });
 }
 // O que falta para o campo (ir executar) e para o digitador (número, digitação, foto, Digiteam)
-const sspFaltaCampo = it => it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar; // escritório encerra: o campo não vê
+const sspFaltaCampo = it => it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar && !it.vencidaCampo; // escritório encerra: o campo não vê; encerradas no SCI ficam no botão próprio
 const sspFaltaDig = it => it.tipoPedido === "digiteam" || !it.ss || !!(it.executada && !it.digitada) || !!(it.vencidaCampo && !it.digitada); // SS vencida já encerrada no SCI: vai direto ao digitador
 const sspEscritorio = it => !!(it.escritorioEncerrar && !it.digitada); // SS que o escritório deve encerrar no SCI
 const sspFaltaFoto = it => !!(it.fotos.length && !it.fotoAnexada);
@@ -5498,7 +5503,7 @@ async function carregarSSPend(chave) {
       if (it.prazo) { const fal = it.prazo.fim - new Date();
         etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA há " + faltaTexto(fal) + " (venceu " + quandoVence(it.prazo.fim) + ")", vermelho) : chip((fal < 24 * 36e5 ? "⏰" : "⏳") + " Vence " + quandoVence(it.prazo.fim) + " – faltam " + faltaTexto(fal), fal < 24 * 36e5 ? laranja : "#8d6e00")); }
       if (it.parada) etapas.push(chip("⏱ Parada: " + sspEsc(it.parada), vinho));
-      if (it.vencidaCampo && !it.executada) etapas.push(chip("⚠ SS vencida – encerrar no campo", "#b71c1c"));
+      if (it.vencidaCampo && !it.executada) etapas.push(chip("⚠ Encerrada no SCI – falta confirmar em campo", "#b71c1c"));
       if (it.escritorioEncerrar) etapas.push(chip("🏢 O escritório deve encerrar no SCI (o campo não vê)", "#b71c1c"));
       if (it.tipoPedido === "digiteam") etapas.push(chip("Aguardando abertura e envio ao Digiteam", laranja));
       else {
@@ -7214,7 +7219,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h23";
+const VERSAO_PAINEL = "09/11 16h36";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
