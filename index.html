@@ -4163,8 +4163,12 @@ async function carregarServicosUrgentes() {
     const qOc = await carregarOcorParaFinalizar("su_ocor");
     window.qtdUrgentes = itens.filter(x => ger ? x.estado === "aguardando" : (urgAberta(x) && servicoParaMim(x.para))).length + qOc;
     const rot = { pendente: ["Aguardando execução", "#c62828"], devolvido: ["Devolvida pela gerência – refazer", "#b71c1c"], aguardando: ["Executada – aguardando validação", "#ef6c00"], validado: ["✔ Validada", "#2e7d32"] };
-    box.innerHTML = itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${rot[x.estado][1]}">
-      <span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${rot[x.estado][1]}">${rot[x.estado][0]}</span><br>
+    const nAg = ger ? itens.filter(x => x.estado === "aguardando").length : 0;
+    const loteUrg = nAg ? `<div class="card" style="margin-bottom:8px;background:#e8f5e9;border-left:6px solid #2e7d32">
+      <label style="font-size:16px;font-weight:bold"><input type="checkbox" onchange="document.querySelectorAll('.urg_sel').forEach(c => c.checked = this.checked);urgContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas aguardando validação (${nAg})</label>
+      <button class="acao" id="urg_lote_btn" style="background:#2e7d32" onclick="validarUrgentesLote(this)">✔ Validar selecionadas (0)</button></div>` : "";
+    box.innerHTML = itens.length ? loteUrg + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${rot[x.estado][1]}">
+      ${ger && x.estado === "aguardando" ? `<input type="checkbox" class="urg_sel" value="${x.linha}" onchange="urgContarSel()" style="transform:scale(1.5);margin-right:8px">` : ""}<span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${rot[x.estado][1]}">${rot[x.estado][0]}</span><br>
       <b>${sspEsc(x.desc)}</b><br><span style="font-size:14px">Para: ${sspEsc(x.para)} · enviado por ${sspEsc(x.quem)} em ${formatarQuando(x.quando)}</span>
       ${x.situacao === "feito" ? `<br><span style="font-size:14px">Executado por ${sspEsc(x.feito)}${x.dataFeito ? " em " + formatarQuando(x.dataFeito) : ""}</span>` : ""}
       ${x.estado === "devolvido" && x.ctrl.obs ? `<div style="background:#ffebee;border-radius:8px;padding:6px 10px;margin-top:6px">Motivo: ${sspEsc(x.ctrl.obs)}</div>` : ""}
@@ -4172,6 +4176,22 @@ async function carregarServicosUrgentes() {
       ${ger && x.estado === "aguardando" ? `<div style="display:flex;gap:6px"><button class="acao" style="background:#2e7d32" onclick="validarUrgente(${x.linha}, 'validado')">✔ Validar</button><button class="acao" style="background:#b71c1c" onclick="validarUrgente(${x.linha}, 'devolvido')">Devolver</button></div>` : ""}
     </div>`).join("") : "<p>Nenhuma demanda urgente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+function urgContarSel() {
+  const b = document.getElementById("urg_lote_btn"); if (b) b.textContent = "✔ Validar selecionadas (" + document.querySelectorAll(".urg_sel:checked").length + ")";
+}
+async function validarUrgentesLote(btn) {
+  const linhas = [...document.querySelectorAll(".urg_sel:checked")].map(c => Number(c.value));
+  if (!linhas.length) { alert("Marque as demandas que quer validar."); return; }
+  if (!confirm("Validar " + linhas.length + " demanda(s)?")) return;
+  btn.disabled = true; btn.textContent = "Gravando...";
+  try {
+    const agora = new Date().toISOString();
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes",
+      linhas: linhas.map(l => [agora, window.credenciais.usuario, "__controle__", "validado:" + l, "controle", "", ""]) });
+    if (res.erro) { alert(res.erro); btn.disabled = false; urgContarSel(); return; }
+    carregarServicosUrgentes();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); btn.disabled = false; urgContarSel(); }
 }
 async function validarUrgente(linha, acao) {
   let obs = "";
