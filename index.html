@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h40</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h41</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4699,7 +4699,7 @@ function telaPedidoSS(encerrar = false) {
   return `<h2>${encerrar ? "Abrir e encerrar SS" : "Pedir abertura de SS"}</h2>
     ${fotos}
     <div class="nota"><b>Ao pedir, a SS entra nas pendências do SCI e aguarda oportunidade para ser executada.</b> Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos.</div>
-    <select id="ps_acao" class="campo" onchange="psAcaoMudou()"><option value="Digitar e encerrar">Abrir e encerrar</option><option>Mandar no Digiteam</option></select>
+    <input type="hidden" id="ps_acao" value="Digitar e encerrar">
     <button class="acao" style="background:#0a6e8a" onclick="usarGPSSS(this)">Usar minha localização (GPS)</button>
     <select id="ps_tipo" class="campo" onchange="encherEspSS()"><option value="">Tipo de serviço…</option>${Object.keys(TIPOS_SS).map(c => `<option value="${c}">${c} – ${TIPOS_SS[c][0]}</option>`).join("")}</select>
     <select id="ps_esp" class="campo" disabled onchange="mostrarEncerramento()"><option value="">Escolha o tipo primeiro</option></select>
@@ -6189,7 +6189,7 @@ function telaPedirSSUnico() {
     <div class="nota">Atalhos de vazamento (preenchem o tipo):</div>
     <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${atalho("Vazamento de rede", "43", "1")}${atalho("Vazamento de ramal", "43", "2")}${atalho("Vazamento de hidrômetro", "43", "3")}</div>
     <div id="ssp_atalho_msg"></div>
-    <div class="nota"><b>O que fazer com a SS:</b> "Abrir e encerrar" (o serviço já foi feito; o escritório abre e encerra a SS) ou "Mandar no Digiteam" (o escritório abre e manda para alguém às 8h ou às 13h30).</div>`).replace(">Enviar pedido de abertura e encerramento</button>", ">Enviar pedido de SS</button>");
+`).replace(">Enviar pedido de abertura e encerramento</button>", ">Enviar pedido de SS</button>");
 }
 // Atalho de vazamento: preenche o tipo, marca o botão e leva a tela até o formulário
 function sspAtalho(btn, tipo, esp) {
@@ -7563,7 +7563,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 19h40";
+const VERSAO_PAINEL = "09/11 19h41";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
