@@ -5369,6 +5369,7 @@ function sspMontar(d, chave) {
     if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
     if (it.escritorioEncerrar) return !it.digitada; // só sai quando o digitador encerrar no SCI
     if (it.tipoPedido === "digiteam") return true;
+    if (it.digitada && (!it.fotos.length || it.fotoAnexada)) return false; // 09/11: digitada = encerrada no SCI, sai para todos
     return !(it.executada && it.digitada && (!it.fotos.length || it.fotoAnexada));
   });
 }
@@ -5442,7 +5443,11 @@ async function carregarSSPend(chave) {
     const chip = (txt, cor) => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${cor}">${txt}</span>`;
     const verde = "#2e7d32", vermelho = "#c62828", laranja = "#ef6c00", vinho = "#7f0000";
     const eu = normalizarNome(window.credenciais.usuario);
-    box.innerHTML = ocHTML + barra + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
+    const selecionaveis = p.digitador ? visiveis.filter(it => it.ss && !it.digitada) : [];
+    const lote = selecionaveis.length ? `<div class="card" style="margin-bottom:8px;background:#f3e5f5;border-left:6px solid #6a1b9a">
+      <label style="font-size:16px;font-weight:bold"><input type="checkbox" id="ssp_sel_todas" onchange="document.querySelectorAll('.ssp_sel').forEach(c => c.checked = this.checked);sspContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${selecionaveis.length})</label>
+      <button class="acao" id="ssp_lote_btn" style="background:#6a1b9a" onclick="sspDigitarLote(this)">Marcar selecionadas como digitadas (0)</button></div>` : "";
+    box.innerHTML = ocHTML + barra + lote + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
       const id = sspEsc(it.id);
       const etapas = [];
       if (it.cesta) etapas.push(chip("🎯 CESTA DE METAS", "#b71c1c"));
@@ -5497,7 +5502,7 @@ async function carregarSSPend(chave) {
       }
       return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.prazo && it.prazo.vencida ? vermelho : it.parada ? vinho : it.tipoPedido === "digiteam" ? laranja : "#0b5394"}">
         ${filtro === "campo" ? `<span style="float:right;font-weight:bold;color:#0b5394">${n + 1}º</span>` : ""}
-        <div style="font-size:20px;font-weight:bold;color:#0b5394">${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</div>
+        <div style="font-size:20px;font-weight:bold;color:#0b5394">${p.digitador && it.ss && !it.digitada ? `<input type="checkbox" class="ssp_sel" value="${id}" onchange="sspContarSel()" style="transform:scale(1.5);margin-right:10px">` : ""}${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</div>
         <div style="font-weight:600">${sspEsc(it.tipo)}</div>
         <span style="font-size:13px;color:#555">${it.pedidoPor ? "Pedido por " + sspEsc(sspNome(it.pedidoPor)) + " em " : it.tipoPedido === "sci" ? "Aberta em " : "Lançada em "}${it.tipoPedido === "sci" ? sspEsc(it.abertura) : formatarQuando(it.quando)}</span>
         <div style="margin:6px 0">${etapas.join("")}</div>
@@ -5601,6 +5606,24 @@ async function sspExecutar(id, btn) {
       linhas: [[new Date().toISOString(), "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), "executada", confirmado]] });
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
     if (window.fotosSsp) delete window.fotosSsp[id];
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
+function sspContarSel() {
+  const n = document.querySelectorAll(".ssp_sel:checked").length;
+  const b = document.getElementById("ssp_lote_btn"); if (b) b.textContent = "Marcar selecionadas como digitadas (" + n + ")";
+}
+async function sspDigitarLote(btn) {
+  const ids = [...document.querySelectorAll(".ssp_sel:checked")].map(c => c.value);
+  if (!ids.length) { alert("Marque as SS que já foram digitadas."); return; }
+  if (!confirm("Marcar " + ids.length + " SS como digitadas (encerradas no SCI)? Elas saem do painel.")) return;
+  const agora = new Date().toISOString(), quem = nomesDoUsuario();
+  const linhas = ids.map(id => (window.sspCache || {})[id]).filter(Boolean)
+    .map(it => [agora, "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, quem, "digitada", window.credenciais.usuario]);
+  sspTravar(btn, "Gravando...");
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo", linhas });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
 }
