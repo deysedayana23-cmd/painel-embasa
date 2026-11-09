@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h02</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h06</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1674,10 +1674,12 @@ function mostrarMenu(itens, titulo) {
   // SS pendentes por localidade, "Pedir SS" (campo) e "Resumo e relatório" (gerente)
   if (!pilha.length) itens = sciNoMenu(pedidosDigiNoMenu(substNoMenu(inativasNoMenu(menuAgenteCampo(cortesNoMenu(sspPedirParaTodos(sspAjustarMenu(itens))))))));
   if (!pilha.length && perfilAtual.startsWith("Atendente")) { // 09/11 (Thiago): sem "Pedidos ao Digiteam" e "Pedidos de SS" no principal; "Pedir SS" em Outros
-    const sai = i => ["pedidosDigi", "pedidosSS"].includes(i.tela), pedir = itens.filter(i => i.tela === "pedirSS");
+    const comContagem = ["pedidosDigi", "pedidosSS", "ocorPedidos", "pendenciasEstado", "encerrarEscritorio", "gersa", "todasSS", "ssTodas", "pendExecutar", "ssDigiteam", "cortes", "substHD", "inativas", "pendAbrirEncerrar"];
+    const sai = i => comContagem.includes(i.tela) || /^Contas, SCI e Digiteam/.test(i.nome || ""), pedir = itens.filter(i => i.tela === "pedirSS");
+    itens = itens.map(i => i.tela === "ssPendTodas" ? Object.assign({}, i, { nome: "SS pendentes de encerramento" }) : i);
     itens = itens.filter(i => !sai(i) && i.tela !== "pedirSS");
     const out = itens.find(i => i.nome === "Outros" && i.sub);
-    if (out) out.sub = [...pedir, ...out.sub.filter(j => !sai(j) && j.tela !== "pedirSS")]; else if (pedir.length) itens.push({ nome: "Outros", sub: pedir });
+    if (out) out.sub = [...pedir, ...out.sub.filter(j => !sai(j) && j.tela !== "pedirSS")].filter((j, k, arr) => arr.findIndex(x => x.nome === j.nome) === k); else if (pedir.length) itens.push({ nome: "Outros", sub: pedir });
   }
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
@@ -1771,7 +1773,8 @@ async function atualizarContagemSS() {
   ]);
   const [pendEx, digi, ssp, pedidosDigi] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens(), contarPedidosDigi(cred)]);
   window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi, pedidosDigi }, ssp);
-  if (window.contagemSS.sspTodas !== undefined) { // pedidos de SS (os que a pessoa vê) entram no total do botão único
+  if (window.contagemSS.sspTodas !== undefined) { // pedidos de SS (os que a pessoa vê) e o encerrar pelo escritório entram no total do botão único
+    window.contagemSS.sspTodas += Number(encerrar) || 0;
     try { const rp = await chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" }); window.contagemSS.sspTodas += rp && rp.dados ? pssFiltrar(rp.dados).length : 0; } catch (e) {}
   }
   window.contagemSSCarregando = false;
@@ -1819,7 +1822,9 @@ function abrir(i) {
     if (it.tela === "ocorPedidos") carregarOcorrenciasGerente("oc_ger");
     if (it.tela === "pendExecutar") carregarPendExecutar();
     if (SSP_TELA[it.tela]) carregarSSPend(SSP_TELA[it.tela]);
-    if (it.tela === "ssPendTodas") { sspAbrirTodas(); carregarPedidosSS().then(() => { const n = document.querySelectorAll("#pss_lista .card").length, el = document.getElementById("ssp_pedidos_n"), bx = document.getElementById("ssp_pedidos_box");
+    if (it.tela === "ssPendTodas") { sspAbrirTodas();
+      carregarEncerrarEscritorio("ee_lista").then(() => { const n = document.querySelectorAll("#ee_lista .card").length, el = document.getElementById("ssp_ee_n"), bx = document.getElementById("ssp_ee_box");
+        if (el) el.textContent = "(" + n + ")"; if (bx && !n) bx.open = false; }).catch(() => {}); carregarPedidosSS().then(() => { const n = document.querySelectorAll("#pss_lista .card").length, el = document.getElementById("ssp_pedidos_n"), bx = document.getElementById("ssp_pedidos_box");
       if (el) el.textContent = "(" + n + ")"; if (bx && !n) bx.open = false; }).catch(() => {}); carregarPedidosDigiteam(); }
     if (it.tela === "resumoGerencia") carregarResumoGerencia(0);
     if (it.tela === "cortes") carregarCortes();
@@ -5168,7 +5173,7 @@ function pssFiltrar(dados) {
     const ehDeyse = quemPss.includes("deyse");
     const ehThiago = quemPss.includes("thiago") || quemPss.includes("tiago");
     const soSCI = /SCI|Segunda via|Análise de consumo|Débito|Digiteam|conta|matrícula/i;
-    const visiveis = itens.filter(p => ehDeyse ? true : ehThiago ? (soSCI.test(p.tipo || "") && !/^Pedido à UNBA/.test(p.tipo || "")) : !/^Pedido à UNBA|^Análise de consumo/.test(p.tipo || ""));
+    const visiveis = itens.filter(p => ehDeyse ? true : ehThiago ? !/^Pedido à UNBA/.test(p.tipo || "") /* 09/11: Thiago vê todos os pedidos (tudo cai no botão único) */ : !/^Pedido à UNBA|^Análise de consumo/.test(p.tipo || ""));
     return visiveis;
 }
 async function carregarPedidosSS(boxId = "pss_lista") {
@@ -5298,6 +5303,7 @@ Object.assign(TELAS, {
   ssVencAng: () => { window.sspDemandasVenc = true; return telaSSPend("ang", true); },
   pedirSS: () => telaPedirSSUnico(),
   ssPendTodas: () => { window.sspDemandasVenc = false; return `<h2>SS pendentes – todas as localidades</h2>
+    <details class="card" id="ssp_ee_box" style="margin-bottom:10px;border-left:6px solid #b71c1c" open><summary style="font-weight:bold;font-size:17px;cursor:pointer">🏢 SS para o escritório encerrar <span id="ssp_ee_n"></span></summary><div id="ee_lista">Carregando...</div></details>
     <details class="card" id="ssp_pedidos_box" style="margin-bottom:10px;border-left:6px solid #ef6c00" open><summary style="font-weight:bold;font-size:17px;cursor:pointer">📝 Pedidos de SS – gerar e responder <span id="ssp_pedidos_n"></span></summary><div id="pss_digi"></div><div id="pss_lista">Carregando...</div></details>
     <div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div>`; },
   resumoGerencia: () => telaResumoGerencia()
@@ -7347,7 +7353,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 18h02";
+const VERSAO_PAINEL = "09/11 18h06";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
