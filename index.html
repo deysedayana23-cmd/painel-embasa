@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h15</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h18</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5212,7 +5212,12 @@ const SSP_HORAS_PARADA_NUM = 2;  // pedido sem número há mais que isso
 function sspPedidoNaTelaLocal(loc, obs) {
   return Object.values(SSP_LOCAIS).some(x => sspMesmoLocal(loc, x)) && /^\[(S[ÓO] GERAR|MANDAR NO DIGITEAM)\]/i.test(String(obs || ""));
 }
-const SSP_INICIO = "2026-11-04T19:00:00Z"; // pedidos respondidos antes disso já seguiram o fluxo antigo
+// 09/11 16h20: listas zeradas a pedido da gerência. O que entrou antes disso sai do painel;
+// as SS do SCI voltam quando a exportação daquela unidade for importada de novo (só as que ainda estiverem abertas).
+const SSP_ZERADO_EM = "2026-11-09T19:20:00Z";
+const SSP_INICIO = "2026-11-04T19:00:00Z";
+// datas da planilha vêm em ISO (com T, UTC) ou "AAAA-MM-DD HH:MM:SS" (hora da Bahia)
+const sspAntesDoZero = q => { const t = String(q || ""); if (!t) return true; return /T/.test(t) ? t < SSP_ZERADO_EM : t < "2026-11-09 16:20"; }; // pedidos respondidos antes disso já seguiram o fluxo antigo
 Object.assign(TELAS, {
   ssPendSD: () => { window.sspDemandasVenc = false; return telaSSPend("sd"); },
   ssPendCat: () => { window.sspDemandasVenc = false; return telaSSPend("cat"); },
@@ -5295,15 +5300,17 @@ function telaSSPend(chave, vencidas) {
 }
 async function sspDados() {
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-  const [ex, pe, sa, enc] = await Promise.all([
+  const [ex, pe, sa, enc, ist] = await Promise.all([
     chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }),
     chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" }),
     chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] })),
-    chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] }))
+    chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] })),
+    chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }).catch(() => ({ dados: [] }))
   ]);
+  const imp = {}; ((ist && ist.dados) || []).slice(1).forEach(l => { if (l[0]) imp[String(l[0]).trim()] = String(l[1] || ""); });
   if (ex.erro) throw new Error(ex.erro);
   if (pe.erro) throw new Error(pe.erro);
-  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []),
+  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp,
     naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => sspLimpo(l[2]))) };
 }
 // Monta a lista da localidade a partir das abas
@@ -5337,6 +5344,7 @@ function sspMontar(d, chave) {
     if (sit !== "pendente" && sit !== "respondida") return;
     if (digiteam && sit !== "pendente") return; // mandado ao Digiteam: some
     if (sit === "respondida" && String(l[0] || "") < SSP_INICIO) return;
+    if (sspAntesDoZero(l[0])) return; // listas zeradas em 09/11
     const it = { id: "P" + linha, pedidoLinha: linha, tipo: [l[2], l[3]].filter(Boolean).join(" · "), tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(l[0]), pedidoPor: l[1],
       ss: sspLimpo(l[11]), tipoPedido: digiteam ? "digiteam" : "abrir",
       campos: [["Endereço", l[6]], ["Bairro", l[5]], ["Hidrômetro", l[8]], ["Obs.", obs.replace(/^\[[^\]]+\]\s{0,}/, "")], ["Matrícula", l[7]]],
@@ -5352,6 +5360,7 @@ function sspMontar(d, chave) {
   d.ex.forEach(l => {
     if (String(l[5] || "").toLowerCase().trim() !== "pendente" || !sspMesmoLocal(l[3], loc)) return;
     const ss = sspLimpo(l[1]); if (!ss || porSS[ss]) return;
+    if (sspAntesDoZero(l[0])) return; // lançada antes de zerar as listas
     const v = n => ic(n) >= 0 ? l[ic(n)] : "";
     const it = { id: ss, ss, vencidaCampo: ehVencida(ss), escritorioEncerrar: ehEscritorio(ss), tipo: l[2], tipoCurto: l[2], loc, quando: l[0], abertura: sspTxtData(v("abertura")) || sspTxtData(l[0]), tipoPedido: "ss", campos: [["Cliente", v("cliente")], ["Endereço", v("logradouro")], ["Bairro", v("bairro")],
       ["Hidrômetro", v("hidrometro")], ["Telefone", v("telefone")], ["Obs.", v("obs_ss")], ["Solicitante", v("solicitante")], ["Matrícula", v("matricula")]], gpsCol: String(v("localizacao") || ""), mat: sspLimpo(v("matricula")), fotosPedido: [] };
@@ -5369,6 +5378,8 @@ function sspMontar(d, chave) {
     const locTemTela = !!grupoDono("", sspLimpo(l[2])) || Object.values(SSP_LOCAIS).some(x => sspMesmoLocal(l[2], x));
     const grupo = (vencCampo || escrSS) && locTemTela ? grupoDono("", sspLimpo(l[2])) : grupoDono(sspLimpo(l[13]), sspLimpo(l[2]));
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
+    { const gImp = sspLimpo(l[13]) || grupo || ""; const quando = (d.imp || {})[gImp] || (d.imp || {})[grupo] || "";
+      if (!quando || quando < SSP_ZERADO_EM) return; } // listas zeradas: volta só depois de importar o Excel de novo
     if ((!SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(l[1])) || (!escrSS && /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(sitSS))) return;
     const it = { id: ss, ss, vencidaCampo: vencCampo, escritorioEncerrar: escrSS, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
@@ -7189,7 +7200,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h15";
+const VERSAO_PAINEL = "09/11 16h18";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
