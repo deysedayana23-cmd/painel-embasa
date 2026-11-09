@@ -1685,6 +1685,8 @@ function mostrarMenu(itens, titulo) {
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
+  const gradeThiago = !pilha.length && String(perfilAtual || "").startsWith("Atendente"); // 09/11: opção 4 (grade 2×2)
+  if (gradeThiago) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
@@ -1695,13 +1697,20 @@ function mostrarMenu(itens, titulo) {
     html += `<div id="lembreteSCI" class="aviso" style="background:#e3f2fd;border-left-color:#0b5394"><b>Existem <span id="lembreteSCIq">${q}</span> SS em aberto no SCI.</b> Caso esteja disponível, solicite o envio ao seu Digiteam em "Solicitação ao Digiteam".</div>`;
   }
   if (!pilha.length && !perfilAtual.startsWith("Gerente")) html += BANNER_VERIF;
-  html += `<h2>${titulo}</h2><div class="grid">`;
+  html += `<h2>${titulo}</h2><div class="grid"${gradeThiago ? ' style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"' : ""}>`;
   itens.forEach((it, i) => {
     const nomeBotao = it.urgente ? `Demandas urgentes (${window.qtdUrgentes || 0})` : it.nome;
     const destaque = it.prioridade ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff;font-weight:bold"' : it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
     const contavel = CONTAGEM_SS_TELAS[it.tela];
     const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
     const rotulo = it.prioridade ? `${it.nome} (${window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : 0})` : contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
+    if (gradeThiago) { // 09/11: opção 4 – grade 2×2 azul, todos do mesmo tamanho, ícone + número
+      const ic = it.urgente ? "🔔" : it.tela === "ssPendTodas" ? "📋" : it.tela === "importarSCI" ? "📊" : it.nome === "Outros" ? "⋯" : "•";
+      const nome = it.urgente ? "Demandas urgentes" : it.tela === "importarSCI" ? "Excel para IA" : it.tela === "ssPendTodas" ? "SS pendentes" : it.nome;
+      const num = it.urgente ? (window.qtdUrgentes || 0) : contavel ? (window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : "…") : "";
+      html += `<button class="btn" style="background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;min-height:130px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span style="font-size:30px;line-height:1">${ic}</span><span>${nome}</span><span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
+      return;
+    }
     html += `<button class="btn" ${destaque} data-tela="${contavel ? it.tela : ""}" data-nome="${nomeExibido}" onclick="abrir(${i})">${rotulo}</button>`;
   });
   html += `</div>`;
@@ -1782,7 +1791,9 @@ async function atualizarContagemSS() {
   const lq = document.getElementById("lembreteSCIq"); if (lq) lq.textContent = window.contagemSS.ssDigiteam;
   document.querySelectorAll("#app button[data-tela]").forEach(b => {
     const chave = CONTAGEM_SS_TELAS[b.dataset.tela];
-    if (chave) b.textContent = `${b.dataset.nome} (${window.contagemSS[chave]})`;
+    if (!chave) return;
+    const nEl = b.querySelector(".g4n"); if (nEl) { nEl.textContent = window.contagemSS[chave]; return; }
+    b.textContent = `${b.dataset.nome} (${window.contagemSS[chave]})`;
   });
 }
 
