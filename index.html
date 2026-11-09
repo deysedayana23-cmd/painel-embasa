@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h18</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 16h20</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4104,9 +4104,10 @@ function servicoParaMim(para) {
 // 09/11: demanda urgente com validação da gerência. Situação: pendente -> feito (aguardando validação) -> validado; ou devolvido (volta para o funcionário).
 function urgItens(dados) {
   const linhas = (dados || []).slice(1).map((l, i) => ({ l, linha: i + 2 }));
+  const excluidas = new Set(); linhas.forEach(({ l }) => { if (l[2] === "__controle__") { const m = String(l[3] || "").match(/^excluido:(\d+)$/); if (m) excluidas.add(Number(m[1])); } });
   const ctrl = {}; linhas.forEach(({ l }) => { if (l[2] !== "__controle__") return; const m = String(l[3] || "").match(/^(validado|devolvido):(\d+)(?::(.*))?$/); if (!m) return;
     const k = Number(m[2]); if (!ctrl[k] || String(l[0]) > String(ctrl[k].quando)) ctrl[k] = { acao: m[1], quando: String(l[0]), por: l[1], obs: m[3] || "" }; });
-  return linhas.filter(({ l }) => l[2] !== "__controle__" && l[3]).map(({ l, linha }) => {
+  return linhas.filter(({ l, linha }) => l[2] !== "__controle__" && l[3] && !excluidas.has(linha)).map(({ l, linha }) => {
     const x = { linha, quando: l[0], quem: l[1], para: l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "", dataFeito: String(l[6] || "") };
     const c = ctrl[linha];
     if (x.situacao === "feito") x.estado = c && c.quando > x.dataFeito ? (c.acao === "validado" ? "validado" : "devolvido") : "aguardando";
@@ -4175,6 +4176,7 @@ async function carregarServicosUrgentes() {
       ${x.situacao === "feito" ? `<br><span style="font-size:14px">Executado por ${sspEsc(x.feito)}${x.dataFeito ? " em " + formatarQuando(x.dataFeito) : ""}</span>` : ""}
       ${x.estado === "devolvido" && x.ctrl.obs ? `<div style="background:#ffebee;border-radius:8px;padding:6px 10px;margin-top:6px">Motivo: ${sspEsc(x.ctrl.obs)}</div>` : ""}
       ${!ger && urgAberta(x) && servicoParaMim(x.para) ? `<button class="acao" onclick="concluirServicoUrgente(${x.linha})">Informar que foi executado</button>` : ""}
+      ${window.MODO_GERENTE ? `<button onclick="excluirUrgente(${x.linha})" style="float:right;margin-top:-4px;padding:6px 10px;border-radius:8px;border:1px solid #c62828;background:#fff;color:#c62828;font-weight:bold">🗑 Excluir</button>` : ""}
       ${ger && x.estado === "aguardando" ? `<div style="display:flex;gap:6px"><button class="acao" style="background:#2e7d32" onclick="validarUrgente(${x.linha}, 'validado')">✔ Validar</button><button class="acao" style="background:#b71c1c" onclick="validarUrgente(${x.linha}, 'devolvido')">Devolver</button></div>` : ""}
     </div>`).join("") : "<p>Nenhuma demanda urgente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
@@ -4194,6 +4196,15 @@ async function validarUrgentesLote(btn) {
     if (res.erro) { alert(res.erro); btn.disabled = false; urgContarSel(); return; }
     carregarServicosUrgentes();
   } catch (e) { alert("Não consegui registrar. Verifique a internet."); btn.disabled = false; urgContarSel(); }
+}
+async function excluirUrgente(linha) {
+  if (!confirm("Excluir esta demanda urgente? Ela some para todos.")) return;
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "__controle__", "excluido:" + linha, "controle", "", ""]] });
+    if (res.erro) { alert(res.erro); return; }
+    carregarServicosUrgentes();
+  } catch (e) { alert("Não consegui excluir. Verifique a internet."); }
 }
 async function validarUrgente(linha, acao) {
   let obs = "";
@@ -7200,7 +7211,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 16h18";
+const VERSAO_PAINEL = "09/11 16h20";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
