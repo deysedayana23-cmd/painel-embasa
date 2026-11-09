@@ -48,7 +48,7 @@
   <h1>Painel EMBASA</h1>
   <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 18h30</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
-  <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
+  <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
   <button id="btnAvisos" onclick="ativarAvisos()" style="display:none;margin-top:8px;background:#f9a825;color:#1d2330;border:none;border-radius:8px;padding:8px 12px;font-weight:700">🔔 Ativar avisos no celular</button>
   <button id="btnInstalar" onclick="instalarApp()" style="display:none;margin-top:8px;background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">📲 Instalar aplicativo</button>
@@ -1685,6 +1685,11 @@ function mostrarMenu(itens, titulo) {
   // Agentes de São Desidério: SS pendente e Solicitação ao Digiteam em vermelho, ocupando a linha inteira
   if (!pilha.length && ["luzenildo", "joaquim", "carlito", "francisco"].some(n => identidadeAtual().includes(n)))
     itens = itens.map(i => ["pendExecutar", "ssDigiteam"].includes(i.tela) ? Object.assign({}, i, { prioridade: true }) : i);
+  if (!pilha.length) { // 09/11: "Trocar minha senha" sai do topo e vai para o fim de Outros (para todos)
+    const ts = { nome: "Trocar minha senha", tela: "trocarSenha" };
+    const out = itens.find(i => i.nome === "Outros" && i.sub);
+    if (out) { if (!out.sub.some(j => j.tela === "trocarSenha")) out.sub = [...out.sub, ts]; } else itens = [...itens, { nome: "Outros", sub: [ts] }];
+  }
   const gradeThiago = !pilha.length && String(perfilAtual || "").startsWith("Atendente"); // 09/11: opção 4 (grade 2×2)
   if (gradeThiago) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
@@ -5310,6 +5315,7 @@ Object.assign(TELAS, {
   ssVencBai: () => { window.sspDemandasVenc = true; return telaSSPend("bai", true); },
   ssVencAng: () => { window.sspDemandasVenc = true; return telaSSPend("ang", true); },
   pedirSS: () => telaPedirSSUnico(),
+  trocarSenha: () => { setTimeout(telaTrocarSenha, 0); return "Carregando..."; }, // 09/11: "Trocar minha senha" fica dentro de Outros
   ssPendTodas: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = true; return `<h2>SS pendentes</h2>
     <div id="ssp_cats" style="display:flex;flex-wrap:wrap;margin-bottom:8px"></div>
     <div class="sspsec" data-cat="enc"><div id="ssp_locs"></div><div id="ssp_lista">Carregando...</div>
