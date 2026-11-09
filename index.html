@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h12</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 19h17</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5421,7 +5421,7 @@ async function sspDados() {
 function sspMontar(d, chave) {
   const loc = SSP_LOCAIS[chave];
   const conf = {}; // chave (SS ou P<linha>) -> confirmações
-  const pegar = k => (conf[k] = conf[k] || { executada: null, digitada: null, foto: null, assumida: null, finalizada: false, fotos: [] });
+  const pegar = k => (conf[k] = conf[k] || { executada: null, digitada: null, foto: null, assumida: null, gerExec: null, finalizada: false, fotos: [] });
   d.ex.forEach(l => {
     const k = sspLimpo(l[1]); if (!k) return;
     const sit = String(l[5] || "").toLowerCase().trim();
@@ -5435,6 +5435,7 @@ function sspMontar(d, chave) {
     else if (sit === "foto anexada") { c.foto = { quem, quando: l[0] }; }
     else if (sit === "assumida") { c.assumida = { quem, quando: l[0] }; }
     else if (sit === "liberada") { c.assumida = null; }
+    else if (sit === "encerrar como executada (gerente)") { c.gerExec = { quem, quando: l[0] }; }
     else if (/finalizada/.test(sit)) c.finalizada = true;
   });
   const itens = []; const porSS = {};
@@ -5495,7 +5496,9 @@ function sspMontar(d, chave) {
     const cs = [conf[it.id], it.ss ? conf[it.ss] : null].filter(Boolean);
     const um = campo => cs.map(c => c[campo]).find(Boolean) || null;
     const fotos = [...it.fotosPedido]; cs.forEach(c => c.fotos.forEach(u => { if (!fotos.includes(u)) fotos.push(u); }));
-    Object.assign(it, { executada: um("executada"), digitada: um("digitada"), fotoAnexada: um("foto"), assumida: um("assumida"), finalizada: cs.some(c => c.finalizada), fotos });
+    Object.assign(it, { executada: um("executada"), digitada: um("digitada"), fotoAnexada: um("foto"), assumida: um("assumida"), gerExec: um("gerExec"), finalizada: cs.some(c => c.finalizada), fotos });
+    // 09/11: a gerente mandou encerrar como executada – vai para o digitador encerrar e para o campo em "SS encerradas no SCI, mas não em campo"
+    if (it.gerExec && !it.executada) { it.vencidaCampo = true; it.escritorioEncerrar = false; }
     it.prazo = it.tipoPedido === "digiteam" || it.executada ? null : prazoSS(it.tipoCurto || it.tipo, it.abertura, it.venc);
     it.parada = "";
     if (it.executada && !it.digitada && sspHorasDesde(it.executada.quando) > SSP_HORAS_PARADA_DIG) it.parada = "executada há " + Math.floor(sspHorasDesde(it.executada.quando)) + "h e ainda sem digitação";
@@ -5747,6 +5750,7 @@ async function carregarSSPend(chave) {
       const id = sspEsc(it.id);
       const etapas = [];
       if (it._chave) etapas.push(chip(SSP_LOCAIS[it._chave], "#455a64")); // lista única: mostra a localidade
+      if (it.gerExec) etapas.push(chip("👩‍💼 Gerência: encerrar como executada", "#4a148c"));
       if (it.cesta) etapas.push(chip("🎯 CESTA DE METAS", "#b71c1c"));
       if (it.prazo) { const fal = it.prazo.fim - new Date();
         etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA há " + faltaTexto(fal) + " (venceu " + quandoVence(it.prazo.fim) + ")", vermelho) : chip((fal < 24 * 36e5 ? "⏰" : "⏳") + " Vence " + quandoVence(it.prazo.fim) + " – faltam " + faltaTexto(fal), fal < 24 * 36e5 ? laranja : "#8d6e00")); }
@@ -5801,6 +5805,12 @@ async function carregarSSPend(chave) {
           if (it.fotos.length && !it.fotoAnexada) acoesDig += `<button class="acao" style="background:#6a1b9a" onclick="sspConfirmar('${id}', 'foto anexada', this)">Anexei a foto na SS</button>`;
         }
       }
+      // 09/11: só a gerente – SS vencida ou vencendo em até 48h ganha duas decisões
+      const venceLogo = it.prazo && (it.prazo.vencida || (it.prazo.fim - new Date()) < 48 * 36e5);
+      const acoesGer = window.MODO_GERENTE && it.ss && !it.executada && !it.gerExec && venceLogo ? `<div style="background:#f3e5f5;border-radius:10px;padding:8px;margin-top:8px">
+          <div style="font-size:13px;font-weight:bold;color:#4a148c;margin-bottom:4px">Só a gerente (SS vencida ou vencendo)</div>
+          <button class="acao" style="background:#c62828" onclick="gerVencida('${id}', 'nova', this)">Encerrar como não executada e abrir outra igual</button>
+          <button class="acao" style="background:#4a148c" onclick="gerVencida('${id}', 'exec', this)">Enviar aos digitadores para encerrar como executada</button></div>` : "";
       return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.prazo && it.prazo.vencida ? vermelho : it.parada ? vinho : it.tipoPedido === "digiteam" ? laranja : "#0b5394"}">
         ${filtro === "campo" ? `<span style="float:right;font-weight:bold;color:#0b5394">${n + 1}º</span>` : ""}
         <div style="font-size:20px;font-weight:bold;color:#0b5394">${p.digitador && it.ss && !it.digitada ? `<input type="checkbox" class="ssp_sel" value="${id}" onchange="sspContarSel()" style="transform:scale(1.5);margin-right:10px">` : ""}${selCampo.length > 1 && podeLoteCampo(it) ? `<input type="checkbox" class="sspc_sel" value="${id}" onchange="sspContarSelCampo()" style="transform:scale(1.5);margin-right:10px">` : ""}${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</div>
@@ -5811,7 +5821,7 @@ async function carregarSSPend(chave) {
         ${ficha}${fotosHTML}
         ${it.executada && it.executada.info ? `<div style="background:#fff8e1;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:15px">📝 <b>Campo informou:</b> ${sspEsc(it.executada.info)}</div>` : ""}
         ${it.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(it.gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
-        ${acoesCampo}${acoesDig}
+        ${acoesCampo}${acoesDig}${acoesGer}
       </div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar: " + (e && e.message ? e.message : "erro") + "."; }
@@ -5909,6 +5919,22 @@ async function sspExecutar(id, btn, semFotoObrig) {
     if (window.fotosSsp) delete window.fotosSsp[id];
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
+}
+// Decisões da gerente para SS vencida: "nova" = encerrar como não executada e abrir outra igual (vai aos digitadores);
+// "exec" = digitadores encerram como executada e o campo recebe em "SS encerradas no SCI, mas não em campo"
+async function gerVencida(id, modo, btn) {
+  const it = (window.sspCache || {})[id]; if (!it || !window.MODO_GERENTE) return;
+  const msg = modo === "nova" ? "Encerrar a SS " + it.ss + " como NÃO executada e pedir aos digitadores uma SS nova igual?" : "Enviar a SS " + it.ss + " aos digitadores para encerrar como EXECUTADA? Ela também vai para o campo em \"SS encerradas no SCI, mas não em campo\".";
+  if (!confirm(msg)) return;
+  sspTravar(btn);
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha }, agora = new Date().toISOString();
+  try {
+    const res = modo === "nova"
+      ? await chamarApi({ acao: "gravarVarias", ...cred, aba: "EncerrarSS", linhas: [[agora, cred.usuario, "'" + it.ss, String(it.tipoCurto || it.tipo || ""), String(it.loc || ""), "[NOVA SS] SS vencida – encerrar como não executada e abrir outra SS igual (decisão da gerência)", "pendente", "", ""]] })
+      : await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo", linhas: [[agora, "'" + it.ss, it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), "encerrar como executada (gerente)", cred.usuario]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui registrar. Tente de novo."); sspDestravar(btn); }
 }
 function sspContarSelCampo() {
   const b = document.getElementById("sspc_lote_btn"); if (b) b.textContent = "✔ Marcar selecionadas como executadas (" + document.querySelectorAll(".sspc_sel:checked").length + ")";
@@ -7487,7 +7513,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 19h12";
+const VERSAO_PAINEL = "09/11 19h17";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
