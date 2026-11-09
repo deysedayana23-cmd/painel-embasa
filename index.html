@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h23</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 17h55</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3341,6 +3341,21 @@ async function enviarDebitosCorte(loc, input) {
     carregarImportarSCI();
   } catch (e) { alert("Não consegui enviar o PDF: " + (e && e.message ? e.message : "erro") + "."); }
 }
+// 09/11: conferência – a soma das duas equipes de São Desidério tem que dar o total de SS em aberto (nenhuma perdida)
+function sciConferenciaSD() {
+  const sa = window.sciSAConf && window.sciSAConf.dados ? window.sciSAConf.dados.slice(1) : null; if (!sa) return "";
+  const abertas = sa.filter(l => /^\d{6,}$/.test(sspLimpo(l[0])) && sspLimpo(l[13]) === "São Desidério" && !/encerrad|cancelad|conclu|saiu/i.test(String(l[5] || "")));
+  const escr = abertas.filter(l => /^Encerrar no escrit/i.test(String(l[5] || ""))).length;
+  const campo = abertas.filter(l => !/^Encerrar no escrit/i.test(String(l[5] || "")));
+  const op = campo.filter(l => sspEhOperacional(sspLimpo(l[1]) || sspLimpo(l[15]))).length, com = campo.length - op;
+  const ok = op + com + escr === abertas.length;
+  return `<div style="background:${ok ? "#e8f5e9" : "#ffebee"};border-radius:8px;padding:8px 10px;margin:6px 0;font-size:15px">
+    <b>Divisão das ${abertas.length} SS em aberto:</b><br>
+    🔧 Operacional (Carlito e Francisco): <b>${op}</b><br>💼 Comercial (Joaquim e Luzenildo): <b>${com}</b><br>
+    🏢 Escritório encerrar (digitadores): <b>${escr}</b><br>
+    ${ok ? "✔ Soma confere: " + op + " + " + com + " + " + escr + " = " + abertas.length + ". Nenhuma SS perdida." : "⚠ A soma não confere – me avise."}
+    <div style="font-size:12px;color:#555;margin-top:4px">As que o campo já executou continuam contadas aqui até o digitador encerrar.</div></div>`;
+}
 function sciHorarioComercial(d = new Date()) {
   const dia = d.getDay(), m = d.getHours() * 60 + d.getMinutes();
   return dia >= 1 && dia <= 5 && ((m >= 450 && m < 720) || (m >= 810 && m < 1050));
@@ -3350,7 +3365,8 @@ async function carregarImportarSCI() {
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
   let st, imp;
   try {
-    [st, imp] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }), chamarApi({ acao: "listar", ...cred, aba: "ImportSCI" })]);
+    [st, imp, window.sciSAConf] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }), chamarApi({ acao: "listar", ...cred, aba: "ImportSCI" }),
+      chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => null)]);
     if (st.erro || imp.erro) { box.textContent = st.erro || imp.erro; return; }
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
   const porG = {}; (st.dados || []).slice(1).forEach(l => { porG[l[0]] = { enviado: l[1], por: l[2], qtd: l[3], res: String(l[4] || ""), proc: l[5] }; });
@@ -3363,7 +3379,7 @@ async function carregarImportarSCI() {
       : s ? `Último envio: <b>${formatarQuando(s.enviado)}</b> por <b>${sspEsc(sspNome(s.por))}</b> (há ${faltaTexto(desde)})<br><span style="font-size:13px;color:${/^erro/.test(s.res) ? "#c62828" : "#555"}">${sspEsc(s.res)}</span>`
       : "Ainda não enviado.";
     return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${cor}">
-      <div style="font-size:18px;font-weight:bold">Excel ${g}</div>
+      <div style="font-size:18px;font-weight:bold">Excel ${g}</div>${g === "São Desidério" ? sciConferenciaSD() : ""}
       <div style="font-size:13px;color:#555">Vai para: ${SCI_DESTINO[g]}</div>
       <div style="font-size:15px;margin:6px 0">${info}</div>
       <button class="acao" onclick="document.getElementById('sci_arq_${i}').click()">Enviar Excel de ${g}</button>
@@ -5416,8 +5432,9 @@ function sspMontar(d, chave) {
     if (!(grupo ? SSP_GRUPO_CHAVE[grupo] === chave : sspMesmoLocal(l[2], loc))) return;
     { const gImp = sspLimpo(l[13]) || grupo || ""; const quando = (d.imp || {})[gImp] || (d.imp || {})[grupo] || "";
       if (!quando || quando < SSP_ZERADO_EM) return; } // listas zeradas: volta só depois de importar o Excel de novo
-    if ((!SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(l[1])) || (!escrSS && /encerrad|cancelad|conclu|saiu|escrit|programad/i.test(sitSS))) return;
-    const it = { id: ss, ss, vencidaCampo: vencCampo, escritorioEncerrar: escrSS, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
+    // 09/11: toda SS em aberto do Excel aparece para uma das equipes (corte e programada inclusive; corte de São Desidério fica travado: só Digiteam)
+    if (!escrSS && /encerrad|cancelad|conclu|saiu|escrit/i.test(sitSS)) return;
+    const it = { id: ss, ss, sitSCI: sitSS, vencidaCampo: vencCampo, escritorioEncerrar: escrSS, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci",
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
@@ -5590,6 +5607,7 @@ async function carregarSSPend(chave) {
       const exige = sspFotoExigida(it.tipo);
       const corteDigi = !SSP_CORTE_NO_CAMPO.includes(chave) && ehCorteSS(it.tipoCurto || it.tipo); // corte em São Desidério: exclusivo pelo Digiteam
       if (corteDigi && !it.executada) etapas.push(chip("✂ Corte: executar e encerrar só pelo Digiteam", "#c62828"));
+      if (/programad/i.test(it.sitSCI || "")) etapas.push(chip("📲 Programada no Digiteam", "#6a1b9a"));
       const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && !corteDigi && it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
       const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
       // Tela das SS encerradas no SCI: um botão só, sem foto nem informações (a SS já foi encerrada no sistema)
@@ -7307,7 +7325,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 17h23";
+const VERSAO_PAINEL = "09/11 17h55";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
