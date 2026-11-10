@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 14h52</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 14h55</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3635,6 +3635,7 @@ async function enviarExcelSCI(i, inp) {
     if (!confirm("Excel \"Resultado da Solicitação em Lote\": " + xLote.linhas.length + " SS geradas" + (xLote.recusadas ? " · " + xLote.recusadas + " linha(s) recusada(s) pelo SCI (não entram)" : "") + ".\n\nEnviar como " + g + "?")) return;
     x = xLote;
   }
+  if (!x && /Excel Workbook Frameset|sheet001\.htm/i.test(texto)) { alert("Este arquivo foi aberto e salvo de novo no Excel como \"Página da Web\": as SS ficaram numa pasta separada e o arquivo veio vazio.\n\nEnvie o arquivo original que o SCI baixou (sem abrir no Excel) ou, no Excel, use Salvar como › \"Pasta de Trabalho do Excel (.xlsx)\" e envie esse."); return; }
   if (!x) { alert("Esse arquivo não é o Excel do SCI. Envie o arquivo exatamente como o SCI baixou (Pendências de Atendimento › Exportar para Excel)."); return; }
   if (!x.lote && x.faltam.includes("SS")) { alert("Não achei a coluna SS (número da solicitação) neste Excel. Exporte de novo com a coluna SS marcada."); return; }
   if (!x.lote && !x.linhas.length && !confirm("O Excel de " + g + " veio sem nenhuma SS. Isso tira todas as SS de " + g + " do painel. Confirmar?")) return;
@@ -7790,7 +7791,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 14h52";
+const VERSAO_PAINEL = "10/11 14h55";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
