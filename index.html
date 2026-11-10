@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 11h55</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 12h42</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5553,7 +5553,9 @@ async function sspDados() {
     naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => sspLimpo(l[2]))) };
 }
 // Monta a lista da localidade a partir das abas
-function sspMontar(d, chave) { return sspMontarBase(d, chave).filter(it => !(d.excl && it.ss && d.excl.has(sspLimpo(it.ss)))); }
+// 10/11: SS programada no Digiteam não aparece para o campo (só para os digitadores)
+function sspMontar(d, chave) { const dig = chave === "todas" || sspPapel(chave).digitador;
+  return sspMontarBase(d, chave).filter(it => !(d.excl && it.ss && d.excl.has(sspLimpo(it.ss))) && (dig || !/programad/i.test(it.sitSCI || ""))); }
 function sspMontarBase(d, chave) {
   const loc = SSP_LOCAIS[chave];
   const conf = {}; // chave (SS ou P<linha>) -> confirmações
@@ -7721,7 +7723,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 11h55";
+const VERSAO_PAINEL = "10/11 12h42";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
