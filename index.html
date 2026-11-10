@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 14h42</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 14h48</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3546,17 +3546,30 @@ async function sciTextoDoArquivo(arq) {
   const buf = await arq.arrayBuffer();
   const texto = new TextDecoder("utf-8").decode(buf);
   if (/<table/i.test(texto)) return texto;
-  const b = new Uint8Array(buf, 0, 2);
-  if (!(b[0] === 0x50 && b[1] === 0x4B)) return texto; // não é .xlsx (zip)
-  if (!window.XLSX) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
-  const wb = XLSX.read(buf, { type: "array" });
-  const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
-  const h = rows.findIndex(r => r.some(c => String(c).trim() === "SS") && r.some(c => String(c).trim() === "Tipo"));
-  if (h < 0) return texto;
   const esc = v => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;");
-  const cab = rows[h];
-  return "<table><thead><tr>" + cab.map(c => "<th>" + esc(c) + "</th>").join("") + "</tr></thead><tbody>" +
-    rows.slice(h + 1).map(r => "<tr>" + cab.map((_, i) => "<td>" + esc(r[i] ?? "") + "</td>").join("") + "</tr>").join("") + "</tbody></table>";
+  const ehSS = c => ["ss", "solicitacao", "numerodass", "numerodasolicitacao", "nss", "ssn"].includes(normalizarNome(c)) || /^numerodasolicitacao/.test(normalizarNome(c));
+  let rows = null;
+  const b = new Uint8Array(buf, 0, 4);
+  const binario = (b[0] === 0x50 && b[1] === 0x4B) || (b[0] === 0xD0 && b[1] === 0xCF); // .xlsx ou .xls antigo
+  if (binario) {
+    if (!window.XLSX) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+    const wb = XLSX.read(buf, { type: "array" });
+    rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
+  } else {
+    // 10/11: CSV / texto (separado por ; , ou tabulação), inclusive copiado da tela do SCI
+    const t = /\uFFFD/.test(texto) ? new TextDecoder("latin1").decode(buf) : texto;
+    rows = t.split(/\r?\n/).map(l => l.split(/\t|;/).length > 1 ? l.split(/\t|;/) : l.split(","));
+  }
+  if (!rows || !rows.length) return texto;
+  let h = rows.findIndex(r => r.some(c => String(c).trim() === "SS") && r.some(c => String(c).trim() === "Tipo"));
+  if (h < 0) h = rows.findIndex(r => r.some(c => ehSS(c)));
+  if (h >= 0) { const cab = rows[h];
+    return "<table><thead><tr>" + cab.map(c => "<th>" + esc(c) + "</th>").join("") + "</tr></thead><tbody>" +
+      rows.slice(h + 1).map(r => "<tr>" + cab.map((_, i) => "<td>" + esc(r[i] ?? "") + "</td>").join("") + "</tr>").join("") + "</tbody></table>"; }
+  // 10/11: sem cabeçalho reconhecido – o importante são as SS: pega o primeiro número de 10 dígitos de cada linha
+  const sss = []; rows.forEach(r => { const m = r.join(" ").match(/\b10\d{8}\b/); if (m && !sss.includes(m[0])) sss.push(m[0]); });
+  if (!sss.length) return texto;
+  return "<table><thead><tr><th>SS</th></tr></thead><tbody>" + sss.map(x => "<tr><td>" + x + "</td></tr>").join("") + "</tbody></table>";
 }
 async function enviarExcelInativas(inp) {
   const arq = inp.files && inp.files[0]; inp.value = ""; if (!arq) return;
@@ -7774,7 +7787,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 14h42";
+const VERSAO_PAINEL = "10/11 14h48";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
