@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 12h50</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 14h42</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1725,6 +1725,10 @@ function mostrarMenu(itens, titulo) {
   }
   const gradeThiago = !pilha.length && (String(perfilAtual || "").startsWith("Atendente") || ehAgenteCampo || ehDigitador4); // 09/11: opção 4/A (grade 2×2)
   if (gradeThiago && !ehAgenteCampo && !ehDigitador4) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.tela === "telemetria" ? 3 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
+  // 10/11: ligação nova executada no campo (serviço cobrado) só o Thiago encerra no SCI
+  if (!pilha.length && ["thiago", "tiago", "deyse"].some(n => identidadeAtual().includes(n)) && !itens.some(i => i.tela === "ligNovaThiago")) {
+    const k = itens.findIndex(i => i.tela === "ssPendTodas"); itens = itens.slice(); itens.splice(k >= 0 ? k + 1 : 0, 0, { nome: "SS exclusivas para Thiago encerrar", tela: "ligNovaThiago" });
+  }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
@@ -5451,6 +5455,7 @@ Object.assign(TELAS, {
   ssVencAng: () => { window.sspDemandasVenc = true; return telaSSPend("ang", true); },
   pedirSS: () => telaPedirSSUnico(),
   trocarSenha: () => { setTimeout(telaTrocarSenha, 0); return "Carregando..."; }, // 09/11: "Trocar minha senha" fica dentro de Outros
+  ligNovaThiago: () => { setTimeout(carregarLigNovaThiago, 0); return `<h2>SS exclusivas para Thiago encerrar</h2><div class="nota">Ligações novas de água já executadas (serviço cobrado: o agente não consegue encerrar). Encerre no SCI e toque em "Encerrei no SCI".</div><div id="lnt_lista">Carregando...</div>`; },
   telemetria: () => { setTimeout(carregarTelemetria, 0); return `<h2>Telemetria</h2><div class="nota">Painel ao vivo dos reservatórios.</div><div id="tel_box">Carregando...</div>`; },
   ssPendTodas: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = true; window.sspF = {}; return `<h2>SS pendentes</h2>
     <div id="ssp_outros" style="display:flex;flex-wrap:wrap;margin-bottom:6px"></div>
@@ -5462,7 +5467,7 @@ Object.assign(TELAS, {
     <div class="sspsec" data-cat="trm" style="display:none"><div class="sspsec_tit" data-cat="trm"></div><div id="ssp_trm">Carregando...</div></div>`; },
   resumoGerencia: () => telaResumoGerencia()
 });
-Object.assign(CONTAGEM_SS_TELAS, { ssPendTodas: "sspTodas", ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai", ssPendAng: "sspAng", ssVencSD: "vencsd", ssVencCat: "venccat", ssVencBai: "vencbai", ssVencAng: "vencang" });
+Object.assign(CONTAGEM_SS_TELAS, { ligNovaThiago: "ligThiago", ssPendTodas: "sspTodas", ssPendSD: "sspSD", ssPendCat: "sspCat", ssPendBai: "sspBai", ssPendAng: "sspAng", ssVencSD: "vencsd", ssVencCat: "venccat", ssVencBai: "vencbai", ssVencAng: "vencang" });
 function sspPapel(chave) {
   if (chave === "todas") return { campo: false, digitador: true, ve: true }; // 09/11: lista única do digitador (todas as localidades)
   const id = identidadeAtual();
@@ -5549,13 +5554,45 @@ async function sspDados() {
   if (pe.erro) throw new Error(pe.erro);
   // 10/11: SS excluídas do painel pela gerente (linha na ExecucaoCampo com situação "excluida (gerente)")
   const excl = new Set(ex.dados.slice(1).filter(l => String(l[5] || "") === "excluida (gerente)").map(l => sspLimpo(l[1])));
-  return { excl, cab: ex.dados[0] || [], ex: ex.dados.slice(1).filter(l => String(l[5] || "") !== "excluida (gerente)"), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
+  // 10/11: "SS gerada em lote no SCI" só registra que a SS foi aberta – não conta como encerrada (as 28 religações de Baianópolis iam para "ir a campo" em vez de "SS abertas")
+  return { excl, cab: ex.dados[0] || [], ex: ex.dados.slice(1).filter(l => String(l[5] || "") !== "excluida (gerente)" && !(/gerada em lote/i.test(String(l[2] || "")) && String(l[5] || "") === "digitada")), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
     naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => sspLimpo(l[2]))) };
 }
 // Monta a lista da localidade a partir das abas
+// 10/11: ligação nova de água já executada (campo informou ou o SCI diz "serviço cobrado não pode ser encerrado pelo agente de campo"):
+// é exclusiva do Thiago encerrar – sai da lista dos outros digitadores
+const ehLigNovaSS = it => /LIGACAO DE AGUA|LIGACAO NOVA|LIG NOVA/i.test(String(it.tipo || "")) && !/RELIG/i.test(String(it.tipo || ""));
+const ligNovaPronta = it => ehLigNovaSS(it) && !!it.ss && !it.digitada && (!!it.executada || /cobrado|agente de campo/i.test(String(it.estadoSCI || "")));
+const ehThiagoOuDeyse = () => ["thiago", "tiago", "deyse"].some(n => identidadeAtual().includes(n));
 // 10/11: SS programada no Digiteam não aparece para o campo (só para os digitadores)
 function sspMontar(d, chave) { const dig = chave === "todas" || sspPapel(chave).digitador;
-  return sspMontarBase(d, chave).filter(it => !(d.excl && it.ss && d.excl.has(sspLimpo(it.ss))) && (dig || !/programad/i.test(it.sitSCI || ""))); }
+  return sspMontarBase(d, chave).filter(it => !(d.excl && it.ss && d.excl.has(sspLimpo(it.ss))) && (dig || !/programad/i.test(it.sitSCI || ""))
+    && !(dig && !ehThiagoOuDeyse() && ligNovaPronta(it))); }
+async function carregarLigNovaThiago() {
+  const box = document.getElementById("lnt_lista"); if (!box) return;
+  try {
+    const d = await sspDados();
+    const lista = sspMontarTodas(d).filter(ligNovaPronta);
+    window.lntCache = {}; lista.forEach(it => { window.lntCache[it.ss] = it; });
+    const campo = (it, n) => sspLimpo(((it.campos || []).find(c => c[0] === n) || [])[1]);
+    box.innerHTML = lista.length ? `<div class="nota">${lista.length} ligação(ões) nova(s) executada(s) para encerrar no SCI</div>` + lista.map(it => `<div class="card" style="margin-bottom:10px;border-left:6px solid #2e7d32">
+      <div style="font-size:20px;font-weight:bold;color:#0b5394">SS ${sspEsc(it.ss)}</div>
+      <div style="font-weight:600">${sspEsc(it.tipo)}</div>
+      <div style="font-size:14px;margin:4px 0">${it.executada ? "✔ Executada no campo" : "✔ " + sspEsc(it.estadoSCI)}</div>
+      <div style="font-size:15px">${sspEsc(campo(it, "Cliente"))}<br>${sspEsc([campo(it, "Endereço"), campo(it, "Bairro"), it.loc].filter(Boolean).join(" – "))}${it.mat ? "<br>Matrícula " + sspEsc(it.mat) : ""}</div>
+      <button class="acao" style="background:#2e7d32" onclick="ligNovaEncerrei('${sspEsc(it.ss)}', this)">Encerrei no SCI</button></div>`).join("") : "<p>Nenhuma ligação nova executada para encerrar.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function ligNovaEncerrei(ss, btn) {
+  const it = (window.lntCache || {})[ss]; if (!it) return;
+  sspTravar(btn);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo",
+      linhas: [[new Date().toISOString(), "'" + ss, it.tipoCurto || it.tipo || "", it.loc || "", nomesDoUsuario(), "digitada", window.credenciais.usuario]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    btn.closest(".card").remove();
+  } catch (e) { alert("Não consegui registrar. Tente de novo."); sspDestravar(btn); }
+}
 function sspMontarBase(d, chave) {
   const loc = SSP_LOCAIS[chave];
   const conf = {}; // chave (SS ou P<linha>) -> confirmações
@@ -5626,7 +5663,7 @@ function sspMontarBase(d, chave) {
       if (!quando || quando < SSP_ZERADO_EM) return; } // listas zeradas: volta só depois de importar o Excel de novo
     // 09/11: toda SS em aberto do Excel aparece para uma das equipes (corte e programada inclusive; corte de São Desidério fica travado: só Digiteam)
     if (!escrSS && /encerrad|cancelad|conclu|saiu|escrit/i.test(sitSS)) return;
-    const it = { id: ss, ss, sitSCI: sitSS, vencidaCampo: vencCampo, escritorioEncerrar: escrSS, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci", setor: sspLimpo(l[21]),
+    const it = { id: ss, ss, sitSCI: sitSS, estadoSCI: sspLimpo(l[16]), vencidaCampo: vencCampo, escritorioEncerrar: escrSS, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci", setor: sspLimpo(l[21]),
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
@@ -5689,6 +5726,7 @@ async function sspContagens() {
     });
     out.sspTodas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador).reduce((t, k) => t + (out[SSP_CONTA[k]] || 0), 0);
     if (dig) out.sspTodas += sspTramitar(d).length; // SS para tramitar entram no total
+    if (dig && ehThiagoOuDeyse()) out.ligThiago = sspMontarTodas(d).filter(ligNovaPronta).length;
   } catch (e) {}
   return out;
 }
@@ -7736,7 +7774,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 12h50";
+const VERSAO_PAINEL = "10/11 14h42";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
