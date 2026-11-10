@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 08h18</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 11h55</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5812,7 +5812,8 @@ async function carregarSSPend(chave) {
   const box = document.getElementById("ssp_lista");
   if (!box) return;
   window.sspChave = chave;
-  box.textContent = "Carregando...";
+  const silencioso = window.sspSilencioso; window.sspSilencioso = false; const yAntes = window.scrollY;
+  if (!silencioso) box.textContent = "Carregando...";
   try {
     const p0 = sspPapel(chave);
     const [d, base, ocs, pis] = await Promise.all([sspDados(), carregarBaseLocalizacao(), p0.digitador ? listarOcorrencias().catch(() => []) : Promise.resolve([]),
@@ -5911,6 +5912,7 @@ async function carregarSSPend(chave) {
     const lote = selecionaveis.length ? `<div class="card" style="margin-bottom:8px;background:#f3e5f5;border-left:6px solid #6a1b9a">
       <label style="font-size:16px;font-weight:bold"><input type="checkbox" id="ssp_sel_todas" onchange="document.querySelectorAll('.ssp_sel').forEach(c => c.checked = this.checked);sspContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${selecionaveis.length})</label>
       <button class="acao" id="ssp_lote_btn" style="background:#6a1b9a" onclick="sspDigitarLote(this)">Marcar selecionadas como digitadas (0)</button></div>` : "";
+    if (silencioso) setTimeout(() => window.scrollTo(0, yAntes), 0);
     box.innerHTML = ocHTML + barra + filtrosHTML + lote + loteCampo + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
       const id = sspEsc(it.id);
       const etapas = [];
@@ -7719,7 +7721,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 08h18";
+const VERSAO_PAINEL = "10/11 11h55";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -7837,6 +7839,20 @@ function instalarApp() {
   }
   checarVersaoSilenciosa();
   setInterval(checarVersaoSilenciosa, 3 * 60 * 1000);
+  // 10/11: números e listas de SS se atualizam sozinhos a cada 1 minuto (quando outro digitador ou o campo informa algo).
+  // Não atualiza a lista se a pessoa estiver digitando, com SS marcadas ou com leitura/observação preenchida.
+  setInterval(() => {
+    try {
+      if (document.visibilityState !== "visible" || !window.credenciais) return;
+      const lista = document.getElementById("ssp_lista");
+      if (lista && window.sspChave) {
+        const ocupado = (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && lista.contains(document.activeElement))
+          || lista.querySelector("input[type=checkbox]:checked") || [...lista.querySelectorAll("input:not([type]),input[type=text],textarea")].some(e => e.value.trim())
+          || lista.querySelector("button:disabled");
+        if (!ocupado) { window.sspSilencioso = true; carregarSSPend(window.sspChave); }
+      } else if (!pilha.length && document.querySelector("#app button.btn")) atualizarContagemSS();
+    } catch (e) {}
+  }, 60 * 1000);
 })();
 </script>
 </body>
