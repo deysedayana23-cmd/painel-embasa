@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 09/11 20h15</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 07h24</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5813,7 +5813,8 @@ async function carregarSSPend(chave) {
   try {
     const p0 = sspPapel(chave);
     const [d, base, ocs, pis] = await Promise.all([sspDados(), carregarBaseLocalizacao(), p0.digitador ? listarOcorrencias().catch(() => []) : Promise.resolve([]),
-      p0.digitador ? chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoInativa" }).then(r => inatPedidos(r.dados)).catch(() => []) : Promise.resolve([])]);
+      p0.digitador ? chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoInativa" }).then(r => inatPedidos(r.dados)).catch(() => []) : Promise.resolve([]),
+      debitosCorteLista().catch(() => [])]).then(r => { window.sspDebPdfs = r[4] || []; return r; });
     const ocHTML = p0.digitador && chave !== "todas" && !(window.sspNaTelaTodas && document.getElementById("ssp_cats")) ? sspOcorrenciasHTML(sspOcorrencias(ocs, chave)) + inatPedidosHTML(inatPendentesDaChave(pis, chave)) : "";
     if (chave === "todas" && !window.sspTodasRecarregando) { window.sspTodasRecarregando = true; sspTodasExtras().finally(() => { window.sspTodasRecarregando = false; }); }
     const lista = chave === "todas" ? sspMontarTodas(d) : sspMontar(d, chave);
@@ -5922,7 +5923,11 @@ async function carregarSSPend(chave) {
           if (it.fotos.length) etapas.push(it.fotoAnexada ? chip("✔ Foto anexada à SS", verde) : chip("📷 Documento (foto) para anexar à SS", vermelho));
         }
       }
-      const ficha = sspFicha(it.campos);
+      // 10/11: PDF de débitos dos cortes (Importar Excel do SCI) junto de cada SS de corte da localidade
+      const debLoc = SSP_LOCAIS[it._chave || chave] || "";
+      const debPdf = ehCorteSS(it.tipoCurto || it.tipo) && debLoc ? (window.sspDebPdfs || []).filter(q => sspMesmoLocal(q.loc, debLoc)).sort((a, b) => String(b.quando).localeCompare(String(a.quando)))[0] : null;
+      const matDeb = sspLimpo(((it.campos || []).find(c => c[0] === "Matrícula") || [])[1]);
+      const ficha = sspFicha(it.campos) + (debPdf ? `<a href="${sspEsc(debPdf.url)}" target="_blank" style="display:block;text-align:center;text-decoration:none;background:#6a1b9a;color:#fff;border-radius:8px;padding:10px;margin:6px 0;font-weight:bold">📄 Ver débitos${matDeb ? " da matrícula " + sspEsc(matDeb) : ""} (PDF de ${formatarQuando(debPdf.quando)})</a>` : "");
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
       const exige = sspFotoExigida(it.tipo);
       const corteDigi = !SSP_CORTE_NO_CAMPO.includes(it._chave || chave) && ehCorteSS(it.tipoCurto || it.tipo); // corte em São Desidério: exclusivo pelo Digiteam
@@ -7690,7 +7695,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "09/11 20h15";
+const VERSAO_PAINEL = "10/11 07h24";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
