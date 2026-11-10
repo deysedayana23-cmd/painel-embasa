@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 07h24</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 07h26</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5864,10 +5864,17 @@ async function carregarSSPend(chave) {
     const contBai2 = {}; visiveis.forEach(it => { const b = bairroDe(it); if (b) contBai2[b] = (contBai2[b] || 0) + 1; });
     if (F.bairro && !contBai2[F.bairro]) F.bairro = "";
     if (F.bairro) visiveis = visiveis.filter(it => bairroDe(it) === F.bairro);
+    // 10/11: com corte escolhido, filtro também por logradouro (rua sem o número)
+    const ruaDe = it => { const c = (it.campos || []).find(x => x[0] === "Endereço"); return sspLimpo(c && c[1]).toUpperCase().replace(/^\d+\s*-\s*/, "").split(",")[0].replace(/\s+(N[º°O.]?\s*)?\d+[A-Z]?\s*$/, "").replace(/\s+S\/N$/, "").trim(); };
+    const comRua = F.tipo && /CORTE|SUSPENS/i.test(F.tipo);
+    const contRua = {}; if (comRua) visiveis.forEach(it => { const r = ruaDe(it); if (r) contRua[r] = (contRua[r] || 0) + 1; });
+    if (!comRua || (F.rua && !contRua[F.rua])) F.rua = "";
+    if (F.rua) visiveis = visiveis.filter(it => ruaDe(it) === F.rua);
     const opc = (cont, sel) => Object.keys(cont).sort((a, b) => a.localeCompare(b, "pt", { numeric: true })).map(k => `<option value="${sspEsc(k)}"${k === sel ? " selected" : ""}>${sspEsc(k)} (${cont[k]})</option>`).join("");
     const lugarHTML = Object.keys(contSet).length > 1 || Object.keys(contBai2).length > 1 ? `<div style="display:flex;gap:6px;margin-bottom:6px">
       ${Object.keys(contSet).length > 1 ? `<select class="campo" style="flex:1" onchange="window.sspF.setor=this.value;window.sspF.bairro='';carregarSSPend('${chave}')"><option value="">Setor: todos</option>${opc(contSet, F.setor)}</select>` : ""}
-      ${Object.keys(contBai2).length > 1 || F.bairro ? `<select class="campo" style="flex:1" onchange="window.sspF.bairro=this.value;carregarSSPend('${chave}')"><option value="">Bairro: todos</option>${opc(contBai2, F.bairro)}</select>` : ""}</div>` : "";
+      ${Object.keys(contBai2).length > 1 || F.bairro ? `<select class="campo" style="flex:1" onchange="window.sspF.bairro=this.value;window.sspF.rua='';carregarSSPend('${chave}')"><option value="">Bairro: todos</option>${opc(contBai2, F.bairro)}</select>` : ""}</div>` : "";
+    const ruaHTML = comRua && (Object.keys(contRua).length > 1 || F.rua) ? `<select class="campo" style="width:100%;margin-bottom:6px" onchange="window.sspF.rua=this.value;carregarSSPend('${chave}')"><option value="">Logradouro: todos</option>${opc(contRua, F.rua)}</select>` : "";
     // 09/11: filtro por prazo – vencidas, vence em até 24h, vence em até 48h
     const faltaH = it => it.prazo ? (it.prazo.fim - new Date()) / 36e5 : Infinity;
     const noPrazo = { venc: it => !!(it.prazo && it.prazo.vencida), h24: it => !(it.prazo && it.prazo.vencida) && faltaH(it) <= 24, h48: it => !(it.prazo && it.prazo.vencida) && faltaH(it) <= 48 };
@@ -5876,12 +5883,12 @@ async function carregarSSPend(chave) {
     const balaoP = (rot, val, n, cor) => { const on = F.prazo === val; return `<button onclick="window.sspF.prazo=${on ? "''" : "'" + val + "'"};carregarSSPend('${chave}')" style="flex:1 1 30%;margin:3px;padding:10px 4px;border-radius:10px;font-size:14px;font-weight:bold;border:2px solid ${cor};background:${on ? cor : "#fff"};color:${on ? "#fff" : cor}">${rot} (${n})</button>`; };
     const prazoHTML = `<div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${balaoP("Vencidas", "venc", nPrazo.venc, "#b71c1c")}${balaoP("Vence em até 24h", "h24", nPrazo.h24, "#ef6c00")}${balaoP("Vence em até 48h", "h48", nPrazo.h48, "#8d6e00")}</div>`;
     const extras = [F.de, F.ate, F.cesta].filter(Boolean).length;
-    const filtrosHTML = (tiposDisp.length ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${balao("Todos", "", nAntesTipo)}${tiposDisp.map(t => balao(t.replace(/^\d+\s*-\s*/, ""), t, contTipo[t])).join("")}</div>` : "") + lugarHTML + prazoHTML
+    const filtrosHTML = (tiposDisp.length ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${balao("Todos", "", nAntesTipo)}${tiposDisp.map(t => balao(t.replace(/^\d+\s*-\s*/, ""), t, contTipo[t])).join("")}</div>` : "") + lugarHTML + ruaHTML + prazoHTML
       + (telaUnica ? "" : `<details class="card" style="margin-bottom:8px"${extras ? " open" : ""}><summary style="font-weight:bold;cursor:pointer">📅 Período e cesta ${extras ? `(${visiveis.length} de ${totalAntes})` : ""}</summary>
       <div style="display:flex;gap:6px"><label style="flex:1;font-size:14px">De<input type="date" class="campo" value="${F.de || ""}" onchange="window.sspF.de=this.value;carregarSSPend('${chave}')"></label>
         <label style="flex:1;font-size:14px">Até<input type="date" class="campo" value="${F.ate || ""}" onchange="window.sspF.ate=this.value;carregarSSPend('${chave}')"></label></div>
       <label style="display:block;font-size:16px;margin:6px 0"><input type="checkbox"${F.cesta ? " checked" : ""} onchange="window.sspF.cesta=this.checked;carregarSSPend('${chave}')" style="transform:scale(1.3);margin-right:8px"> Só SS da cesta de metas 🎯</label>
-      ${extras || F.tipo || F.setor || F.bairro ? `<button class="acao" style="background:#757575" onclick="window.sspF={};carregarSSPend('${chave}')">Limpar filtros</button>` : ""}</details>`);
+      ${extras || F.tipo || F.setor || F.bairro || F.rua ? `<button class="acao" style="background:#757575" onclick="window.sspF={};carregarSSPend('${chave}')">Limpar filtros</button>` : ""}</details>`);
     // Ordem: vencidas e paradas primeiro; no "Falta ir a campo", ordem de visita a partir do escritório
     const urg = it => (it.prazo && it.prazo.vencida) || !!it.parada;
     if (filtro === "campo") visiveis = [...sspRota(visiveis.filter(urg), SSP_LOCAIS[chave]), ...sspRota(visiveis.filter(it => !urg(it)), SSP_LOCAIS[chave])];
@@ -7695,7 +7702,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 07h24";
+const VERSAO_PAINEL = "10/11 07h26";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
