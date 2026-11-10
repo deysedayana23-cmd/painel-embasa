@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 16h54</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 16h56</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5843,8 +5843,15 @@ function sspCatsRender() {
     const rot = { ee: "Pedidos de encerramento do campo", ped: "Pedidos de SS", rel: "Religação e 2ª via", oc: "Ocorrências", trm: "Tramitar SS" };
     box.innerHTML = "";
     document.querySelectorAll(".sspsec").forEach(d => { const k = d.dataset.cat; d.style.display = k === "ss" || (c[k] || 0) > 0 ? "" : "none"; });
+    // 10/11: "Pedidos de encerramento do campo" e "Pedidos de SS" viram um grupo só: "Pedidos de SS" (um título, as duas listas embaixo)
+    const nPed = (c.ee || 0) + (c.ped || 0);
     document.querySelectorAll(".sspsec_tit").forEach(t => { const k = t.dataset.cat;
-      t.innerHTML = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">${rot[k]} (${c[k] || 0})</div>`; });
+      if (k === "ped") { t.innerHTML = ""; return; }
+      const nome = k === "ee" ? "Pedidos de SS" : rot[k], n = k === "ee" ? nPed : (c[k] || 0);
+      t.innerHTML = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">${nome} (${n})</div>`; });
+    const secEE = document.querySelector('.sspsec[data-cat="ee"]'); if (secEE && nPed > 0) secEE.style.display = "";
+    const eeL = document.getElementById("ee_lista"); if (eeL) eeL.style.display = (c.ee || 0) > 0 ? "" : "none";
+    const titPed = document.querySelector('.sspsec_tit[data-cat="ped"]'); if (titPed) titPed.innerHTML = "";
     return;
   }
   box.innerHTML = extras.length ? [["ss", "SS do Excel", c.ss]].concat(extras.map(([k, r]) => [k, r, c[k]])).map(([k, rot, n]) => `<button onclick="window.sspCat='${k}';sspCatsRender()" style="flex:1 1 45%;margin:3px;padding:10px 6px;border-radius:10px;font-size:14px;font-weight:bold;border:2px solid #c62828;background:${at === k ? "#c62828" : "#fff"};color:${at === k ? "#fff" : "#c62828"}">${rot}${n === undefined ? "" : " (" + n + ")"}</button>`).join("") : "";
@@ -7798,7 +7805,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 16h54";
+const VERSAO_PAINEL = "10/11 16h56";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
