@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 07h26</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 08h18</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5547,11 +5547,14 @@ async function sspDados() {
   const imp = {}; ((ist && ist.dados) || []).slice(1).forEach(l => { if (l[0]) imp[String(l[0]).trim()] = String(l[1] || ""); });
   if (ex.erro) throw new Error(ex.erro);
   if (pe.erro) throw new Error(pe.erro);
-  return { cab: ex.dados[0] || [], ex: ex.dados.slice(1), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
+  // 10/11: SS excluídas do painel pela gerente (linha na ExecucaoCampo com situação "excluida (gerente)")
+  const excl = new Set(ex.dados.slice(1).filter(l => String(l[5] || "") === "excluida (gerente)").map(l => sspLimpo(l[1])));
+  return { excl, cab: ex.dados[0] || [], ex: ex.dados.slice(1).filter(l => String(l[5] || "") !== "excluida (gerente)"), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
     naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => sspLimpo(l[2]))) };
 }
 // Monta a lista da localidade a partir das abas
-function sspMontar(d, chave) {
+function sspMontar(d, chave) { return sspMontarBase(d, chave).filter(it => !(d.excl && it.ss && d.excl.has(sspLimpo(it.ss)))); }
+function sspMontarBase(d, chave) {
   const loc = SSP_LOCAIS[chave];
   const conf = {}; // chave (SS ou P<linha>) -> confirmações
   const pegar = k => (conf[k] = conf[k] || { executada: null, digitada: null, foto: null, assumida: null, gerExec: null, finalizada: false, fotos: [] });
@@ -5982,6 +5985,7 @@ async function carregarSSPend(chave) {
           <div style="font-size:13px;font-weight:bold;color:#4a148c;margin-bottom:4px">Só a gerente (SS vencida ou vencendo)</div>
           <button class="acao" style="background:#c62828" onclick="gerVencida('${id}', 'nova', this)">Encerrar como não executada e abrir outra igual</button>
           <button class="acao" style="background:#4a148c" onclick="gerVencida('${id}', 'exec', this)">Enviar aos digitadores para encerrar como executada</button></div>` : "";
+      const exclGer = window.MODO_GERENTE && it.ss && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse") ? `<button onclick="gerExcluirSS('${id}', this)" style="display:block;margin:8px 0 0 auto;padding:6px 12px;border-radius:8px;border:1px solid #c62828;background:#fff;color:#c62828;font-weight:bold">🗑 Excluir SS do painel</button>` : "";
       return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.prazo && it.prazo.vencida ? vermelho : it.parada ? vinho : it.tipoPedido === "digiteam" ? laranja : "#0b5394"}">
         ${filtro === "campo" ? `<span style="float:right;font-weight:bold;color:#0b5394">${n + 1}º</span>` : ""}
         <div style="font-size:20px;font-weight:bold;color:#0b5394">${p.digitador && it.ss && !it.digitada ? `<input type="checkbox" class="ssp_sel" value="${id}" onchange="sspContarSel()" style="transform:scale(1.5);margin-right:10px">` : ""}${selCampo.length > 1 && podeLoteCampo(it) ? `<input type="checkbox" class="sspc_sel" value="${id}" onchange="sspContarSelCampo()" style="transform:scale(1.5);margin-right:10px">` : ""}${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</div>
@@ -5992,7 +5996,7 @@ async function carregarSSPend(chave) {
         ${ficha}${fotosHTML}
         ${it.executada && it.executada.info ? `<div style="background:#fff8e1;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:15px">📝 <b>Campo informou:</b> ${sspEsc(it.executada.info)}</div>` : ""}
         ${it.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(it.gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
-        ${acoesCampo}${acoesDig}${acoesGer}
+        ${acoesCampo}${acoesDig}${acoesGer}${exclGer}
       </div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar: " + (e && e.message ? e.message : "erro") + "."; }
@@ -6108,6 +6112,19 @@ async function sspReligadaCampo(id, btn) {
 }
 // Decisões da gerente para SS vencida: "nova" = encerrar como não executada e abrir outra igual (vai aos digitadores);
 // "exec" = digitadores encerram como executada e o campo recebe em "SS encerradas no SCI, mas não em campo"
+// 10/11: só a Deyse – tira a SS do painel (de todas as telas: digitador e campo)
+async function gerExcluirSS(id, btn) {
+  const it = (window.sspCache || {})[id]; if (!it || !window.MODO_GERENTE || !normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse")) return;
+  if (!it.ss) { alert("Este pedido ainda não tem número de SS."); return; }
+  if (!confirm("Excluir a SS " + it.ss + " do painel? Ela some da tela dos digitadores e dos agentes de campo (no SCI nada muda).")) return;
+  sspTravar(btn);
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo", linhas: [[new Date().toISOString(), "'" + it.ss, it.tipoCurto || it.tipo || "", it.loc || "", nomesDoUsuario(), "excluida (gerente)", cred.usuario]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui excluir. Tente de novo."); sspDestravar(btn); }
+}
 async function gerVencida(id, modo, btn) {
   const it = (window.sspCache || {})[id]; if (!it || !window.MODO_GERENTE) return;
   const msg = modo === "nova" ? "Encerrar a SS " + it.ss + " como NÃO executada e pedir aos digitadores uma SS nova igual?" : "Enviar a SS " + it.ss + " aos digitadores para encerrar como EXECUTADA? Ela também vai para o campo em \"SS encerradas no SCI, mas não em campo\".";
@@ -7702,7 +7719,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 07h26";
+const VERSAO_PAINEL = "10/11 08h18";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
