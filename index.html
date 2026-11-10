@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 14h55</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 16h54</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5572,7 +5572,7 @@ async function sspDados() {
   // 10/11: SS excluídas do painel pela gerente (linha na ExecucaoCampo com situação "excluida (gerente)")
   const excl = new Set(ex.dados.slice(1).filter(l => String(l[5] || "") === "excluida (gerente)").map(l => sspLimpo(l[1])));
   // 10/11: "SS gerada em lote no SCI" só registra que a SS foi aberta – não conta como encerrada (as 28 religações de Baianópolis iam para "ir a campo" em vez de "SS abertas")
-  return { excl, cab: ex.dados[0] || [], ex: ex.dados.slice(1).filter(l => String(l[5] || "") !== "excluida (gerente)" && !(/gerada em lote/i.test(String(l[2] || "")) && String(l[5] || "") === "digitada")), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
+  return { encRaw: (enc && enc.dados) || [], istRaw: (ist && ist.dados) || [], peRaw: pe.dados || [], excl, cab: ex.dados[0] || [], ex: ex.dados.slice(1).filter(l => String(l[5] || "") !== "excluida (gerente)" && !(/gerada em lote/i.test(String(l[2] || "")) && String(l[5] || "") === "digitada")), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
     naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => sspLimpo(l[2]))) };
 }
 // Monta a lista da localidade a partir das abas
@@ -5743,6 +5743,13 @@ async function sspContagens() {
     });
     out.sspTodas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador).reduce((t, k) => t + (out[SSP_CONTA[k]] || 0), 0);
     if (dig) out.sspTodas += sspTramitar(d).length; // SS para tramitar entram no total
+    // 10/11: lista única – o número do botão soma também os pedidos de encerramento do campo e os pedidos de SS pendentes
+    if (dig) { try {
+      const lin = d.encRaw.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], ss: l[2], loc: l[4], obs: l[5], situacao: l[6] || "pendente" }));
+      const fora = eeSairamDoExcel(lin, [[]].concat(d.sa || []), d.istRaw);
+      out.sspTodas += lin.filter(x => x.situacao === "pendente" && !fora.has(x.linha)).length;
+      out.sspTodas += pssFiltrar(d.peRaw).filter(p => p.situacao === "pendente").length;
+    } catch (e) {} }
     if (dig && ehThiagoOuDeyse()) out.ligThiago = sspMontarTodas(d).filter(ligNovaPronta).length;
   } catch (e) {}
   return out;
@@ -7791,7 +7798,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 14h55";
+const VERSAO_PAINEL = "10/11 16h54";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
