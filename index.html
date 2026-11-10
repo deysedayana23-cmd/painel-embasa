@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 16h59</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 20h21</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1824,7 +1824,7 @@ async function atualizarContagemSS() {
       if (ee.erro) return 0;
       const lin = ee.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], ss: l[2], loc: l[4], obs: l[5], situacao: l[6] || "pendente" }));
       const fora = eeSairamDoExcel(lin, sa && sa.dados, ist && ist.dados);
-      return lin.filter(x => x.situacao === "pendente" && !fora.has(x.linha)).length;
+      return lin.filter(x => x.situacao === "pendente" && !fora.has(x.linha) && sspDepoisDoZero(x.quando)).length;
     } catch (e) { return 0; } })(),
     contar("PedidoSS", l => (l[10] || "pendente") === "pendente" && !sspPedidoNaTelaLocal(l[4], l[9])),
     contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
@@ -3216,7 +3216,7 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
     const saiuEE = todasEE.filter(x => foraEE.has(x.linha));
     const qAnexar = todasEE.filter(x => x.situacao === "anexar").length;
     const bAn = document.getElementById("ee_btn_anexar"); if (bAn) bAn.textContent = "Anexar documento à SS já encerrada (" + qAnexar + ")";
-    const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha)).reverse();
+    const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && sspDepoisDoZero(x.quando)).reverse();
     const notaSaiu = saiuEE.length ? `<details class="nota" style="margin-bottom:8px"><summary>✔ ${saiuEE.length} SS saíram desta lista porque não vieram mais no Excel do SCI (já encerradas no sistema)</summary>${saiuEE.map(x => "SS " + String(x.ss).replace(/^'/, "") + " · " + sspEsc(x.serv) + " · " + sspEsc(x.loc)).join("<br>")}</details>` : "";
     box.innerHTML = notaSaiu + (itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
@@ -3666,7 +3666,7 @@ const inatId = l => String(l[0]) + "|" + l[1] + "|" + sspLimpo(l[2]) + "|" + l[3
 function inatPedidos(dados) {
   const linhas = (dados || []).slice(1), feitos = {};
   linhas.filter(l => l[10] === "feito").forEach(l => { feitos[String(l[11])] = { por: l[1], em: l[0], pdf: String(l[12] || "") }; });
-  return linhas.filter(l => l[10] === "pendente").map(l => ({ id: inatId(l), quando: l[0], quem: l[1], mat: sspLimpo(l[2]), tipo: l[3], grupo: l[4], nome: l[5], end: l[6],
+  return linhas.filter(l => l[10] === "pendente" && sspDepoisDoZero(l[0])).map(l => ({ id: inatId(l), quando: l[0], quem: l[1], mat: sspLimpo(l[2]), tipo: l[3], grupo: l[4], nome: l[5], end: l[6],
     leitura: l[7], obs: l[8], fotos: String(l[9] || "").split(/\s+/).filter(u => /^https?:/.test(u)), ssOrigem: sspLimpo(l[11]), feito: feitos[inatId(l)] || null }));
 }
 function inativasNoMenu(itens) {
@@ -5334,6 +5334,7 @@ async function marcarDigiteamFeito(k) {
 function pssFiltrar(dados) {
     const itens = (dados || []).slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], bairro: l[5], log: l[6], mat: l[7], hd: l[8], obs: l[9], situacao: l[10] || "pendente", ss: l[11] || "", por: l[12] || "", dg: l[14] || "", fotos: l[15] || "", concl: l[16] || "", fotoAnex: l[17] || "" }))
       // Some da tela quando a SS é respondida com o número. Abrir e encerrar com foto só some depois de marcar a foto anexada.
+      .filter(p => sspDepoisDoZero(p.quando))
       .filter(p => p.situacao === "pendente" || (/ENCERRAR/.test(p.obs || "") && p.situacao === "respondida" && !!String(p.fotos || "").trim() && !p.fotoAnex))
       .map(p => p.situacao === "respondida" ? Object.assign(p, { situacao: "pendente", jaTemSS: p.ss }) : p)
       .filter(p => !sspPedidoNaTelaLocal(p.loc, p.obs)); // "Só gerar" e "Mandar no Digiteam" ficam em SS pendentes da localidade
@@ -5457,10 +5458,11 @@ function sspPedidoNaTelaLocal(loc, obs) {
 }
 // 09/11 16h20: listas zeradas a pedido da gerência. O que entrou antes disso sai do painel;
 // as SS do SCI voltam quando a exportação daquela unidade for importada de novo (só as que ainda estiverem abertas).
-const SSP_ZERADO_EM = "2026-11-09T19:20:00Z";
+const SSP_ZERADO_EM = "2026-11-10T23:21:00Z"; // 10/11 20h21: lista de SS pendentes zerada de novo a pedido da gerente (antes: 09/11 16h20)
+const sspDepoisDoZero = q => { const t = String(q || ""); return /T/.test(t) ? t >= SSP_ZERADO_EM : !!t && t >= "2026-11-10 20:21"; };
 const SSP_INICIO = "2026-11-04T19:00:00Z";
 // datas da planilha vêm em ISO (com T, UTC) ou "AAAA-MM-DD HH:MM:SS" (hora da Bahia)
-const sspAntesDoZero = q => { const t = String(q || ""); if (!t) return true; return /T/.test(t) ? t < SSP_ZERADO_EM : t < "2026-11-09 16:20"; }; // pedidos respondidos antes disso já seguiram o fluxo antigo
+const sspAntesDoZero = q => { const t = String(q || ""); if (!t) return true; return /T/.test(t) ? t < SSP_ZERADO_EM : t < "2026-11-10 20:21"; }; // pedidos respondidos antes disso já seguiram o fluxo antigo
 Object.assign(TELAS, {
   ssPendSD: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = false; return telaSSPend("sd"); },
   ssPendCat: () => { window.sspDemandasVenc = false; return telaSSPend("cat"); },
@@ -6096,7 +6098,7 @@ function sspChaveDaLocalidade(loc) {
   return "";
 }
 function sspOcorrencias(ocs, chave) {
-  return (ocs || []).filter(o => ["solicitada", "finalizada"].includes(o.situacao) && sspChaveDaLocalidade(o.loc) === chave);
+  return (ocs || []).filter(o => ["solicitada", "finalizada"].includes(o.situacao) && sspChaveDaLocalidade(o.loc) === chave && sspDepoisDoZero(o.quando));
 }
 function sspOcorrenciasHTML(lista) {
   if (!lista.length) return "";
@@ -7805,7 +7807,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 16h59";
+const VERSAO_PAINEL = "10/11 20h21";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
