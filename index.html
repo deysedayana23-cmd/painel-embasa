@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 16h56</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 16h59</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5743,13 +5743,6 @@ async function sspContagens() {
     });
     out.sspTodas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador).reduce((t, k) => t + (out[SSP_CONTA[k]] || 0), 0);
     if (dig) out.sspTodas += sspTramitar(d).length; // SS para tramitar entram no total
-    // 10/11: lista única – o número do botão soma também os pedidos de encerramento do campo e os pedidos de SS pendentes
-    if (dig) { try {
-      const lin = d.encRaw.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], ss: l[2], loc: l[4], obs: l[5], situacao: l[6] || "pendente" }));
-      const fora = eeSairamDoExcel(lin, [[]].concat(d.sa || []), d.istRaw);
-      out.sspTodas += lin.filter(x => x.situacao === "pendente" && !fora.has(x.linha)).length;
-      out.sspTodas += pssFiltrar(d.peRaw).filter(p => p.situacao === "pendente").length;
-    } catch (e) {} }
     if (dig && ehThiagoOuDeyse()) out.ligThiago = sspMontarTodas(d).filter(ligNovaPronta).length;
   } catch (e) {}
   return out;
@@ -5851,6 +5844,13 @@ function sspCatsRender() {
       t.innerHTML = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">${nome} (${n})</div>`; });
     const secEE = document.querySelector('.sspsec[data-cat="ee"]'); if (secEE && nPed > 0) secEE.style.display = "";
     const eeL = document.getElementById("ee_lista"); if (eeL) eeL.style.display = (c.ee || 0) > 0 ? "" : "none";
+    // 10/11: resumo no topo – o total do menu e de onde vem cada parte (toque para ir ao grupo)
+    const partes = [["ss", "SS do Excel", c.ss || 0], ["ee", "Pedidos de SS", nPed], ["rel", "Religação e 2ª via", c.rel || 0], ["oc", "Ocorrências", c.oc || 0], ["trm", "Tramitar SS", c.trm || 0]].filter(x => x[2] > 0);
+    const tot = partes.reduce((t, x) => t + x[2], 0);
+    box.style.display = "block";
+    box.innerHTML = tot ? `<div class="card" style="background:#fff3e0;border-left:6px solid #e65100;margin-bottom:8px"><div style="font-size:18px;font-weight:bold;margin-bottom:6px">${tot} pendentes no total</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${partes.map(([k, n, q]) => `<button onclick="const e=document.querySelector('.sspsec[data-cat=${k}]');if(e)e.scrollIntoView({behavior:'smooth'})" style="padding:6px 10px;border-radius:16px;border:1px solid #e65100;background:#fff;color:#e65100;font-weight:bold">${n}: ${q}</button>`).join("")}</div>
+      <div class="nota" style="margin-top:6px">Os filtros abaixo valem só para as SS do Excel. Os outros grupos ficam mais abaixo na lista.</div></div>` : "";
     const titPed = document.querySelector('.sspsec_tit[data-cat="ped"]'); if (titPed) titPed.innerHTML = "";
     return;
   }
@@ -7805,7 +7805,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 16h56";
+const VERSAO_PAINEL = "10/11 16h59";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
