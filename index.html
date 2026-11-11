@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 10/11 20h21</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 14h36</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4836,14 +4836,25 @@ function telaPedidoSS(encerrar = false) {
 }
 // Dados de encerramento e horário só aparecem (e só são exigidos) em "Digitar e encerrar"
 // 09/11: busca digitada nas listas de tipo e especificação – esconde o que não bate e, se sobrar uma opção, já escolhe
+// 11/11: busca por palavras em qualquer ordem ("luva 63" acha "LUVA PVC ... 63 MM")
+// números só valem como número inteiro na descrição ("63" acha 63MM, não um código que tenha 63 no meio)
+const buscaNorm = v => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const buscaCasa = (alvo, texto) => { const t = buscaNorm(alvo), desc = t.includes(" – ") ? t.split(" – ").slice(1).join(" ") : t, tj = t.replace(/[^a-z0-9]/g, "");
+  return String(texto || "").split(/\s+/).map(buscaNorm).map(w => w.replace(/[^a-z0-9]/g, "")).filter(Boolean)
+    .every(w => /^\d+$/.test(w) ? new RegExp("(^|\\D)" + w + "(\\D|$)").test(desc) || t.startsWith(w) : tj.includes(w)); };
 function filtrarSelect(id, texto) {
+  // 11/11: refaz a lista só com o que combina (esconder opção não funciona em todo celular)
   const sel = document.getElementById(id); if (!sel) return;
-  const q = normalizarNome(texto || "");
-  const ops = [...sel.options].filter(o => o.value !== "");
-  let vis = [];
-  ops.forEach(o => { const ok = !q || normalizarNome(o.text).includes(q); o.hidden = !ok; o.disabled = !ok; if (ok) vis.push(o); });
-  if (q && vis.length === 1 && sel.value !== vis[0].value) { sel.value = vis[0].value; sel.dispatchEvent(new Event("change")); }
-  else if (q && vis.length && !vis.some(o => o.value === sel.value)) { sel.value = ""; }
+  if (!sel._todas || sel.innerHTML !== sel._meu) sel._todas = [...sel.options].map(o => [o.value, o.text]); // lista trocada por outra tela: pega a nova
+  const atual = sel.value, q = normalizarNome(texto || "");
+  const vazio = sel._todas.find(o => o[0] === ""), resto = sel._todas.filter(o => o[0] !== "");
+  const vis = q ? resto.filter(o => buscaCasa(o[1], texto)) : resto;
+  const esc = v => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+  sel.innerHTML = (vazio ? `<option value="">${esc(q ? (vis.length ? vis.length + " item(ns) encontrado(s) – escolha…" : "Nada encontrado") : vazio[1])}</option>` : "") + vis.map(o => `<option value="${esc(o[0])}">${esc(o[1])}</option>`).join("");
+  sel._meu = sel.innerHTML;
+  if (vis.some(o => o[0] === atual)) sel.value = atual;
+  else if (q && vis.length === 1) { sel.value = vis[0][0]; sel.dispatchEvent(new Event("change")); }
+  else sel.value = "";
 }
 function psAcaoMudou() {
   const enc = ((document.getElementById("ps_acao") || {}).value || "") === "Digitar e encerrar";
@@ -6540,6 +6551,7 @@ function abrirAlmox(op) {
   const opcoesMat = `<option value="">Escolha o material…</option>${CATALOGO_ALMOX.map(([c, d]) => `<option value="${c}">${c} – ${d}</option>`).join("")}`;
   if (op === "saldo") {
     area.innerHTML = `<h3>Consultar saldo por item</h3>
+      <input class="campo" placeholder="🔎 Pesquisar item (ex.: luva 63)" oninput="filtrarSelect('ac_mat', this.value)">
       <select id="ac_mat" class="campo" onchange="mostrarSaldo()">${opcoesMat}</select>
       <div id="ac_saldo" class="nota"></div>`;
     mostrarSaldo();
@@ -6550,7 +6562,9 @@ function abrirAlmox(op) {
     const tipo = op === "adicionar" ? "Entrada (acrescentar)" : "Retirada";
     area.innerHTML = `<h3>${op === "adicionar" ? "Adicionar item" : "Retirar item"}</h3>
       <input type="hidden" id="ac_tipo" value="${tipo}">
+      <input class="campo" placeholder="🔎 Pesquisar item (ex.: luva 63)" oninput="filtrarSelect('ac_mat', this.value)">
       <select id="ac_mat" class="campo">${opcoesMat}</select>
+      <div class="nota">Digite parte do nome ou o código; a lista mostra só o que combinar (se sobrar um item, ele já fica escolhido).</div>
       <input id="ac_qtd" class="campo" type="number" min="1" placeholder="Quantidade">
       <input id="ac_obs" class="campo" placeholder="Observação">
       <button class="acao" onclick="movimentarCatalogo()">Registrar</button>`;
@@ -6647,8 +6661,8 @@ async function movimentarCatalogo() {
 }
 
 function filtrarPedidoMaterial() {
-  const q = normalizarNome(document.getElementById("pm_busca").value);
-  document.querySelectorAll("#pm_lista .pm_item").forEach(el => { el.style.display = !q || el.dataset.busca.includes(q) ? "" : "none"; });
+  const t = document.getElementById("pm_busca").value, q = normalizarNome(t);
+  document.querySelectorAll("#pm_lista .pm_item").forEach(el => { el.style.display = !q || buscaCasa(el.dataset.busca, t) ? "" : "none"; });
 }
 function marcarPedidoMaterial(cod, valor) {
   const q = parseFloat(valor);
@@ -7807,7 +7821,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "10/11 20h21";
+const VERSAO_PAINEL = "11/11 14h36";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
