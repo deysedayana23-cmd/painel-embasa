@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 14h38</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 15h10</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -6562,6 +6562,8 @@ function abrirAlmox(op) {
     const tipo = op === "adicionar" ? "Entrada (acrescentar)" : "Retirada";
     area.innerHTML = `<h3>${op === "adicionar" ? "Adicionar item" : "Retirar item"}</h3>
       <input type="hidden" id="ac_tipo" value="${tipo}">
+      ${(document.getElementById("ac_local") || {}).value ? "" : `<div class="nota" style="color:#c62828;font-weight:600">Escolha de qual almoxarifado sai/entra o material:</div>
+      <select class="campo" style="border:2px solid #c62828" onchange="document.getElementById('ac_local').value=this.value;this.style.border='2px solid #2e7d32'"><option value="">Local do almoxarifado…</option>${locaisAlmoxDaPessoa().map(l => `<option>${l}</option>`).join("")}</select>`}
       <input class="campo" placeholder="🔎 Pesquisar item (ex.: luva 63)" oninput="almoxBuscar(this.value)"><div id="ac_res"></div>
       <select id="ac_mat" class="campo">${opcoesMat}</select>
       <div class="nota">Digite parte do nome ou o código; a lista mostra só o que combinar (se sobrar um item, ele já fica escolhido).</div>
@@ -6630,7 +6632,7 @@ function itemCatalogo(codigo) {
 async function mostrarSaldo() {
   const cod = document.getElementById("ac_mat").value;
   const local = document.getElementById("ac_local").value;
-  const box = document.getElementById("ac_saldo");
+  const box = document.getElementById("ac_saldo"); if (!box) return;
   if (!cod || !local) { box.textContent = local ? "" : "Escolha o local primeiro."; return; }
   const item = itemCatalogo(cod);
   box.textContent = "Consultando saldo...";
@@ -6648,7 +6650,9 @@ async function movimentarCatalogo() {
   const cod = document.getElementById("ac_mat").value;
   const qtd = document.getElementById("ac_qtd").value;
   const local = document.getElementById("ac_local").value;
-  if (!local || !cod || !qtd) { alert("Escolha o local, o material e a quantidade."); return; }
+  if (!local) { alert("Escolha o local do almoxarifado (a lista em vermelho, acima do material)."); return; }
+  if (!cod) { alert("Escolha o material: pesquise e toque no item."); return; }
+  if (!qtd) { alert("Informe a quantidade."); return; }
   if (!podeMovimentarAlmox(local)) { alert("Só a equipe de " + local + " pode retirar ou adicionar neste almoxarifado. Você pode consultar o saldo e fazer pedido de material."); return; }
   const item = itemCatalogo(cod);
   const linha = [new Date().toISOString(), window.credenciais.usuario, local, document.getElementById("ac_tipo").value,
@@ -7838,7 +7842,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 14h38";
+const VERSAO_PAINEL = "11/11 15h10";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
