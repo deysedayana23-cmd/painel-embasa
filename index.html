@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 14h36</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 14h38</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -6551,7 +6551,7 @@ function abrirAlmox(op) {
   const opcoesMat = `<option value="">Escolha o material…</option>${CATALOGO_ALMOX.map(([c, d]) => `<option value="${c}">${c} – ${d}</option>`).join("")}`;
   if (op === "saldo") {
     area.innerHTML = `<h3>Consultar saldo por item</h3>
-      <input class="campo" placeholder="🔎 Pesquisar item (ex.: luva 63)" oninput="filtrarSelect('ac_mat', this.value)">
+      <input class="campo" placeholder="🔎 Pesquisar item (ex.: luva 63)" oninput="almoxBuscar(this.value)"><div id="ac_res"></div>
       <select id="ac_mat" class="campo" onchange="mostrarSaldo()">${opcoesMat}</select>
       <div id="ac_saldo" class="nota"></div>`;
     mostrarSaldo();
@@ -6562,7 +6562,7 @@ function abrirAlmox(op) {
     const tipo = op === "adicionar" ? "Entrada (acrescentar)" : "Retirada";
     area.innerHTML = `<h3>${op === "adicionar" ? "Adicionar item" : "Retirar item"}</h3>
       <input type="hidden" id="ac_tipo" value="${tipo}">
-      <input class="campo" placeholder="🔎 Pesquisar item (ex.: luva 63)" oninput="filtrarSelect('ac_mat', this.value)">
+      <input class="campo" placeholder="🔎 Pesquisar item (ex.: luva 63)" oninput="almoxBuscar(this.value)"><div id="ac_res"></div>
       <select id="ac_mat" class="campo">${opcoesMat}</select>
       <div class="nota">Digite parte do nome ou o código; a lista mostra só o que combinar (se sobrar um item, ele já fica escolhido).</div>
       <input id="ac_qtd" class="campo" type="number" min="1" placeholder="Quantidade">
@@ -6660,6 +6660,23 @@ async function movimentarCatalogo() {
   } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
 }
 
+// 11/11: resultado da pesquisa aparece na tela como lista para tocar (todas as opções que tiverem o que foi digitado)
+function almoxBuscar(texto) {
+  const box = document.getElementById("ac_res"); if (!box) return;
+  const t = String(texto || "").trim();
+  if (!t) { box.innerHTML = ""; return; }
+  const achados = CATALOGO_ALMOX.filter(([c, d]) => buscaCasa(c + " – " + d, t));
+  box.innerHTML = `<div class="nota" style="font-weight:600">${achados.length ? achados.length + " item(ns) com \"" + sspEsc(t) + "\" – toque no item:" : "Nenhum item com \"" + sspEsc(t) + "\""}</div>` +
+    `<div style="max-height:360px;overflow-y:auto;border:1px solid #ddd;border-radius:8px;margin-bottom:8px">` +
+    achados.map(([c, d]) => `<div onclick="almoxEscolher('${c}')" style="padding:10px;border-bottom:1px solid #eee;font-size:15px;cursor:pointer"><b>${sspEsc(d)}</b><br><span style="font-size:12px;color:#666">${sspEsc(c)}</span></div>`).join("") + `</div>`;
+}
+function almoxEscolher(cod) {
+  const sel = document.getElementById("ac_mat"); if (!sel) return;
+  sel.value = cod; sel.dispatchEvent(new Event("change"));
+  const it = CATALOGO_ALMOX.find(([c]) => c === cod);
+  const box = document.getElementById("ac_res"); if (box) box.innerHTML = `<div class="nota" style="background:#e8f5e9;border-radius:8px;padding:8px;font-weight:600">✔ Escolhido: ${sspEsc(it ? it[1] : cod)}</div>`;
+  const q = document.getElementById("ac_qtd"); if (q) q.focus();
+}
 function filtrarPedidoMaterial() {
   const t = document.getElementById("pm_busca").value, q = normalizarNome(t);
   document.querySelectorAll("#pm_lista .pm_item").forEach(el => { el.style.display = !q || buscaCasa(el.dataset.busca, t) ? "" : "none"; });
@@ -7821,7 +7838,7 @@ async function cancelarDemandaAgersa(linha) {
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 14h36";
+const VERSAO_PAINEL = "11/11 14h38";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
