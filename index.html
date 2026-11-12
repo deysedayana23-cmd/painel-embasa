@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 17h05</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 17h26</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1831,7 +1831,7 @@ async function atualizarContagemSS() {
       if (ee.erro) return 0;
       const lin = ee.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], ss: l[2], loc: l[4], obs: l[5], situacao: l[6] || "pendente" }));
       const fora = eeSairamDoExcel(lin, sa && sa.dados, ist && ist.dados);
-      return lin.filter(x => x.situacao === "pendente" && !fora.has(x.linha) && sspDepoisDoZero(x.quando)).length;
+      return lin.filter(x => x.situacao === "pendente" && !fora.has(x.linha) && sspMemoriaValida(x.quando)).length;
     } catch (e) { return 0; } })(),
     contar("PedidoSS", l => (l[10] || "pendente") === "pendente" && !sspPedidoNaTelaLocal(l[4], l[9])),
     contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
@@ -3227,7 +3227,7 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
     // 12/11: "não executado" informado antes de zerar as listas continua aqui enquanto a SS estiver aberta no SCI (antes sumia do campo e do escritório)
     const abertasSCI = new Set(((saEE && saEE.dados) || []).slice(1).filter(l => !/encerrad|cancelad|conclu|saiu/i.test(String(l[5] || ""))).map(l => String(l[0] || "").replace(/^'/, "").trim()));
     const naoExecAberta = x => /\[NÃO EXECUTADO\]/.test(String(x.obs || "")) && abertasSCI.has(String(x.ss || "").replace(/^'/, "").trim());
-    const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && (sspDepoisDoZero(x.quando) || naoExecAberta(x))).reverse();
+    const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && sspMemoriaValida(x.quando)).reverse();
     const notaSaiu = saiuEE.length ? `<details class="nota" style="margin-bottom:8px"><summary>✔ ${saiuEE.length} SS saíram desta lista porque não vieram mais no Excel do SCI (já encerradas no sistema)</summary>${saiuEE.map(x => "SS " + String(x.ss).replace(/^'/, "") + " · " + sspEsc(x.serv) + " · " + sspEsc(x.loc)).join("<br>")}</details>` : "";
     // 12/11: selecionar todas e concluir de uma vez
     const eeSelecionaveis = gerencia ? itens.filter(x => !/\[VENCIDA\]|\[NOVA SS\]/.test(String(x.obs))) : [];
@@ -5612,6 +5612,10 @@ const SSP_ZERADO_EM = "2026-11-10T23:21:00Z"; // 10/11 20h21: lista de SS penden
 const sspDepoisDoZero = q => { const t = String(q || ""); return /T/.test(t) ? t >= SSP_ZERADO_EM : !!t && t >= "2026-11-10 20:21"; };
 const SSP_INICIO = "2026-11-04T19:00:00Z";
 // datas da planilha vêm em ISO (com T, UTC) ou "AAAA-MM-DD HH:MM:SS" (hora da Bahia)
+// 12/11 17h16: memória das SS zerada a pedido da gerente – marcações antigas da equipe (executada, digitada,
+// não executado, assumida, foto) deixam de valer; a SS volta a campo conforme o Excel atual. As exclusões da gerente continuam valendo.
+const SSP_MEMORIA_SS = "2026-11-12T20:23:00Z"; // 12/11: memória das SS zerada a pedido da gerente (marcações anteriores não contam; as SS voltam para o campo)
+const sspMemoriaValida = q => String(q || "") >= SSP_MEMORIA_SS;
 const sspAntesDoZero = q => { const t = String(q || ""); if (!t) return true; return /T/.test(t) ? t < SSP_ZERADO_EM : t < "2026-11-10 20:21"; }; // pedidos respondidos antes disso já seguiram o fluxo antigo
 Object.assign(TELAS, {
   ssPendSD: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = false; return telaSSPend("sd"); },
@@ -5727,7 +5731,8 @@ async function sspDados() {
   const excl = new Set(ex.dados.slice(1).filter(l => String(l[5] || "") === "excluida (gerente)").map(l => sspLimpo(l[1])));
   // 10/11: "SS gerada em lote no SCI" só registra que a SS foi aberta – não conta como encerrada (as 28 religações de Baianópolis iam para "ir a campo" em vez de "SS abertas")
   return { encRaw: (enc && enc.dados) || [], istRaw: (ist && ist.dados) || [], peRaw: pe.dados || [], excl, cab: ex.dados[0] || [], ex: ex.dados.slice(1).filter(l => String(l[5] || "") !== "excluida (gerente)" && !(/gerada em lote/i.test(String(l[2] || "")) && String(l[5] || "") === "digitada")), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
-    naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5]))).map(l => sspLimpo(l[2]))) };
+    // 12/11: "não executado" informado antes de zerar a memória não segura mais a SS – ela volta para o campo
+    naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5])) && sspMemoriaValida(l[0])).map(l => sspLimpo(l[2]))) };
 }
 // Monta a lista da localidade a partir das abas
 // 10/11: ligação nova de água já executada (campo informou ou o SCI diz "serviço cobrado não pode ser encerrado pelo agente de campo"):
@@ -5770,6 +5775,7 @@ function sspMontarBase(d, chave) {
   const pegar = k => (conf[k] = conf[k] || { executada: null, digitada: null, foto: null, assumida: null, gerExec: null, finalizada: false, fotos: [] });
   d.ex.forEach(l => {
     const k = sspLimpo(l[1]); if (!k) return;
+    if (!sspMemoriaValida(l[0])) return; // memória zerada em 12/11: marcações antigas não contam
     const sit = String(l[5] || "").toLowerCase().trim();
     const c = pegar(k);
     const quem = String(l[6] || "").split("|")[0].trim() || String(l[4] || "");
@@ -8333,7 +8339,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "12/11 17h05";
+const VERSAO_PAINEL = "12/11 17h26";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
