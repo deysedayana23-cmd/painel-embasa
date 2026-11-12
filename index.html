@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 17h04</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 17h05</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3229,8 +3229,13 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
     const naoExecAberta = x => /\[NÃO EXECUTADO\]/.test(String(x.obs || "")) && abertasSCI.has(String(x.ss || "").replace(/^'/, "").trim());
     const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && (sspDepoisDoZero(x.quando) || naoExecAberta(x))).reverse();
     const notaSaiu = saiuEE.length ? `<details class="nota" style="margin-bottom:8px"><summary>✔ ${saiuEE.length} SS saíram desta lista porque não vieram mais no Excel do SCI (já encerradas no sistema)</summary>${saiuEE.map(x => "SS " + String(x.ss).replace(/^'/, "") + " · " + sspEsc(x.serv) + " · " + sspEsc(x.loc)).join("<br>")}</details>` : "";
-    box.innerHTML = notaSaiu + (itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
-      <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
+    // 12/11: selecionar todas e concluir de uma vez
+    const eeSelecionaveis = gerencia ? itens.filter(x => !/\[VENCIDA\]|\[NOVA SS\]/.test(String(x.obs))) : [];
+    const loteEE = eeSelecionaveis.length > 1 ? `<div class="card" style="margin-bottom:8px;background:#e8f1fb;border-left:6px solid #0b5394">
+      <label style="font-size:16px;font-weight:bold"><input type="checkbox" onchange="document.querySelectorAll('.ee_sel').forEach(c => c.checked = this.checked);eeContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${eeSelecionaveis.length})</label>
+      <button class="acao" id="ee_lote_btn" onclick="eeConcluirLote(this)">✔ Concluídas no sistema (0)</button></div>` : "";
+    box.innerHTML = notaSaiu + (itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + loteEE + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
+      ${gerencia && !/\[VENCIDA\]|\[NOVA SS\]/.test(String(x.obs)) ? `<input type="checkbox" class="ee_sel" value="${x.linha}" onchange="eeContarSel()" style="transform:scale(1.5);margin-right:10px;float:left">` : ""}<b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
       ${x.obs ? `<br><span style="font-size:14px;color:#0b5394;font-weight:600">${x.obs}</span>` : ""}
       ${gerencia && /\[VENCIDA\]|\[NOVA SS\]/.test(String(x.obs)) ? `<br><input id="ee_nova_${x.linha}" class="campo" placeholder="Número da NOVA SS gerada">
         <button class="acao" style="background:#0b5394" onclick="registrarNovaSSVencida(${x.linha}, '${String(x.ss).replace(/^'/, "")}', '${String(x.serv).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">Cancelada e nova SS gerada</button>`
@@ -3255,6 +3260,24 @@ async function registrarNovaSSVencida(linha, ssAntiga, tipo, loc) {
     alert("SS " + nova + " lançada no lugar da " + ssAntiga + ". Ela já aparece para o funcionário pedir no Digiteam.");
     carregarEncerrarEscritorio();
   } catch (e) { alert("Não consegui registrar. Verifique a internet."); }
+}
+function eeContarSel() {
+  const b = document.getElementById("ee_lote_btn"); if (b) b.textContent = "✔ Concluídas no sistema (" + document.querySelectorAll(".ee_sel:checked").length + ")";
+}
+// 12/11: concluir várias de uma vez (uma chamada por SS, em sequência)
+async function eeConcluirLote(btn) {
+  const linhas = [...document.querySelectorAll(".ee_sel:checked")].map(c => Number(c.value));
+  if (!linhas.length) { alert("Marque as SS que já foram concluídas no sistema."); return; }
+  if (!confirm("Marcar " + linhas.length + " SS como concluídas no sistema? Elas saem da lista.")) return;
+  btn.disabled = true;
+  try {
+    for (let i = 0; i < linhas.length; i++) {
+      btn.textContent = "Gravando " + (i + 1) + " de " + linhas.length + "...";
+      const res = await chamarApi({ acao: "marcarEncerrada", usuario: window.credenciais.usuario, senha: window.credenciais.senha, linha: linhas[i] });
+      if (res.erro) { alert(res.erro + " (parei na SS " + (i + 1) + ")"); break; }
+    }
+  } catch (e) { alert("A internet falhou no meio. As que já foram gravadas saem da lista."); }
+  carregarEncerrarEscritorio();
 }
 async function marcarEncerrada(linha) {
   try {
@@ -8310,7 +8333,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "12/11 17h04";
+const VERSAO_PAINEL = "12/11 17h05";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
