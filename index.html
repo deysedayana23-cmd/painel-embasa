@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h22</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h26</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5368,7 +5368,10 @@ async function carregarPedidosSS(boxId = "pss_lista", soWhats = false) {
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "PedidoSS" });
     if (res.erro) { box.textContent = res.erro; return; }
-    const itens = pssFiltrar(res.dados).filter(p => !soWhats || sspEhWhats(p.obs));
+    const digi = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador);
+    const minhasLocs = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo).map(k => SSP_LOCAIS[k]);
+    const itens = pssFiltrar(res.dados).filter(p => !soWhats || (sspEhWhats(p.obs) && (digi || minhasLocs.some(x => sspMesmoLocal(p.loc, x)))));
+    const soLeitura = soWhats && !digi; // agente de campo: só acompanha; quem responde é o digitador
     itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
     window.pssCache = {};
     itens.forEach(p => { window.pssCache[p.linha] = p; });
@@ -5383,7 +5386,7 @@ async function carregarPedidosSS(boxId = "pss_lista", soWhats = false) {
         <b>${p.tipo}</b><br><span style="font-size:14px">${p.esp} · ${p.loc} · pedido por ${p.quem} em ${formatarQuando(p.quando)}</span>
         <pre style="white-space:pre-wrap;font-size:13px">${ficha}</pre>
         ${p.fotos ? "<div style=\"font-size:14px\">Fotos para adicionar: " + p.fotos.split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") + "</div>" : ""}
-        ${pend ? `${p.jaTemSS ? `<div class="nota">SS nº <b>${String(p.jaTemSS).replace(/^'/, "")}</b> já informada. Falta concluir e anexar a foto.</div>` : ""}<input id="pss_n_${p.linha}" class="campo" placeholder="Número da SS gerada" value="${p.jaTemSS ? String(p.jaTemSS).replace(/^'/, "") : ""}">
+        ${pend && soLeitura ? `<div class="nota">Pedido recebido pelo WhatsApp. Aguardando o digitador responder com a SS.</div>` : pend ? `${p.jaTemSS ? `<div class="nota">SS nº <b>${String(p.jaTemSS).replace(/^'/, "")}</b> já informada. Falta concluir e anexar a foto.</div>` : ""}<input id="pss_n_${p.linha}" class="campo" placeholder="Número da SS gerada" value="${p.jaTemSS ? String(p.jaTemSS).replace(/^'/, "") : ""}">
           ${selectDigiteam("pss_d_" + p.linha)}
           ${/ENCERRAR/.test(p.obs) ? `<label style="display:block;margin:6px 0"><input type="checkbox" id="pss_e_${p.linha}"> Ainda não foi encerrada: mandar para encerrar pelo escritório</label>` : ""}
           ${/ENCERRAR/.test(p.obs) ? (String(p.fotos || "").trim() ? `<label>Foto anexada no sistema? <select id="pss_f_${p.linha}" class="campo"><option>Não</option><option>Sim</option></select></label>
@@ -5523,7 +5526,8 @@ function sspBotoesDoUsuario() {
   if (Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador)) return [{ nome: "SS pendentes", tela: "ssPendTodas", prioridade: true }, { nome: "SS solicitadas via WhatsApp", tela: "ssWhats", prioridade: true }];
   const vencidas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo && !sspPapel(k).digitador)
     .map(k => ({ nome: "SS encerradas no SCI, mas não em campo", tela: { sd: "ssVencSD", cat: "ssVencCat", bai: "ssVencBai", ang: "ssVencAng" }[k], prioridade: true }));
-  return vencidas.concat(Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
+  const whatsCampo = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).campo) ? [{ nome: "SS solicitadas via WhatsApp", tela: "ssWhats", prioridade: true }] : [];
+  return whatsCampo.concat(vencidas, Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
     .map(k => ({ nome: "SS em aberto no sistema – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai", ang: "ssPendAng" }[k], prioridade: true })));
 }
 // Menu principal: SS pendentes no topo; para o campo, um botão só "Pedir SS"; para a gerente, "Resumo e relatório"
@@ -8167,7 +8171,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 22h22";
+const VERSAO_PAINEL = "11/11 22h26";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
