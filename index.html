@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h26</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h33</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -5371,7 +5371,16 @@ async function carregarPedidosSS(boxId = "pss_lista", soWhats = false) {
     const digi = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador);
     const minhasLocs = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo).map(k => SSP_LOCAIS[k]);
     const itens = pssFiltrar(res.dados).filter(p => !soWhats || (sspEhWhats(p.obs) && (digi || minhasLocs.some(x => sspMesmoLocal(p.loc, x)))));
-    const soLeitura = soWhats && !digi; // agente de campo: só acompanha; quem responde é o digitador
+    const soLeitura = soWhats && !digi; // agente de campo: só acompanha; quem responde com a SS é o digitador
+    const resp = {};
+    if (soWhats) {
+      try {
+        const ac = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS" });
+        (ac.dados || []).slice(1).filter(l => /^whatsresp:/.test(String(l[6] || ""))).forEach(l => {
+          resp[String(l[6]).replace(/^whatsresp:/, "")] = { quem: l[1], quando: l[0], texto: String(l[7] || "") };
+        });
+      } catch (e) {}
+    }
     itens.sort((a, b) => (a.situacao === "pendente" ? 0 : 1) - (b.situacao === "pendente" ? 0 : 1));
     window.pssCache = {};
     itens.forEach(p => { window.pssCache[p.linha] = p; });
@@ -5381,6 +5390,15 @@ async function carregarPedidosSS(boxId = "pss_lista", soWhats = false) {
       const ficha = ["Tipo: " + p.tipo, "Especificação: " + p.esp, "Localidade: " + p.loc, p.bairro && "Bairro: " + p.bairro, p.log && "Logradouro/Ref.: " + p.log,
         p.mat && "Matrícula: " + p.mat, p.hd && "Hidrômetro: " + p.hd, "Obs.: " + p.obs].filter(Boolean).join("\n");
       const tarjaWhats = sspTarjaWhats(p.obs);
+      const r = resp[p.linha];
+      const blocoWhats = !soWhats ? "" : `<div style="border-top:1px solid #ddd;margin-top:8px;padding-top:6px">
+        <b>Resposta do responsável pela localidade</b>
+        ${r ? `<div class="nota" style="color:#2e7d32">${r.texto}<br>— ${r.quem} em ${formatarQuando(r.quando)}</div>`
+            : `<div class="nota">Ainda sem resposta do responsável.</div>`}
+        ${soLeitura ? `<input id="wr_p_${p.linha}" class="campo" placeholder="Novo prazo que podemos dar ao cliente">
+          <textarea id="wr_m_${p.linha}" class="campo" rows="2" placeholder="O que houve para demorar"></textarea>
+          <button class="acao" onclick="responderWhats(${p.linha})">${r ? "Atualizar resposta" : "Enviar resposta"}</button>` : ""}
+      </div>`;
       return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${pend ? "#c62828" : "#2e7d32"}">
         ${tarjaWhats ? `<div style="background:#25D366;color:#fff;font-weight:bold;padding:4px 8px;border-radius:6px;margin-bottom:6px">${tarjaWhats}</div>` : ""}
         <b>${p.tipo}</b><br><span style="font-size:14px">${p.esp} · ${p.loc} · pedido por ${p.quem} em ${formatarQuando(p.quando)}</span>
@@ -5395,9 +5413,26 @@ async function carregarPedidosSS(boxId = "pss_lista", soWhats = false) {
           <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>
           ${window.MODO_GERENTE && !emPrevia() ? `<button class="acao" style="background:#c62828" onclick="cancelarPedidoSS(${p.linha})">Cancelar pedido (duplicado ou errado)</button>` : ""}`
           : `<div>SS nº <b>${p.ss}</b> · respondida por ${p.por}${p.dg ? " · enviada ao Digiteam de <b>" + p.dg + "</b>" : ""}</div>`}
+        ${blocoWhats}
       </div>`;
     }).join("");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+// Responsável pela localidade responde o pedido que veio do WhatsApp: novo prazo + o que houve.
+// Grava como linha de controle na aba AcaoSS (não mexe no back-end).
+async function responderWhats(linha) {
+  const p = (window.pssCache || {})[linha];
+  const prazo = ((document.getElementById("wr_p_" + linha) || {}).value || "").trim();
+  const motivo = ((document.getElementById("wr_m_" + linha) || {}).value || "").trim();
+  if (!prazo || !motivo) { alert("Informe o novo prazo e o que houve para demorar."); return; }
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AcaoSS",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "", "Resposta WhatsApp", (p && p.loc) || "", "", "whatsresp:" + linha,
+        "Novo prazo: " + prazo + " | O que houve: " + motivo]] });
+    if (res.erro) { alert(res.erro); return; }
+    alert("Resposta enviada. O escritório vai retornar ao cliente pelo WhatsApp.");
+    carregarPedidosSS("pss_whats", true);
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); }
 }
 async function cancelarPedidoSS(linha) {
   const p = (window.pssCache || {})[linha];
@@ -8171,7 +8206,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 22h26";
+const VERSAO_PAINEL = "11/11 22h33";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
