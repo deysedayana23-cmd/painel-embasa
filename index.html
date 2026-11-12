@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 23h05</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 07h56</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3224,7 +3224,10 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
     const saiuEE = todasEE.filter(x => foraEE.has(x.linha));
     const qAnexar = todasEE.filter(x => x.situacao === "anexar").length;
     const bAn = document.getElementById("ee_btn_anexar"); if (bAn) bAn.textContent = "Anexar documento à SS já encerrada (" + qAnexar + ")";
-    const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && sspDepoisDoZero(x.quando)).reverse();
+    // 12/11: "não executado" informado antes de zerar as listas continua aqui enquanto a SS estiver aberta no SCI (antes sumia do campo e do escritório)
+    const abertasSCI = new Set(((saEE && saEE.dados) || []).slice(1).filter(l => !/encerrad|cancelad|conclu|saiu/i.test(String(l[5] || ""))).map(l => String(l[0] || "").replace(/^'/, "").trim()));
+    const naoExecAberta = x => /\[NÃO EXECUTADO\]/.test(String(x.obs || "")) && abertasSCI.has(String(x.ss || "").replace(/^'/, "").trim());
+    const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && (sspDepoisDoZero(x.quando) || naoExecAberta(x))).reverse();
     const notaSaiu = saiuEE.length ? `<details class="nota" style="margin-bottom:8px"><summary>✔ ${saiuEE.length} SS saíram desta lista porque não vieram mais no Excel do SCI (já encerradas no sistema)</summary>${saiuEE.map(x => "SS " + String(x.ss).replace(/^'/, "") + " · " + sspEsc(x.serv) + " · " + sspEsc(x.loc)).join("<br>")}</details>` : "";
     box.innerHTML = notaSaiu + (itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
       <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
@@ -5621,7 +5624,7 @@ function sspPapel(chave) {
 }
 function sspBotoesDoUsuario() {
   // 09/11: digitadores (e a gerente) têm um botão só, com o total de todas as localidades
-  if (Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador)) return [{ nome: "SS pendentes", tela: "ssPendTodas", prioridade: true }, { nome: "SS solicitadas via WhatsApp", tela: "ssWhats", prioridade: true }];
+  if (Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador)) return [{ nome: "SS pendentes", tela: "ssPendTodas", prioridade: true }]; // 12/11: tudo num lugar só (WhatsApp já vem em "Pedidos de SS")
   const vencidas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo && !sspPapel(k).digitador)
     .map(k => ({ nome: "SS encerradas no SCI, mas não em campo", tela: { sd: "ssVencSD", cat: "ssVencCat", bai: "ssVencBai", ang: "ssVencAng" }[k], prioridade: true }));
   const whatsCampo = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).campo) ? [{ nome: "SS solicitadas via WhatsApp", tela: "ssWhats", prioridade: true }] : [];
@@ -5968,12 +5971,13 @@ function sspCatsRender() {
     const nPed = (c.ee || 0) + (c.ped || 0);
     document.querySelectorAll(".sspsec_tit").forEach(t => { const k = t.dataset.cat;
       if (k === "ped") { t.innerHTML = ""; return; }
-      const nome = k === "ee" ? "Pedidos de SS" : rot[k], n = k === "ee" ? nPed : (c[k] || 0);
+      const nome = k === "ee" ? "Pedidos de SS e não executadas" : rot[k], n = k === "ee" ? nPed : (c[k] || 0);
       t.innerHTML = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">${nome} (${n})</div>`; });
     const secEE = document.querySelector('.sspsec[data-cat="ee"]'); if (secEE && nPed > 0) secEE.style.display = "";
     const eeL = document.getElementById("ee_lista"); if (eeL) eeL.style.display = (c.ee || 0) > 0 ? "" : "none";
     // 10/11: resumo no topo – o total do menu e de onde vem cada parte (toque para ir ao grupo)
-    const partes = [["ss", "SS do Excel", c.ss || 0], ["ee", "Pedidos de SS", nPed], ["rel", "Religação e 2ª via", c.rel || 0], ["oc", "Ocorrências", c.oc || 0], ["trm", "Tramitar SS", c.trm || 0]].filter(x => x[2] > 0);
+    const exe = Math.min(c.exe || 0, c.ss || 0), est = Math.min(c.est || 0, Math.max(0, (c.ss || 0) - exe)); // 12/11: grupos da gerente
+    const partes = [["ss", "Encerrar como executada", exe], ["ss", "Pendências com estado", est], ["ss", "Outras SS do Excel", Math.max(0, (c.ss || 0) - exe - est)], ["ee", "Pedidos de SS e não executadas", nPed], ["rel", "Religação e 2ª via", c.rel || 0], ["oc", "Ocorrências", c.oc || 0], ["trm", "Tramitar SS", c.trm || 0]].filter(x => x[2] > 0);
     const tot = partes.reduce((t, x) => t + x[2], 0);
     box.style.display = "block";
     box.innerHTML = tot ? `<div class="card" style="background:#fff3e0;border-left:6px solid #e65100;margin-bottom:8px"><div style="font-size:18px;font-weight:bold;margin-bottom:6px">${tot} pendentes no total</div>
@@ -5997,7 +6001,8 @@ async function sspTodasExtras() {
   if (bo) bo.innerHTML = oc.length ? sspOcorrenciasHTML(oc) : "";
   if (br) br.innerHTML = rel.length ? inatPedidosHTML(rel) : "";
   window.sspCatN.oc = oc.length; window.sspCatN.rel = rel.length;
-  try { if (d) { const trm = sspTramitar(d); window.sspCatN.trm = trm.length; if (bt) bt.innerHTML = sspTramitarHTML(trm); window.sspCatN.ss = sspMontarTodas(d).filter(sspFaltaDigitador).length; } } catch (e) {}
+  try { if (d) { const trm = sspTramitar(d); window.sspCatN.trm = trm.length; if (bt) bt.innerHTML = sspTramitarHTML(trm); const fd = sspMontarTodas(d).filter(sspFaltaDigitador); window.sspCatN.ss = fd.length;
+    window.sspCatN.exe = fd.filter(it => it.executada && !it.digitada).length; window.sspCatN.est = fd.filter(sspEscritorio).length; } } catch (e) {}
   sspCatsRender();
 }
 function sspTelaTodas() {
@@ -8276,7 +8281,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 23h05";
+const VERSAO_PAINEL = "12/11 07h56";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
