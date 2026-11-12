@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h37</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h41</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -6410,6 +6410,7 @@ function menuAgenteCampo(itens) {
   itens.forEach(i => { if (i.nome === "Outros" && i.sub) i.sub.forEach(por); else por(i); });
   const tirar = f => { const k = pool.findIndex(f); return k >= 0 ? pool.splice(k, 1)[0] : null; };
   const urg = tirar(i => i.tela === "servicosUrgentes");
+  const whats = tirar(i => i.tela === "ssWhats"); // 11/11: SS solicitadas via WhatsApp fica no painel principal
   const ssp = []; let x; while ((x = tirar(i => SSP_TELA[i.tela]))) ssp.push(Object.assign({}, x, { prioridade: true }));
   const ssv = ssp.filter(i => /^ssVenc/.test(i.tela)), ssPend = ssp.filter(i => !/^ssVenc/.test(i.tela)); // SS encerradas no SCI: fica na tela principal
   const pedir = tirar(i => i.tela === "pedirSS") || { nome: "Pedir SS", tela: "pedirSS" };
@@ -6427,7 +6428,7 @@ function menuAgenteCampo(itens) {
   // 09/11: o botão principal passa a ser "SS em aberto no sistema" (o escritório abre e encerra; o Digiteam
   // recebe pedidos só às 8h e às 13h30). "Solicitação ao Digiteam" vai para Outros.
   const abertas = ssPend.map(i => Object.assign({}, i, { prioridade: true, nome: ssPend.length > 1 ? i.nome : "SS em aberto no sistema" }));
-  const menu = [urg, ...ssv.map(i => Object.assign({}, i, { prioridade: true, grande: true })), ...abertas, Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }),
+  const menu = [urg, whats && Object.assign({}, whats, { prioridade: true, grande: true }), ...ssv.map(i => Object.assign({}, i, { prioridade: true, grande: true })), ...abertas, Object.assign({}, pedir, { grande: true }), sci && Object.assign({}, sci, { grande: true }),
     cortes, agersa, pequeno("Níveis dos reservatórios", niv), pequeno("Escala da ETA", esc)].filter(Boolean);
   const outros = [Object.assign({}, digi, { prioridade: false }), ...pool];
   if (outros.length) menu.push({ nome: "Outros", sub: outros });
@@ -8208,7 +8209,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 22h37";
+const VERSAO_PAINEL = "11/11 22h41";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
