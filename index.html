@@ -15,10 +15,10 @@
   header { background: #0b5394; color: #fff; padding: 14px 16px; }
   header h1 { margin: 0 0 8px; font-size: 18px; }
   select { width: 100%; padding: 10px; font-size: 16px; border-radius: 8px; border: none; }
-  .aviso-proto { background: #fff3cd; color: #6b4e00; padding: 8px 16px; font-size: 14px; border-bottom: 1px solid #e6d28a; }
-  .aviso { background: #fff3cd; border-left: 6px solid #e0a800; padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 15px; }
-  .urgente { background: #fde2e2; border-left: 6px solid #c62828; padding: 12px; border-radius: 8px; margin: 12px 0; }
-  .vermelho { background: #c62828; color: #fff; padding: 12px; border-radius: 8px; margin: 12px 0; font-weight: 600; }
+  .aviso-proto { background: #e8f1fb; color: #0b5394; padding: 8px 16px; font-size: 14px; border-bottom: 1px solid #4a90d9; }
+  .aviso { background: #e8f1fb; border-left: 6px solid #4a90d9; padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 15px; }
+  .urgente { background: #e8f1fb; border-left: 6px solid #0b5394; padding: 12px; border-radius: 8px; margin: 12px 0; }
+  .vermelho { background: #0b5394; color: #fff; padding: 12px; border-radius: 8px; margin: 12px 0; font-weight: 600; }
   main { padding: 12px 16px 40px; }
   .atualizado { font-size: 14px; color: #555; margin-bottom: 8px; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -31,9 +31,9 @@
   th, td { padding: 8px; border-bottom: 1px solid #eef1f5; text-align: left; vertical-align: top; }
   th { background: #e9eef6; }
   .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; }
-  .t-ok { background: #d8f3dc; color: #1b5e20; }
-  .t-alerta { background: #fff3cd; color: #7a5a00; }
-  .t-venc { background: #fde2e2; color: #b71c1c; }
+  .t-ok { background: #e8f1fb; color: #0b5394; }
+  .t-alerta { background: #e8f1fb; color: #0b5394; }
+  .t-venc { background: #e8f1fb; color: #0b5394; }
   .campo { display: block; width: 100%; padding: 12px; font-size: 16px; border: 1px solid #cfd6e0; border-radius: 8px; margin: 6px 0 12px; background: #fff; }
   .acao { background: #0b5394; color: #fff; border: none; padding: 14px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: 600; margin-top: 8px; }
   .nota { font-size: 13px; color: #555; margin-top: 10px; }
@@ -43,15 +43,15 @@
 </head>
 <body>
 
-<div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
+<div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 16h59</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 17h04</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
-  <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
-  <button id="btnAvisos" onclick="ativarAvisos()" style="display:none;margin-top:8px;background:#f9a825;color:#1d2330;border:none;border-radius:8px;padding:8px 12px;font-weight:700">🔔 Ativar avisos no celular</button>
-  <button id="btnInstalar" onclick="instalarApp()" style="display:none;margin-top:8px;background:#2e7d32;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">📲 Instalar aplicativo</button>
+  <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
+  <button id="btnAvisos" onclick="ativarAvisos()" style="display:none;margin-top:8px;background:#4a90d9;color:#1d2330;border:none;border-radius:8px;padding:8px 12px;font-weight:700">🔔 Ativar avisos no celular</button>
+  <button id="btnInstalar" onclick="instalarApp()" style="display:none;margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">📲 Instalar aplicativo</button>
   <div id="versaoMsg" style="font-size:13px;margin-top:6px"></div>
 </header>
 <div class="aviso-proto" style="display:none">As SS são atualizadas pelo escritório com o Excel do SCI, em horário comercial (segunda a sexta, 7h30 às 12h e 13h30 às 17h30).</div>
@@ -324,7 +324,7 @@ const TELAS = {
 
   metas: () => `
     <h2>Minhas metas</h2>
-    <button class="acao" style="background:#b71c1c">Divergência nesta meta</button>
+    <button class="acao" style="background:#0b5394">Divergência nesta meta</button>
     <h3 style="margin-top:18px">SS da cesta e prazo de cada tipo</h3>
     <div class="nota">Meta: serviços realizados no prazo (comerciais) = 99%. Atual: 95%. Prazo contado a partir da geração da SS.</div>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
@@ -1554,9 +1554,9 @@ function telaPrioridades() {
   const itens = prioridadesDoUsuario().sort((a, b) => a.dia.localeCompare(b.dia));
   if (!itens.length) return "";
   const data = d => d.split("-").reverse().join("/");
-  return `<h3 style="color:#c62828">Prioridades de hoje e amanhã</h3>` + itens.map(p => {
+  return `<h3 style="color:#0b5394">Prioridades de hoje e amanhã</h3>` + itens.map(p => {
     const vencida = p.dia < hoje;
-    const cor = vencida || p.urgente ? "#c62828" : "#f9a825";
+    const cor = vencida || p.urgente ? "#0b5394" : "#4a90d9";
     const tag = vencida ? "VENCIDA" : p.dia === hoje ? "HOJE" : p.dia === somarDiasISO(hoje, 1) ? "AMANHÃ" : "";
     return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${cor}">
       <b style="color:${cor}">${tag ? tag + " · " : ""}${data(p.dia)}</b>${p.urgente ? " · <b>URGENTE</b>" : ""}<br>
@@ -1743,13 +1743,13 @@ function mostrarMenu(itens, titulo) {
   // 09/11: aviso "Antes de solicitar SS: confirme que você está logado no Digiteam" retirado do início
   if (!pilha.length && itens.some(i => i.tela === "ssDigiteam") && !(window.MODO_GERENTE && !emPrevia())) {
     const q = window.contagemSS && window.contagemSS.ssDigiteam !== undefined ? window.contagemSS.ssDigiteam : "…";
-    html += `<div id="lembreteSCI" class="aviso" style="background:#e3f2fd;border-left-color:#0b5394"><b>Existem <span id="lembreteSCIq">${q}</span> SS em aberto no SCI.</b> Caso esteja disponível, solicite o envio ao seu Digiteam em "Solicitação ao Digiteam".</div>`;
+    html += `<div id="lembreteSCI" class="aviso" style="background:#e8f1fb;border-left-color:#0b5394"><b>Existem <span id="lembreteSCIq">${q}</span> SS em aberto no SCI.</b> Caso esteja disponível, solicite o envio ao seu Digiteam em "Solicitação ao Digiteam".</div>`;
   }
   // 09/11: aviso "As SS são atualizadas pelo escritório..." retirado a pedido da gerência
   html += `<h2>${titulo}</h2><div class="grid"${gradeThiago ? ' style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px"' : ""}>`;
   itens.forEach((it, i) => {
     const nomeBotao = it.urgente ? `Demandas urgentes (${window.qtdUrgentes || 0})` : it.nome;
-    const destaque = it.prioridade ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff;font-weight:bold"' : it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#c62828;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
+    const destaque = it.prioridade ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#0b5394;color:#fff;font-weight:bold"' : it.urgente && (window.qtdUrgentes || 0) > 0 ? 'style="grid-column:1/-1;font-size:20px;padding:26px;background:#0b5394;color:#fff"' : (it.grande || it.urgente ? 'style="grid-column:1/-1;font-size:20px;padding:26px"' : "");
     const contavel = CONTAGEM_SS_TELAS[it.tela];
     const nomeExibido = NOME_EXIBIDO[it.tela] || it.nome;
     const rotulo = it.prioridade ? `${it.nome} (${window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : 0})` : contavel && window.contagemSS && window.contagemSS[contavel] !== undefined ? `${nomeExibido} (${window.contagemSS[contavel]})` : (NOME_EXIBIDO[it.tela] ? nomeExibido : nomeBotao);
@@ -2258,8 +2258,8 @@ async function carregarUrgenciaAngico() {
       .filter(u => u.local === "Angico" && !u.oculta);
     if (!itens.length) { box.innerHTML = "<p>Nenhuma urgência para o Angico.</p>"; return; }
     box.innerHTML = itens.reverse().map(u => u.exec
-      ? `<div class="card" style="margin-bottom:8px;border-left:6px solid #2e7d32"><b>${u.desc}</b><br><span style="font-size:14px">Prazo: ${formatarPrazo(u.prazo)} · enviado à gerência: executado ${u.exec}${u.ss ? " · SS " + u.ss : ""}${u.obs ? " · " + u.obs : ""}</span></div>`
-      : `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828"><b>${u.desc}</b><br><span style="font-size:14px">Prazo: ${formatarPrazo(u.prazo)}</span>
+      ? `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394"><b>${u.desc}</b><br><span style="font-size:14px">Prazo: ${formatarPrazo(u.prazo)} · enviado à gerência: executado ${u.exec}${u.ss ? " · SS " + u.ss : ""}${u.obs ? " · " + u.obs : ""}</span></div>`
+      : `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394"><b>${u.desc}</b><br><span style="font-size:14px">Prazo: ${formatarPrazo(u.prazo)}</span>
           <label>Foi executado? <select id="ua_e_${u.linha}" class="campo"><option>Sim</option><option>Não</option></select></label>
           <input id="ua_s_${u.linha}" class="campo" placeholder="Número da SS (se tiver)">
           <textarea id="ua_o_${u.linha}" class="campo" rows="2" placeholder="Observação (se precisar)"></textarea>
@@ -2323,8 +2323,8 @@ async function carregarUrgencias() {
     if (!itens.length) { box.innerHTML = "<p>Nenhuma urgência.</p>"; return; }
     box.innerHTML = itens.map(u => {
       const aberta = u.situacao === "aberta";
-      const cor = aberta ? "#c62828" : "#2e7d32";
-      const fundo = aberta ? "#fde7e7" : "#fff";
+      const cor = aberta ? "#0b5394" : "#0b5394";
+      const fundo = aberta ? "#e8f1fb" : "#fff";
       const acao = aberta
         ? `<div style="margin-top:8px"><b>Esta urgência foi resolvida?</b></div>
            <button class="acao" onclick="resolverUrgencia(${u.linha})">Sim, foi resolvida</button>
@@ -2672,7 +2672,7 @@ async function carregarAlertaPrefeitura() {
     const grupo = grupoEntregaPrefeitura();
     if (!grupo) { box.innerHTML = "<p>Nenhum alerta para você.</p>"; return; }
     const hoje = hojeISO();
-    box.innerHTML = `<div class="card" style="border-left:6px solid #c62828;margin-bottom:10px">
+    box.innerHTML = `<div class="card" style="border-left:6px solid #0b5394;margin-bottom:10px">
       <b>Faturas da prefeitura – referência ${REF_PREFEITURA}</b><br>
       <span style="font-size:14px">${grupo.loc}</span><br>
       <span style="font-size:14px">Situação: ${statusDe(grupo.loc)}</span>
@@ -2804,7 +2804,7 @@ function telaOcorAbrir() {
     <h3>Horário</h3>
     <div class="nota"><b>Início</b></div>
     <div style="display:flex;gap:8px"><input id="oc_ini_d" type="date" class="campo" style="flex:1" onchange="ocAtualizarHorario()"><input id="oc_ini_h" type="time" class="campo" style="flex:1" onchange="ocAtualizarHorario()"></div>
-    <button class="acao" style="background:#0a6e8a" onclick="ocInicioAgora()">Começou agora</button>
+    <button class="acao" style="background:#0b5394" onclick="ocInicioAgora()">Começou agora</button>
     <div class="nota"><b>Previsão de fim</b></div>
     <div style="display:flex;gap:8px"><input id="oc_fim_d" type="date" class="campo" style="flex:1"><input id="oc_fim_h" type="time" class="campo" style="flex:1"></div>
     <div class="nota">Tempo de regularização (horas)</div><input id="oc_reg" type="number" min="1" class="campo" placeholder="Ex.: 12">
@@ -2988,11 +2988,11 @@ async function carregarOcorParaFinalizar(boxId) {
   if (!box) return 0;
   try {
     const itens = (await listarOcorrencias()).filter(o => o.situacao === "aberta" && ocMesmaEquipe(o.quem));
-    box.innerHTML = itens.length ? `<h3>Ocorrência operacional: informe o término</h3>` + itens.map(o => { const k = "of" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
+    box.innerHTML = itens.length ? `<h3>Ocorrência operacional: informe o término</h3>` + itens.map(o => { const k = "of" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
       <b>Ocorrência nº ${o.num}</b> · ${o.tipo} · ${o.loc}<br><span style="font-size:14px">${o.end}<br>${ocDescHtml(o.desc)}${o.alt ? "<br><b>Alterações:</b> " + ocDescHtml(o.alt) : ""}</span>
       <div class="nota"><b>Término do serviço</b></div>
       <div style="display:flex;gap:8px"><input id="${k}_d" type="date" class="campo" style="flex:1"><input id="${k}_h" type="time" class="campo" style="flex:1"></div>
-      <button class="acao" style="background:#0a6e8a" onclick="(()=>{const t=ocDataLocal(new Date()).split('T');document.getElementById('${k}_d').value=t[0];document.getElementById('${k}_h').value=t[1];})()">Terminou agora</button>
+      <button class="acao" style="background:#0b5394" onclick="(()=>{const t=ocDataLocal(new Date()).split('T');document.getElementById('${k}_d').value=t[0];document.getElementById('${k}_h').value=t[1];})()">Terminou agora</button>
       ${ocObsCampos(k, OC_OBS_FIM)}
       <button class="acao" onclick="finalizarOcorrencia(${o.linha})">Informar término do serviço</button>
       ${window.MODO_GERENTE ? `<button class="acao" style="background:#757575" onclick="excluirOcorrenciaPainel(${o.linha}, '${boxId}')">🗑 Excluir do painel (só a gerente)</button>` : ""}</div>`; }).join("") : "";
@@ -3019,7 +3019,7 @@ async function carregarOcorMinhas() {
     const eu = String(window.credenciais.usuario).toLowerCase();
     const itens = (await listarOcorrencias()).filter(o => String(o.quem).toLowerCase() === eu).reverse();
     const nomeSit = { solicitada: "Aguardando o escritório abrir", aberta: "Aberta – informe o término em Demandas urgentes", finalizada: "Término informado – aguardando encerrar no sistema", encerrada: "Encerrada no sistema" };
-    box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${o.situacao === "encerrada" ? "#2e7d32" : "#c62828"}">
+    box.innerHTML = itens.length ? itens.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${o.situacao === "encerrada" ? "#0b5394" : "#0b5394"}">
       <b>${o.tipo}</b> · ${o.loc}${o.num ? " · nº <b>" + o.num + "</b>" : ""}<br><span style="font-size:14px">${o.end} · pedido em ${formatarQuando(o.quando)}<br>${nomeSit[o.situacao] || o.situacao}${o.fim ? " · término " + o.fim : ""}</span></div>`).join("") : "<p>Nenhuma ocorrência.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
@@ -3035,13 +3035,13 @@ async function carregarOcorrenciasGerente(boxId = "oc_ger") {
     const abertas = todas.filter(o => o.situacao === "aberta").reverse();
     const cab = o => `<b>${o.tipo}</b> · ${o.loc} · pedido por ${o.quem} em ${formatarQuando(o.quando)}${o.num ? "<br>Ocorrência nº <b>" + o.num + "</b>" : ""}<br><span style="font-size:14px">${o.end}<br>${ocDescHtml(o.desc)}${o.alt ? "<br><b>Alterações:</b> " + ocDescHtml(o.alt) : ""}</span>`;
     box.innerHTML =
-      `<h3>Para abrir no SCI (${abrir.length})</h3>` + (abrir.length ? abrir.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">${cab(o)}
+      `<h3>Para abrir no SCI (${abrir.length})</h3>` + (abrir.length ? abrir.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">${cab(o)}
         <input id="oc_n_${o.linha}" class="campo" placeholder="Número da ocorrência aberta">
         <button class="acao" onclick="responderOcorrencia(${o.linha}, '${boxId}')">Devolver número para a equipe</button></div>`).join("") : "<p>Nenhuma.</p>") +
-      `<h3>Para encerrar no SCI (${encerrar.length})</h3>` + (encerrar.length ? encerrar.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #f9a825">${cab(o)}
+      `<h3>Para encerrar no SCI (${encerrar.length})</h3>` + (encerrar.length ? encerrar.map(o => `<div class="card" style="margin-bottom:8px;border-left:6px solid #4a90d9">${cab(o)}
         <br><b>Término do serviço:</b> ${o.fim}<br><b>Observação:</b> ${o.obsFim}
         <button class="acao" onclick="encerrarOcorrencia(${o.linha}, '${boxId}')">Encerrada no SCI</button></div>`).join("") : "<p>Nenhuma.</p>") +
-      `<h3>Abertas, aguardando o término (${abertas.length})</h3>` + (abertas.length ? abertas.map(o => { const k = "oe" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0a6e8a">${cab(o)}
+      `<h3>Abertas, aguardando o término (${abertas.length})</h3>` + (abertas.length ? abertas.map(o => { const k = "oe" + o.linha; return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">${cab(o)}
         <details style="margin-top:6px"><summary><b>Editar ocorrência (prazo passou)</b></summary>
           <div class="nota"><b>Nova previsão de término</b></div>
           <div style="display:flex;gap:8px"><input id="${k}_d" type="date" class="campo" style="flex:1"><input id="${k}_h" type="time" class="campo" style="flex:1"></div>
@@ -3168,7 +3168,7 @@ function telaEncerrarEscritorio() {
     <select id="ee_loc" class="campo"><option value="">Localidade…</option>${LOCALIDADES_HORA_EXTRA.map(l => `<option>${l}</option>`).join("")}</select>
     <textarea id="ee_obs" class="campo" rows="2" placeholder="Observação (o que foi feito)"></textarea>
     <button class="acao" onclick="enviarEncerrarEscritorio()">Enviar para o escritório encerrar</button>
-    <button id="ee_btn_anexar" class="acao" style="background:#6a1b9a" onclick="carregarAnexarDocumento()">Anexar documento à SS já encerrada</button>
+    <button id="ee_btn_anexar" class="acao" style="background:#4a90d9" onclick="carregarAnexarDocumento()">Anexar documento à SS já encerrada</button>
     <div id="ee_anexar"></div>
     <h3>Pendentes</h3><div id="ee_lista">Carregando...</div>`;
 }
@@ -3229,11 +3229,11 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
     const naoExecAberta = x => /\[NÃO EXECUTADO\]/.test(String(x.obs || "")) && abertasSCI.has(String(x.ss || "").replace(/^'/, "").trim());
     const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && (sspDepoisDoZero(x.quando) || naoExecAberta(x))).reverse();
     const notaSaiu = saiuEE.length ? `<details class="nota" style="margin-bottom:8px"><summary>✔ ${saiuEE.length} SS saíram desta lista porque não vieram mais no Excel do SCI (já encerradas no sistema)</summary>${saiuEE.map(x => "SS " + String(x.ss).replace(/^'/, "") + " · " + sspEsc(x.serv) + " · " + sspEsc(x.loc)).join("<br>")}</details>` : "";
-    box.innerHTML = notaSaiu + (itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #c62828">
+    box.innerHTML = notaSaiu + (itens.length ? `<div class="nota">${itens.length} SS para encerrar</div>` + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
       <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv}</span>
-      ${x.obs ? `<br><span style="font-size:14px;color:#b71c1c;font-weight:600">${x.obs}</span>` : ""}
+      ${x.obs ? `<br><span style="font-size:14px;color:#0b5394;font-weight:600">${x.obs}</span>` : ""}
       ${gerencia && /\[VENCIDA\]|\[NOVA SS\]/.test(String(x.obs)) ? `<br><input id="ee_nova_${x.linha}" class="campo" placeholder="Número da NOVA SS gerada">
-        <button class="acao" style="background:#c62828" onclick="registrarNovaSSVencida(${x.linha}, '${String(x.ss).replace(/^'/, "")}', '${String(x.serv).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">Cancelada e nova SS gerada</button>`
+        <button class="acao" style="background:#0b5394" onclick="registrarNovaSSVencida(${x.linha}, '${String(x.ss).replace(/^'/, "")}', '${String(x.serv).replace(/'/g, "")}', '${String(x.loc).replace(/'/g, "")}')">Cancelada e nova SS gerada</button>`
         : gerencia ? `<br><button class="acao" onclick="marcarEncerrada(${x.linha})">Concluída no sistema</button>` : ""}
     </div>`).join("") : "<p>Nenhuma SS pendente.</p>");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
@@ -3357,18 +3357,18 @@ async function carregarPedidosDigi() {
     const [ac, sa] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "AcaoSS" }), chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] }))]);
     const todos = lerPedidosDigiteam(ac.dados, sa.dados); window.pdgLotes = todos;
     const pend = todos.filter(p => !p.feito), feitos = todos.filter(p => p.feito).slice(0, 15);
-    const card = (p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.feito ? "#2e7d32" : "#6a1b9a"}">
+    const card = (p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.feito ? "#0b5394" : "#4a90d9"}">
       <div style="font-size:18px;font-weight:bold">${sspEsc(sspNome(p.quem))} pediu ${p.ss.length} SS</div>
       <div style="font-size:15px;margin-top:4px">📅 Para: <b>${sspEsc(p.data || "hoje")}</b> · pedido em ${formatarQuando(p.quando)}</div>
       <div style="font-size:15px">📍 ${sspEsc([...p.locs].join(", "))}${Object.keys(p.bairros).length ? " – " + sspEsc(Object.entries(p.bairros).map(([b, q]) => b + " (" + q + ")").join(", ")) : ""}</div>
       <div style="font-size:15px">🔧 ${sspEsc([...p.tipos].join(", "))}${p.desde ? " · SS mais antiga: " + sspEsc(p.desde) : ""}</div>
       <details style="margin-top:4px"><summary>Números das SS</summary><div style="font-size:13px">${p.ss.map(sspEsc).join(", ")}</div></details>
-      ${p.feito ? `<div style="color:#2e7d32;font-weight:600;margin-top:4px">✅ Despachado por ${sspEsc(sspNome(p.feitoPor))} em ${formatarQuando(p.feitoEm)}</div>`
-        : `<button class="acao" style="background:#6a1b9a" onclick="marcarPedidoDigiFeito(${i}, this)">Marcar como despachado</button>`}
+      ${p.feito ? `<div style="color:#0b5394;font-weight:600;margin-top:4px">✅ Despachado por ${sspEsc(sspNome(p.feitoPor))} em ${formatarQuando(p.feitoEm)}</div>`
+        : `<button class="acao" style="background:#4a90d9" onclick="marcarPedidoDigiFeito(${i}, this)">Marcar como despachado</button>`}
     </div>`;
-    box.innerHTML = `<div style="background:#6a1b9a;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Aguardando despacho (${pend.length})</div>` +
+    box.innerHTML = `<div style="background:#4a90d9;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Aguardando despacho (${pend.length})</div>` +
       (pend.length ? pend.map(p => card(p, todos.indexOf(p))).join("") : "<p>Nenhum pedido aguardando.</p>") +
-      (feitos.length ? `<details style="margin-top:12px"><summary style="font-weight:bold;font-size:16px;padding:10px;background:#e8f5e9;border-radius:8px">Ver despachados (${feitos.length})</summary>${feitos.map(p => card(p, todos.indexOf(p))).join("")}</details>` : "");
+      (feitos.length ? `<details style="margin-top:12px"><summary style="font-weight:bold;font-size:16px;padding:10px;background:#e8f1fb;border-radius:8px">Ver despachados (${feitos.length})</summary>${feitos.map(p => card(p, todos.indexOf(p))).join("")}</details>` : "");
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 async function marcarPedidoDigiFeito(i, btn) {
@@ -3436,11 +3436,11 @@ async function debitosCorteLista() {
 function debitosCorteCardHTML(loc, pdfs) {
   const meus = pdfs.filter(p => sspMesmoLocal(p.loc, loc)).sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
   const ult = meus[0];
-  return `<div class="card" style="margin-bottom:10px;border-left:6px solid #6a1b9a">
+  return `<div class="card" style="margin-bottom:10px;border-left:6px solid #4a90d9">
     <div style="font-size:18px;font-weight:bold">PDF débitos dos cortes – ${loc}</div>
     <div style="font-size:13px;color:#555">Vai para: tela "Cortes" dos agentes de ${loc}, para consultar os débitos antes de cortar.</div>
     <div style="font-size:15px;margin:6px 0">${ult ? `Último envio: <b>${formatarQuando(ult.quando)}</b> por <b>${sspEsc(sspNome(ult.por))}</b> · <a href="${sspEsc(ult.url)}" target="_blank">abrir PDF</a>` : "Ainda não enviado."}</div>
-    <button class="acao" style="background:#6a1b9a" onclick="document.getElementById('dc_arq').click()">Enviar PDF de débitos de ${loc}</button>
+    <button class="acao" style="background:#4a90d9" onclick="document.getElementById('dc_arq').click()">Enviar PDF de débitos de ${loc}</button>
     <input type="file" id="dc_arq" accept="application/pdf,.pdf" style="display:none" onchange="enviarDebitosCorte('${loc}', this)">
   </div>`;
 }
@@ -3466,7 +3466,7 @@ function sciConferenciaSD() {
   const campo = abertas.filter(l => !/^Encerrar no escrit/i.test(String(l[5] || "")));
   const op = campo.filter(l => sspEhOperacional(sspLimpo(l[1]) || sspLimpo(l[15]))).length, com = campo.length - op;
   const ok = op + com + escr === abertas.length;
-  return `<div style="background:${ok ? "#e8f5e9" : "#ffebee"};border-radius:8px;padding:8px 10px;margin:6px 0;font-size:15px">
+  return `<div style="background:${ok ? "#e8f1fb" : "#e8f1fb"};border-radius:8px;padding:8px 10px;margin:6px 0;font-size:15px">
     <b>Divisão das ${abertas.length} SS em aberto:</b><br>
     🔧 Operacional (Carlito e Francisco): <b>${op}</b><br>💼 Comercial (Joaquim e Luzenildo): <b>${com}</b><br>
     🏢 Escritório encerrar (digitadores): <b>${escr}</b><br>
@@ -3491,9 +3491,9 @@ async function carregarImportarSCI() {
   const cards = {}; SCI_GRUPOS_TODOS.forEach((g, i) => { cards[g] = (() => {
     const s = porG[g], p = proc[g];
     const desde = s ? Date.now() - new Date(s.enviado).getTime() : Infinity;
-    const cor = p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : desde > 36e5 && sciHorarioComercial() ? "#c62828" : "#2e7d32";
+    const cor = p ? "#4a90d9" : !s || /^erro/.test(s.res) ? "#0b5394" : desde > 36e5 && sciHorarioComercial() ? "#0b5394" : "#0b5394";
     const info = p ? `⏳ Recebido de <b>${sspEsc(sspNome(p.por))}</b> às ${formatarQuando(p.enviado)}. Atualizando o painel (até 1 minuto)…`
-      : s ? `Último envio: <b>${formatarQuando(s.enviado)}</b> por <b>${sspEsc(sspNome(s.por))}</b> (há ${faltaTexto(desde)})<br><span style="font-size:13px;color:${/^erro/.test(s.res) ? "#c62828" : "#555"}">${sspEsc(s.res)}</span>`
+      : s ? `Último envio: <b>${formatarQuando(s.enviado)}</b> por <b>${sspEsc(sspNome(s.por))}</b> (há ${faltaTexto(desde)})<br><span style="font-size:13px;color:${/^erro/.test(s.res) ? "#0b5394" : "#555"}">${sspEsc(s.res)}</span>`
       : "Ainda não enviado.";
     return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${cor}">
       <div style="font-size:18px;font-weight:bold">Excel ${g}</div>${g === "São Desidério" ? sciConferenciaSD() : ""}
@@ -3504,7 +3504,7 @@ async function carregarImportarSCI() {
     </div>`;
   })(); });
   cards["Inativas"] = (() => { const s = porG["Inativas"], p = proc["Inativas"];
-    return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : "#2e7d32"}">
+    return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p ? "#4a90d9" : !s || /^erro/.test(s.res) ? "#0b5394" : "#0b5394"}">
       <div style="font-size:18px;font-weight:bold">Excel Inativas (todas as localidades)</div>
       <div style="font-size:13px;color:#555">Vai para: botão "Inativas" dos agentes, cada equipe vê as suas</div>
       <div style="font-size:15px;margin:6px 0">${p ? `⏳ Recebido de <b>${sspEsc(sspNome(p.por))}</b> às ${formatarQuando(p.enviado)}. Atualizando (até 1 minuto)…` : s ? `Último envio: <b>${formatarQuando(s.enviado)}</b> por <b>${sspEsc(sspNome(s.por))}</b><br><span style="font-size:13px;color:#555">${sspEsc(s.res)}</span>` : "Ainda não enviado."}</div>
@@ -3515,14 +3515,14 @@ async function carregarImportarSCI() {
   const pdfs = await debitosCorteLista().catch(() => []);
   const locs = [...SCI_GRUPOS_BOTAO, "Todas (Inativas)"];
   const loc = window.sciLoc || "";
-  const corDe = g => { const s = porG[g], p = proc[g]; return p ? "#ef6c00" : !s || /^erro/.test(s.res) ? "#c62828" : "#2e7d32"; };
+  const corDe = g => { const s = porG[g], p = proc[g]; return p ? "#4a90d9" : !s || /^erro/.test(s.res) ? "#0b5394" : "#0b5394"; };
   const bt = (rot, ativo, onclick, cor) => `<button onclick="${onclick}" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor || "#0b5394"};background:${ativo ? (cor || "#0b5394") : "#fff"};color:${ativo ? "#fff" : (cor || "#0b5394")}">${rot}</button>`;
   let html = `<h3 style="margin:6px 0">1. Localidade</h3><div style="display:flex;flex-wrap:wrap">${locs.map(l => bt(l, l === loc, `window.sciLoc='${l}';window.sciTipo='';carregarImportarSCI()`)).join("")}</div>`;
   if (loc === "Todas (Inativas)") html += cards["Inativas"];
   else if (loc) {
     const tipos = [["Pendências", loc], ["Vencidas (encerrar no campo)", "Vencidas " + loc], ["Escritório encerrar", "Escritório " + loc], ["PDF débitos dos cortes", "pdf"]];
     const tipo = window.sciTipo || "";
-    html += `<h3 style="margin:10px 0 6px">2. O que você está mandando de ${loc}?</h3><div style="display:flex;flex-wrap:wrap">${tipos.map(([rot, g]) => bt(rot, g === tipo, `window.sciTipo='${g}';carregarImportarSCI()`, g === "pdf" ? "#6a1b9a" : corDe(g))).join("")}</div>`;
+    html += `<h3 style="margin:10px 0 6px">2. O que você está mandando de ${loc}?</h3><div style="display:flex;flex-wrap:wrap">${tipos.map(([rot, g]) => bt(rot, g === tipo, `window.sciTipo='${g}';carregarImportarSCI()`, g === "pdf" ? "#4a90d9" : corDe(g))).join("")}</div>`;
     if (tipo === "pdf") html += debitosCorteCardHTML(loc, pdfs);
     else if (tipo && cards[tipo]) html += cards[tipo];
   }
@@ -3725,7 +3725,7 @@ async function carregarInativas() {
   const busca = normalizarNome(window.inatBusca);
   const contB = {}; lista.forEach(x => { const b = (ger ? x.grupo + " – " : "") + (x.bairro || "Sem bairro"); contB[b] = (contB[b] || 0) + 1; });
   const bSel = contB[window.inatBairro] ? window.inatBairro : "";
-  const bb = (rot, val) => `<button onclick="window.inatBairro='${val}';carregarInativas()" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid #2e7d32;background:${bSel === val ? "#2e7d32" : "#fff"};color:${bSel === val ? "#fff" : "#2e7d32"}">${rot}</button>`;
+  const bb = (rot, val) => `<button onclick="window.inatBairro='${val}';carregarInativas()" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid #0b5394;background:${bSel === val ? "#0b5394" : "#fff"};color:${bSel === val ? "#fff" : "#0b5394"}">${rot}</button>`;
   const barraB = `<div class="nota"><b>Bairro:</b></div><div style="margin-bottom:8px">${bb("Todos (" + lista.length + ")", "")}${Object.entries(contB).sort((a, b) => b[1] - a[1]).map(([b, q]) => bb(sspEsc(b) + " (" + q + ")", b.replace(/'/g, ""))).join("")}</div>`;
   let vis = lista;
   if (bSel) vis = vis.filter(x => (ger ? x.grupo + " – " : "") + (x.bairro || "Sem bairro") === bSel);
@@ -3735,20 +3735,20 @@ async function carregarInativas() {
   box.innerHTML = topo + meusHTML +
     `<input class="campo" placeholder="Buscar por matrícula, nome, rua ou hidrômetro" value="${sspEsc(window.inatBusca)}" onchange="window.inatBusca=this.value;carregarInativas()">` + barraB +
     (cortado ? `<div class="nota">Mostrando ${MAX} de ${vis.length}. Escolha o bairro ou busque para ver as outras.</div>` : "") +
-    (vis.length ? vis.slice(0, MAX).map(x => { const m = sspEsc(x.mat); return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${/cort/i.test(x.sit) ? "#ef6c00" : "#757575"}">
+    (vis.length ? vis.slice(0, MAX).map(x => { const m = sspEsc(x.mat); return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${/cort/i.test(x.sit) ? "#4a90d9" : "#757575"}">
       <div style="font-size:17px;font-weight:bold">👤 ${sspEsc(x.nome)}</div>
       <div style="font-size:15px">📍 ${sspEsc([x.end, x.bairro].filter(Boolean).join(" – "))}${ger || x.loc !== x.grupo ? " · " + sspEsc(x.loc) : ""}</div>
       <div style="font-size:14px">Matrícula <b>${m}</b>${x.hid ? " · 🔢 HD <b>" + sspEsc(x.hid) + "</b>" : ""} · ${sspEsc(x.sit)}</div>
       <div style="font-size:13px;color:#555">${x.meses && x.meses !== "0" ? "Débito: " + sspEsc(x.meses) + " mês(es) · " + sspEsc(x.valor) : "Sem débito"}${x.corte ? " · último corte " + sspEsc(x.corte) : ""}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-        <button class="acao" style="flex:1 1 45%;margin:0;background:#2e7d32" onclick="document.getElementById('inatf_${m}').style.display='block'">✅ Está ligada – pedir religação</button>
+        <button class="acao" style="flex:1 1 45%;margin:0;background:#0b5394" onclick="document.getElementById('inatf_${m}').style.display='block'">✅ Está ligada – pedir religação</button>
         <button class="acao" style="flex:1 1 45%;margin:0;background:#0b5394" onclick="pedirInativa('${m}', '2via', this)">📄 Solicitar 2ª via</button>
       </div>
-      <div id="inatf_${m}" style="display:none;margin-top:8px;background:#f1f8e9;border-radius:8px;padding:8px">
+      <div id="inatf_${m}" style="display:none;margin-top:8px;background:#e8f1fb;border-radius:8px;padding:8px">
         <input id="inatl_${m}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (obrigatória)">
         <textarea id="inato_${m}" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
         <div style="font-size:14px">Foto (opcional): <input type="file" id="inatp_${m}" accept="image/*" capture="environment"></div>
-        <button class="acao" style="background:#2e7d32" onclick="pedirInativa('${m}', 'religacao', this)">Enviar pedido de religação</button>
+        <button class="acao" style="background:#0b5394" onclick="pedirInativa('${m}', 'religacao', this)">Enviar pedido de religação</button>
       </div></div>`; }).join("") : "<p>Nenhuma matrícula nesta lista.</p>");
 }
 async function pedirInativa(mat, tipo, btn) {
@@ -3780,10 +3780,10 @@ async function pedirInativa(mat, tipo, btn) {
 function naoExecFormHTML(ss, it) {
   const s = sspEsc(ss); if (it) (window.naoExecCache = window.naoExecCache || {})[ss] = it;
   return `<button class="acao" style="background:#757575" onclick="document.getElementById('nef_${s}').style.display='block'">❌ Não executado</button>
-    <div id="nef_${s}" style="display:none;margin-top:6px;background:#fbe9e7;border-radius:8px;padding:8px">
+    <div id="nef_${s}" style="display:none;margin-top:6px;background:#e8f1fb;border-radius:8px;padding:8px">
       <textarea id="neo_${s}" class="campo" rows="2" placeholder="Motivo de não ter executado (obrigatório)"></textarea>
-      <button class="acao" style="background:#c62828" onclick="naoExecutado('${s}', false, this)">Não executado – encerrar a SS</button>
-      <button class="acao" style="background:#ef6c00" onclick="naoExecutado('${s}', true, this)">Não executado – abrir outra SS nova</button>
+      <button class="acao" style="background:#0b5394" onclick="naoExecutado('${s}', false, this)">Não executado – encerrar a SS</button>
+      <button class="acao" style="background:#4a90d9" onclick="naoExecutado('${s}', true, this)">Não executado – abrir outra SS nova</button>
     </div>`;
 }
 async function naoExecutado(ss, novaSS, btn) {
@@ -3805,12 +3805,12 @@ async function naoExecutado(ss, novaSS, btn) {
 const ehCorteOuRevisao = (tipo, esp) => ehCorteSS(tipo) || /REV.*SIT.*ABAST|REVISAO DE LIGACAO CORTADA/i.test(String(tipo || "") + " " + String(esp || ""));
 function religSSFormHTML(ss) {
   const s = sspEsc(ss);
-  return `<button class="acao" style="background:#2e7d32" onclick="document.getElementById('relf_${s}').style.display='block'">💧 Água religada em campo – pedir religação no SCI</button>
-    <div id="relf_${s}" style="display:none;margin-top:6px;background:#f1f8e9;border-radius:8px;padding:8px">
+  return `<button class="acao" style="background:#0b5394" onclick="document.getElementById('relf_${s}').style.display='block'">💧 Água religada em campo – pedir religação no SCI</button>
+    <div id="relf_${s}" style="display:none;margin-top:6px;background:#e8f1fb;border-radius:8px;padding:8px">
       <input id="rell_${s}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (obrigatória)">
       <textarea id="relo_${s}" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
       <div style="font-size:14px">Foto (opcional): <input type="file" id="relp_${s}" accept="image/*" capture="environment"></div>
-      <button class="acao" style="background:#2e7d32" onclick="pedirReligacaoSS('${s}', this)">Enviar ao escritório</button>
+      <button class="acao" style="background:#0b5394" onclick="pedirReligacaoSS('${s}', this)">Enviar ao escritório</button>
     </div>`;
 }
 async function pedirReligacaoSS(ss, btn) {
@@ -3842,18 +3842,18 @@ const inatPendentesDaChave = (pedidos, chave) => pedidos.filter(p => !p.feito &&
 function inatPedidosHTML(lista) {
   if (!lista.length) return "";
   window.inatPedCache = {}; lista.forEach((p, i) => { window.inatPedCache[i] = p; });
-  return `<div style="background:#2e7d32;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Religação e 2ª via – pedidos do campo (${lista.length})</div>` +
-    lista.map((p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">
-      <div style="font-size:18px;font-weight:bold;color:${p.tipo === "2via" ? "#0b5394" : "#2e7d32"}">${p.tipo === "2via" ? "📄 2ª via para entregar ao cliente" : p.tipo === "religacao_ss" ? "💧 Água religada em campo – encerrar a SS " + sspEsc(p.ssOrigem) + " como não executada e gerar a religação" : "🔌 Religação feita em campo – abrir e encerrar no SCI"}</div>
-      ${p.mat ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="font-size:22px;font-weight:bold;letter-spacing:1px;background:#fff8e1;border:2px solid #f9a825;border-radius:8px;padding:4px 10px">Matrícula ${sspEsc(p.mat)}</span><button onclick="navigator.clipboard.writeText('${sspEsc(p.mat)}').then(() => { this.textContent = '✔ Copiada'; }).catch(() => alert('Matrícula: ${sspEsc(p.mat)}'))" style="padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">📋 Copiar</button></div>`
-        : `<div style="background:#c62828;color:#fff;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:bold">⚠ Matrícula não informada pelo campo – peça ao agente antes de gerar</div>`}
+  return `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Religação e 2ª via – pedidos do campo (${lista.length})</div>` +
+    lista.map((p, i) => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.tipo === "2via" ? "#0b5394" : "#0b5394"}">
+      <div style="font-size:18px;font-weight:bold;color:${p.tipo === "2via" ? "#0b5394" : "#0b5394"}">${p.tipo === "2via" ? "📄 2ª via para entregar ao cliente" : p.tipo === "religacao_ss" ? "💧 Água religada em campo – encerrar a SS " + sspEsc(p.ssOrigem) + " como não executada e gerar a religação" : "🔌 Religação feita em campo – abrir e encerrar no SCI"}</div>
+      ${p.mat ? `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0"><span style="font-size:22px;font-weight:bold;letter-spacing:1px;background:#e8f1fb;border:2px solid #4a90d9;border-radius:8px;padding:4px 10px">Matrícula ${sspEsc(p.mat)}</span><button onclick="navigator.clipboard.writeText('${sspEsc(p.mat)}').then(() => { this.textContent = '✔ Copiada'; }).catch(() => alert('Matrícula: ${sspEsc(p.mat)}'))" style="padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">📋 Copiar</button></div>`
+        : `<div style="background:#0b5394;color:#fff;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:bold">⚠ Matrícula não informada pelo campo – peça ao agente antes de gerar</div>`}
       <div style="font-size:16px;font-weight:600">${sspEsc(p.nome)}</div>
       <div style="font-size:14px">📍 ${sspEsc(p.end)}</div>
       ${p.tipo !== "2via" ? `<div style="font-size:15px">Leitura: <b>${sspEsc(p.leitura)}</b>${p.obs ? "<br>Obs.: " + sspEsc(p.obs) : ""}</div>` : ""}
       ${p.fotos.length ? `<div style="font-size:14px">Fotos: ${p.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : ""}
       <span style="font-size:13px;color:#555">Pedido por ${sspEsc(sspNome(p.quem))} em ${formatarQuando(p.quando)}</span>
       ${p.tipo === "2via" ? `<div style="margin-top:6px"><input type="file" id="inatpdf_${i}" accept="application/pdf,.pdf"></div><button class="acao" style="background:#0b5394" onclick="responderInativa(${i}, this)">Anexar PDF da 2ª via</button>`
-        : `<input id="inatnum_${i}" class="campo" inputmode="numeric" placeholder="Número da SS de religação (vai para o agente)"><button class="acao" style="background:#2e7d32" onclick="responderInativa(${i}, this)">Religada no SCI – enviar ao agente</button>`}
+        : `<input id="inatnum_${i}" class="campo" inputmode="numeric" placeholder="Número da SS de religação (vai para o agente)"><button class="acao" style="background:#0b5394" onclick="responderInativa(${i}, this)">Religada no SCI – enviar ao agente</button>`}
     </div>`).join("");
 }
 async function responderInativa(i, btn) {
@@ -3915,9 +3915,9 @@ function substRegra(loc, setorTxt, mat) {
 }
 function substAvisoHTML(r) {
   if (!r) return "";
-  return `<div style="background:#b71c1c;color:#fff;border-radius:8px;padding:10px 12px;margin:6px 0;font-size:18px;font-weight:bold;line-height:1.35">
+  return `<div style="background:#0b5394;color:#fff;border-radius:8px;padding:10px 12px;margin:6px 0;font-size:18px;font-weight:bold;line-height:1.35">
     ⚠ Por conta do cronograma de leitura, esta substituição deve ser feita <u>${sspEsc(r.texto)}</u>.
-    <div style="font-size:16px;margin-top:4px;background:#fff;color:${r.liberado ? "#2e7d32" : "#b71c1c"};border-radius:6px;padding:4px 8px;display:inline-block">${r.liberado ? "✅ HOJE PODE SUBSTITUIR" : "⛔ HOJE É PROIBIDO SUBSTITUIR"}</div></div>`;
+    <div style="font-size:16px;margin-top:4px;background:#fff;color:${r.liberado ? "#0b5394" : "#0b5394"};border-radius:6px;padding:4px 8px;display:inline-block">${r.liberado ? "✅ HOJE PODE SUBSTITUIR" : "⛔ HOJE É PROIBIDO SUBSTITUIR"}</div></div>`;
 }
 function substNoMenu(itens) {
   const ger = window.MODO_GERENTE && !emPrevia();
@@ -3945,7 +3945,7 @@ async function atualizarSubstMenu(cred) {
   } catch (e) {}
 }
 Object.assign(TELAS, { substHD: () => `<h2>Substituição de hidrômetro</h2>
-  <div style="background:#b71c1c;color:#fff;border-radius:10px;padding:12px;font-size:18px;font-weight:bold;margin-bottom:8px">Por conta do cronograma de leitura, cada setor tem a sua data. Só substitua nos dias liberados.</div>
+  <div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:18px;font-weight:bold;margin-bottom:8px">Por conta do cronograma de leitura, cada setor tem a sua data. Só substitua nos dias liberados.</div>
   <input type="hidden" id="sl_acao" value="Mandar no Digiteam">
   <div id="subst_lista">Carregando...</div>` });
 async function carregarSubst() {
@@ -3959,7 +3959,7 @@ async function carregarSubst() {
   const grupos = {}; lista.forEach(x => { const k = x.regra ? x.regra.rotulo : x.loc; (grupos[k] = grupos[k] || { regra: x.regra, itens: [] }).itens.push(x); });
   const sel = grupos[window.substSel] ? window.substSel : (Object.keys(grupos).length === 1 ? Object.keys(grupos)[0] : "");
   const botoes = Object.keys(grupos).sort().map(k => { const g = grupos[k], r = g.regra, on = k === sel;
-    return `<button onclick="window.substSel='${k.replace(/'/g, "")}';carregarSubst()" style="display:block;width:100%;text-align:left;margin:6px 0;padding:14px;border-radius:10px;font-size:17px;font-weight:bold;border:3px solid ${r && r.liberado ? "#2e7d32" : "#b71c1c"};background:${on ? (r && r.liberado ? "#2e7d32" : "#b71c1c") : "#fff"};color:${on ? "#fff" : "#222"}">
+    return `<button onclick="window.substSel='${k.replace(/'/g, "")}';carregarSubst()" style="display:block;width:100%;text-align:left;margin:6px 0;padding:14px;border-radius:10px;font-size:17px;font-weight:bold;border:3px solid ${r && r.liberado ? "#0b5394" : "#0b5394"};background:${on ? (r && r.liberado ? "#0b5394" : "#0b5394") : "#fff"};color:${on ? "#fff" : "#222"}">
       ${sspEsc(k)} (${g.itens.length})<br><span style="font-size:15px">${r ? (r.liberado ? "✅ " : "⛔ ") + "Substituir " + sspEsc(r.texto) : ""}</span></button>`; }).join("");
   if (!lista.length) { box.innerHTML = "<p>Nenhuma substituição de hidrômetro em aberto para a sua equipe.</p>"; return; }
   const g = grupos[sel];
@@ -3970,11 +3970,11 @@ async function carregarSubst() {
       (angico ? `<div class="nota">Para dar baixa, use <b>SS pendentes – Angico</b> (Serviço executado), só nos dias liberados.</div>` : "") +
       (podePedir ? `<label style="display:block;font-weight:600;margin-top:6px">Data para o Digiteam <input type="date" id="sl_data" class="campo" value="${hojeISO()}"></label>
         <button class="acao" onclick="pedirSubstDigiteam()">Pedir as marcadas no meu Digiteam</button>` : "") +
-      g.itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${r && r.liberado ? "#2e7d32" : "#b71c1c"}">
+      g.itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${r && r.liberado ? "#0b5394" : "#0b5394"}">
         ${podePedir && !x.pedida ? `<label style="float:right"><input type="checkbox" class="sl_sel" checked value="${sspEsc(x.ss)}" data-tipo="${sspEsc(x.tipo)}" data-loc="${sspEsc(x.loc)}" data-nome="${sspEsc(x.nome)}" data-mat="${sspEsc(x.mat)}"> pedir</label>` : ""}
         <div style="font-size:18px;font-weight:bold;color:#0b5394">SS ${sspEsc(x.ss)}</div>
         <div style="font-size:14px;color:#0b5394;font-weight:600">${sspEsc(x.esp)}${x.regra && x.regra.setor ? " · setor " + x.regra.setor : ""}</div>
-        ${x.pedida ? `<div style="font-weight:bold;color:#6a1b9a">⏳ Já pedida no Digiteam</div>` : ""}
+        ${x.pedida ? `<div style="font-weight:bold;color:#4a90d9">⏳ Já pedida no Digiteam</div>` : ""}
         ${sspFicha([["Cliente", x.nome], ["Endereço", x.end], ["Bairro", x.bairro], ["Hidrômetro", x.hid], ["Obs.", x.obs], ["Matrícula", x.mat]])}
         ${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt, x.venc), false)}
       </div>`).join("");
@@ -4026,11 +4026,11 @@ const quandoVence = d => d.toLocaleString("pt-BR", { day: "2-digit", month: "2-d
 function alertaPrazoHTML(p, digiteam) {
   if (!p) return "";
   const f = quandoVence(p.fim), falta = p.fim - new Date();
-  if (p.vencida) return `<div style="background:#c62828;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ VENCIDA há ${faltaTexto(falta)} – venceu ${f}.${digiteam ? " Não mandar no Digiteam: deve ser encerrada e aberto outro protocolo." : ""}</div>`;
-  if (falta < 24 * 36e5) return `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⏰ Vence ${f} – faltam ${faltaTexto(falta)}</div>`;
-  return `<div style="font-size:14px;color:#7a5a00;font-weight:600;margin:3px 0">⏳ Vence ${f} – faltam ${faltaTexto(falta)}</div>`;
+  if (p.vencida) return `<div style="background:#0b5394;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ VENCIDA há ${faltaTexto(falta)} – venceu ${f}.${digiteam ? " Não mandar no Digiteam: deve ser encerrada e aberto outro protocolo." : ""}</div>`;
+  if (falta < 24 * 36e5) return `<div style="background:#4a90d9;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⏰ Vence ${f} – faltam ${faltaTexto(falta)}</div>`;
+  return `<div style="font-size:14px;color:#0b5394;font-weight:600;margin:3px 0">⏳ Vence ${f} – faltam ${faltaTexto(falta)}</div>`;
 }
-const CESTA_HTML = `<div style="background:#b71c1c;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">🎯 CESTA DE METAS – aberta pelo cliente. Não pode perder o prazo.</div>`;
+const CESTA_HTML = `<div style="background:#0b5394;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">🎯 CESTA DE METAS – aberta pelo cliente. Não pode perder o prazo.</div>`;
 async function carregarSSLista(filtro) {
   const box = document.getElementById("sl_lista");
   if (!box) return;
@@ -4065,11 +4065,11 @@ async function carregarSSLista(filtro) {
     lista.forEach(x => { const pz = prazoSS(x.tipo, x.aberturaTxt, x.venc); x.fimPrazo = pz ? pz.fim.getTime() : null; });
     const ehLigacao = x => /^\s*21\b/.test(String(x.tipo || "")) || /LIGACAO NOVA|LIGACAO DE AGUA/i.test(String(x.tipo || "") + " " + String(x.esp || ""));
     const FILTROS_PRAZO = {
-      cesta: { rot: "🎯 Cesta de metas – não pode passar do prazo", f: x => x.cesta, cor: "#b71c1c" },
-      ssVenc: { rot: "⚠ SS fora do prazo", f: x => x.fimPrazo && x.fimPrazo < agoraP && !ehLigacao(x), cor: "#c62828" },
-      ligVenc: { rot: "⚠ Ligações fora do prazo", f: x => x.fimPrazo && x.fimPrazo < agoraP && ehLigacao(x), cor: "#c62828" },
-      v12: { rot: "⏰ Vencem em até 12h", f: x => x.fimPrazo && x.fimPrazo >= agoraP && x.fimPrazo <= agoraP + 12 * 36e5, cor: "#ef6c00" },
-      v24: { rot: "⏰ Vencem em até 24h", f: x => x.fimPrazo && x.fimPrazo >= agoraP && x.fimPrazo <= agoraP + 24 * 36e5, cor: "#f9a825" }
+      cesta: { rot: "🎯 Cesta de metas – não pode passar do prazo", f: x => x.cesta, cor: "#0b5394" },
+      ssVenc: { rot: "⚠ SS fora do prazo", f: x => x.fimPrazo && x.fimPrazo < agoraP && !ehLigacao(x), cor: "#0b5394" },
+      ligVenc: { rot: "⚠ Ligações fora do prazo", f: x => x.fimPrazo && x.fimPrazo < agoraP && ehLigacao(x), cor: "#0b5394" },
+      v12: { rot: "⏰ Vencem em até 12h", f: x => x.fimPrazo && x.fimPrazo >= agoraP && x.fimPrazo <= agoraP + 12 * 36e5, cor: "#4a90d9" },
+      v24: { rot: "⏰ Vencem em até 24h", f: x => x.fimPrazo && x.fimPrazo >= agoraP && x.fimPrazo <= agoraP + 24 * 36e5, cor: "#4a90d9" }
     };
     const prazoSel = FILTROS_PRAZO[window.slPrazo] ? window.slPrazo : "";
     const bp = (k, rot, n, cor) => `<button onclick="window.slPrazo='${k}';window.slLoc='';window.slTipo='';window.slBairro='';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:9px 11px;border-radius:8px;font-weight:700;border:2px solid ${cor};background:${prazoSel === k ? cor : "#fff"};color:${prazoSel === k ? "#fff" : cor}">${rot} (${n})</button>`;
@@ -4078,7 +4078,7 @@ async function carregarSSLista(filtro) {
     // Localidade primeiro (só as localidades do agente)
     const contL = {}; lista.forEach(x => { const l = String(x.loc).trim(); contL[l] = (contL[l] || 0) + 1; });
     const locSel = contL[window.slLoc] ? window.slLoc : "";
-    const bl = (rot, val) => `<button onclick="window.slLoc='${val}';window.slTipo='';window.slBairro='';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:9px 11px;border-radius:8px;font-weight:700;border:2px solid #6a1b9a;background:${locSel === val ? "#6a1b9a" : "#fff"};color:${locSel === val ? "#fff" : "#6a1b9a"}">${rot}</button>`;
+    const bl = (rot, val) => `<button onclick="window.slLoc='${val}';window.slTipo='';window.slBairro='';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:9px 11px;border-radius:8px;font-weight:700;border:2px solid #4a90d9;background:${locSel === val ? "#4a90d9" : "#fff"};color:${locSel === val ? "#fff" : "#4a90d9"}">${rot}</button>`;
     const barraL = Object.keys(contL).length > 1 ? `<div class="nota"><b>Localidade:</b></div><div style="margin-bottom:6px">${bl("Todas (" + lista.length + ")", "")}${Object.entries(contL).sort((a, b) => b[1] - a[1]).map(([l, q]) => bl(sspEsc(l) + " (" + q + ")", l.replace(/'/g, ""))).join("")}</div>` : "";
     if (locSel) lista = lista.filter(x => String(x.loc).trim() === locSel);
     // Situação dos pedidos do próprio agente
@@ -4097,14 +4097,14 @@ async function carregarSSLista(filtro) {
     // Escolhido o tipo, botões por bairro (para não mandar tudo de uma vez)
     const contB = {}; if (tipoSel) lista.forEach(x => { const b = x.bairro || "Sem bairro"; contB[b] = (contB[b] || 0) + 1; });
     const bairroSel = tipoSel && contB[window.slBairro] ? window.slBairro : "";
-    const bb = (rot, val) => `<button onclick="window.slBairro='${val}';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:7px 9px;border-radius:8px;font-weight:600;border:2px solid #2e7d32;background:${bairroSel === val ? "#2e7d32" : "#fff"};color:${bairroSel === val ? "#fff" : "#2e7d32"}">${rot}</button>`;
+    const bb = (rot, val) => `<button onclick="window.slBairro='${val}';carregarSSLista(window.ssListaFiltro)" style="margin:3px;padding:7px 9px;border-radius:8px;font-weight:600;border:2px solid #0b5394;background:${bairroSel === val ? "#0b5394" : "#fff"};color:${bairroSel === val ? "#fff" : "#0b5394"}">${rot}</button>`;
     const barraB = tipoSel && Object.keys(contB).length > 1 ? `<div class="nota" style="margin-top:4px"><b>Bairro:</b></div><div style="margin-bottom:8px">${bb("Todos (" + lista.length + ")", "")}${Object.entries(contB).sort((a, b) => b[1] - a[1]).map(([b, q]) => bb(sspEsc(b) + " (" + q + ")", b.replace(/'/g, ""))).join("")}</div>` : "";
     if (bairroSel) lista = lista.filter(x => (x.bairro || "Sem bairro") === bairroSel);
     const avisoCorte = tipoSel && /CORTE/.test(tipoSel) ? AVISO_CORTE : "";
     const marcarTodas = tipoSel ? `<label style="display:block;margin:6px 0;font-weight:600"><input type="checkbox" checked onchange="document.querySelectorAll('.sl_sel').forEach(c => c.checked = this.checked)"> Marcar todas as ${lista.length} de ${tipoSel}${bairroSel ? " – " + sspEsc(bairroSel) : ""}</label>` : "";
     box.innerHTML = meusHTML + barraP + barraL + barraT + barraB + avisoCorte + marcarTodas + (lista.length ? lista.map(x => `<div class="card" style="margin-bottom:6px">
         <label><input type="checkbox" class="sl_sel" ${tipoSel ? "checked" : ""} value="${x.ss}" data-tipo="${String(x.tipo).replace(/"/g, "")}" data-loc="${x.loc}" data-nome="${String(x.nome).replace(/"/g, "")}" data-mat="${x.mat}"> <b>SS ${x.ss}</b> · ${x.tipo}</label><br>
-        ${/SUBSTITUI A SS/i.test(x.nome) ? `<div style="background:#ef6c00;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ ${String(x.nome).match(/SUBSTITUI A SS[^|]*/i)[0]} – o prazo da antiga foi perdido. Esta nova NÃO PODE perder o prazo.</div>` : ""}
+        ${/SUBSTITUI A SS/i.test(x.nome) ? `<div style="background:#4a90d9;color:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;font-weight:bold">⚠ ${String(x.nome).match(/SUBSTITUI A SS[^|]*/i)[0]} – o prazo da antiga foi perdido. Esta nova NÃO PODE perder o prazo.</div>` : ""}
         ${x.esp ? `<div style="font-size:14px;color:#0b5394;font-weight:600">${sspEsc(x.esp)}</div>` : ""}
         ${x.cesta ? CESTA_HTML : ""}${alertaPrazoHTML(prazoSS(x.tipo, x.aberturaTxt, x.venc), true)}
         <span style="font-size:14px">${String(x.nome).replace(/\|?\s*SUBSTITUI A SS[^|]*/i, "")} · matrícula ${x.mat} · ${x.loc}${x.end || x.bairro ? "<br>📍 " + sspEsc([x.end, x.bairro].filter(Boolean).join(" – ")) : ""}${x.hid ? "<br>🔢 Hidrômetro: <b>" + sspEsc(x.hid) + "</b>" : ""}${x.obs ? "<br>📝 <b>Obs.:</b> " + sspEsc(x.obs) : ""}<br>Aberta em ${fmt(x.abertura)}</span>
@@ -4346,15 +4346,15 @@ async function carregarServicosUrgentes() {
       .sort((a, b) => (ger ? ordem[a.estado] - ordem[b.estado] : (urgAberta(b) - urgAberta(a))) || String(b.quando).localeCompare(String(a.quando)));
     const qOc = await carregarOcorParaFinalizar("su_ocor");
     window.qtdUrgentes = itens.filter(x => ger ? x.estado === "aguardando" : (urgAberta(x) && servicoParaMim(x.para))).length + qOc;
-    const rot = { pendente: ["Aguardando execução", "#c62828"], devolvido: ["Devolvida pela gerência – refazer", "#b71c1c"], aguardando: ["Executada – aguardando validação", "#ef6c00"], validado: ["✔ Validada", "#2e7d32"] };
+    const rot = { pendente: ["Aguardando execução", "#0b5394"], devolvido: ["Devolvida pela gerência – refazer", "#0b5394"], aguardando: ["Executada – aguardando validação", "#4a90d9"], validado: ["✔ Validada", "#0b5394"] };
     const nAg = ger ? itens.filter(x => x.estado === "aguardando").length : 0;
     // 09/11: quem pode excluir marca várias e exclui de uma vez; validar em lote só vale para as "aguardando validação"
     const podeExcl = !!window.MODO_GERENTE;
-    const loteUrg = (podeExcl || nAg) && itens.length ? `<div class="card" style="margin-bottom:8px;background:#e8f5e9;border-left:6px solid #2e7d32">
+    const loteUrg = (podeExcl || nAg) && itens.length ? `<div class="card" style="margin-bottom:8px;background:#e8f1fb;border-left:6px solid #0b5394">
       <label style="font-size:16px;font-weight:bold;display:block;margin-bottom:6px"><input type="checkbox" onchange="document.querySelectorAll('.urg_sel').forEach(c => c.checked = this.checked);urgContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${podeExcl ? itens.length : nAg})</label>
       ${podeExcl ? `<label style="font-size:15px;display:block;margin-bottom:6px"><input type="checkbox" onchange="document.querySelectorAll('.urg_sel').forEach(c => c.checked = this.checked && c.dataset.estado === 'aguardando');urgContarSel()" style="transform:scale(1.3);margin-right:8px"> Só as executadas – aguardando validação (${itens.filter(x => x.estado === "aguardando").length})</label>` : ""}
-      <div style="display:flex;gap:6px">${nAg ? `<button class="acao" id="urg_lote_btn" style="background:#2e7d32" onclick="validarUrgentesLote(this)">✔ Validar selecionadas (0)</button>` : ""}
-      ${podeExcl ? `<button class="acao" id="urg_excl_btn" style="background:#c62828" onclick="excluirUrgentesLote(this)">🗑 Excluir selecionadas (0)</button>` : ""}</div>
+      <div style="display:flex;gap:6px">${nAg ? `<button class="acao" id="urg_lote_btn" style="background:#0b5394" onclick="validarUrgentesLote(this)">✔ Validar selecionadas (0)</button>` : ""}
+      ${podeExcl ? `<button class="acao" id="urg_excl_btn" style="background:#0b5394" onclick="excluirUrgentesLote(this)">🗑 Excluir selecionadas (0)</button>` : ""}</div>
       ${podeExcl ? `<button class="acao" id="urg_para_btn" style="background:#0b5394" onclick="const d=document.getElementById('urg_para_box');d.style.display=d.style.display==='none'?'block':'none'">👥 Mudar para quem vai (0)</button>
       <div id="urg_para_box" style="display:none;background:#fff;border-radius:8px;padding:8px;margin-top:6px"><div class="nota">As selecionadas passam a aparecer só para:</div>
         ${PESSOAS.filter(p => p[0] !== "Deyse").map((p, _k, arr) => { const w = p[0].split(" "), dup = arr.filter(q => normalizarNome(q[0].split(" ")[0]) === normalizarNome(w[0])).length > 1; return [p[0], dup ? w.slice(0, 2).join(" ") : w[0]]; }).map(p => `<label style="display:block;font-size:16px;padding:3px 0"><input type="checkbox" class="urg_np" value="${p[1]}" style="transform:scale(1.3);margin-right:8px"> ${p[0]}</label>`).join("")}
@@ -4363,11 +4363,11 @@ async function carregarServicosUrgentes() {
       ${podeExcl || (ger && x.estado === "aguardando") ? `<input type="checkbox" class="urg_sel" value="${x.linha}" data-estado="${x.estado}" onchange="urgContarSel()" style="transform:scale(1.5);margin-right:8px">` : ""}<span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${rot[x.estado][1]}">${rot[x.estado][0]}</span><br>
       <b>${sspEsc(x.desc)}</b><br><span style="font-size:14px">Para: ${sspEsc(x.para)} · enviado por ${sspEsc(x.quem)} em ${formatarQuando(x.quando)}</span>
       ${x.situacao === "feito" ? `<br><span style="font-size:14px">Executado por ${sspEsc(x.feito)}${x.dataFeito ? " em " + formatarQuando(x.dataFeito) : ""}</span>` : ""}
-      ${x.estado === "devolvido" && x.ctrl.obs ? `<div style="background:#ffebee;border-radius:8px;padding:6px 10px;margin-top:6px">Motivo: ${sspEsc(x.ctrl.obs)}</div>` : ""}
+      ${x.estado === "devolvido" && x.ctrl.obs ? `<div style="background:#e8f1fb;border-radius:8px;padding:6px 10px;margin-top:6px">Motivo: ${sspEsc(x.ctrl.obs)}</div>` : ""}
       ${!ger && urgAberta(x) && servicoParaMim(x.para) ? `<button class="acao" onclick="concluirServicoUrgente(${x.linha})">Informar que foi executado</button>` : ""}
       ${window.MODO_GERENTE ? `<button onclick="urgEditarPara(${x.linha})" style="margin-top:6px;padding:6px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">✏ Mudar para quem vai</button>` : ""}
-      ${window.MODO_GERENTE ? `<button onclick="excluirUrgente(${x.linha})" style="float:right;margin-top:-4px;padding:6px 10px;border-radius:8px;border:1px solid #c62828;background:#fff;color:#c62828;font-weight:bold">🗑 Excluir</button>` : ""}
-      ${ger && x.estado === "aguardando" ? `<div style="display:flex;gap:6px"><button class="acao" style="background:#2e7d32" onclick="validarUrgente(${x.linha}, 'validado')">✔ Validar</button><button class="acao" style="background:#b71c1c" onclick="validarUrgente(${x.linha}, 'devolvido')">Devolver</button></div>` : ""}
+      ${window.MODO_GERENTE ? `<button onclick="excluirUrgente(${x.linha})" style="float:right;margin-top:-4px;padding:6px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">🗑 Excluir</button>` : ""}
+      ${ger && x.estado === "aguardando" ? `<div style="display:flex;gap:6px"><button class="acao" style="background:#0b5394" onclick="validarUrgente(${x.linha}, 'validado')">✔ Validar</button><button class="acao" style="background:#0b5394" onclick="validarUrgente(${x.linha}, 'devolvido')">Devolver</button></div>` : ""}
     </div>`).join("") : "<p>Nenhuma demanda urgente.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
@@ -4611,10 +4611,10 @@ async function carregarAgersaGerente() {
     const demHTML = demandas.length ? `<table><tr><th>Localidade</th><th>Demanda</th><th>Responsável</th><th>Situação</th><th>Fotos</th><th>Validadas</th><th></th></tr>` +
       demandas.map(d => {
         const f = contaFotos(d);
-        return `<tr><td>${d.local}</td><td>${d.demanda}</td><td>${d.resp || "--"}</td><td>${d.situacao || "--"}</td><td>${f.length}</td><td>${f.filter(x => x.situacao === "validada").length}</td><td>${window.MODO_GERENTE && !emPrevia() ? `<button onclick="cancelarDemandaAgersa(${d.linha})" style="background:#c62828;color:#fff;border:none;border-radius:6px;padding:4px 8px">Cancelar</button>` : ""}</td></tr>`;
+        return `<tr><td>${d.local}</td><td>${d.demanda}</td><td>${d.resp || "--"}</td><td>${d.situacao || "--"}</td><td>${f.length}</td><td>${f.filter(x => x.situacao === "validada").length}</td><td>${window.MODO_GERENTE && !emPrevia() ? `<button onclick="cancelarDemandaAgersa(${d.linha})" style="background:#0b5394;color:#fff;border:none;border-radius:6px;padding:4px 8px">Cancelar</button>` : ""}</td></tr>`;
       }).join("") + "</table>" : "<p>Nenhuma demanda.</p>";
     const fotosHTML = fotos.length ? fotos.slice().reverse().map(f => {
-      const cor = f.situacao === "validada" ? "#2e7d32" : f.situacao === "não validada" ? "#c62828" : "#f9a825";
+      const cor = f.situacao === "validada" ? "#0b5394" : f.situacao === "não validada" ? "#0b5394" : "#4a90d9";
       return `<div class="card" style="border-left:6px solid ${cor};margin-bottom:8px">
         <b>${f.demanda}</b> · ${f.local}<br>
         <span style="font-size:14px">Enviada por ${f.quem} em ${formatarQuando(f.quando)} · ${f.situacao}${f.por ? " por " + f.por : ""}</span><br>
@@ -4807,7 +4807,7 @@ function marcaOrigemObra(sel) {
 function blocoEncerramento(chave) {
   const c = CAMPOS_ENCERRAMENTO[chave];
   if (!c) return "";
-  return `<div class="card" style="border-left:6px solid #0a6e8a"><b>Dados obrigatórios para encerrar: ${c.titulo}</b>
+  return `<div class="card" style="border-left:6px solid #0b5394"><b>Dados obrigatórios para encerrar: ${c.titulo}</b>
     ${c.campos.map(([nome, tipo, condicao, padrao], i) => {
       const campo = Array.isArray(tipo)
         ? `<select id="enc_${i}" class="campo"${condicao === "pergunta_obra" ? ` onchange="marcaOrigemObra(this)"` : ""}><option value="">${nome}…</option>${tipo.map(o => `<option${o === padrao ? " selected" : ""}>${o}</option>`).join("")}</select>`
@@ -4834,7 +4834,7 @@ function telaPedidoSS(encerrar = false) {
     ${fotos}
     <div class="nota"><b>Ao pedir, a SS entra nas pendências do SCI e aguarda oportunidade para ser executada.</b> Preencha o pedido. A gerência ou o atendente gera a SS e o número aparece em Meus pedidos.</div>
     <input type="hidden" id="ps_acao" value="Digitar e encerrar">
-    <button class="acao" style="background:#0a6e8a" onclick="usarGPSSS(this)">Usar minha localização (GPS)</button>
+    <button class="acao" style="background:#0b5394" onclick="usarGPSSS(this)">Usar minha localização (GPS)</button>
     <input id="ps_tipo_busca" class="campo" placeholder="🔎 Digite para achar o tipo (ex.: vazamento, hidrômetro, ligação)" oninput="filtrarSelect('ps_tipo', this.value)">
     <select id="ps_tipo" class="campo" onchange="encherEspSS();const b=document.getElementById('ps_esp_busca');if(b){b.value='';}"><option value="">Tipo de serviço…</option>${Object.keys(TIPOS_SS).map(c => `<option value="${c}">${c} – ${TIPOS_SS[c][0]}</option>`).join("")}</select>
     <input id="ps_esp_busca" class="campo" placeholder="🔎 Digite para achar a especificação" oninput="filtrarSelect('ps_esp', this.value)">
@@ -5009,7 +5009,7 @@ async function enviarPedidoSS(encerrar = false) {
         const el = document.getElementById("enc_" + i);
         const v = (el || {}).value || "";
         if (!v.trim()) { faltam.push(nome); if (el && !primeiroVazio) primeiroVazio = el; }
-        if (el) el.style.border = v.trim() ? "" : "2px solid #c62828"; // o que falta fica com borda vermelha
+        if (el) el.style.border = v.trim() ? "" : "2px solid #0b5394"; // o que falta fica com borda vermelha
         return nome + ": " + v;
       });
       if (faltam.length) {
@@ -5136,15 +5136,15 @@ async function carregarPendExecutar() {
     const visiveis = filtro === "__PR__" ? ordenadas.filter(ehPortoRico) : filtro ? ordenadas.filter(x => nomeTipo(x.tipo) === filtro) : ordenadas;
     const btn = (rotulo, valor, cor) => `<button onclick="window.pexFiltro='${valor}';carregarPendExecutar()" style="margin:3px;padding:8px 10px;border-radius:8px;font-weight:600;border:2px solid ${cor || "#0b5394"};background:${filtro === valor ? (cor || "#0b5394") : "#fff"};color:${filtro === valor ? "#fff" : (cor || "#0b5394")}">${rotulo}</button>`;
     const barra = `<div style="margin-bottom:8px">
-      ${agenteSD ? `<button onclick="window.pexFiltro='__PR__';carregarPendExecutar()" style="display:block;width:100%;margin:3px 0 8px;padding:12px;border-radius:10px;font-size:16px;font-weight:bold;border:none;background:#c62828;color:#fff;${filtro === "__PR__" ? "outline:3px solid #7f0000" : ""}">Vazamento no Porto Rico (${qtdPR})</button>` : ""}
+      ${agenteSD ? `<button onclick="window.pexFiltro='__PR__';carregarPendExecutar()" style="display:block;width:100%;margin:3px 0 8px;padding:12px;border-radius:10px;font-size:16px;font-weight:bold;border:none;background:#0b5394;color:#fff;${filtro === "__PR__" ? "outline:3px solid #0b5394" : ""}">Vazamento no Porto Rico (${qtdPR})</button>` : ""}
       ${btn("Todas as SS (" + ordenadas.length + ")", "")}
       ${Object.entries(tiposCont).sort((a, b) => b[1] - a[1]).map(([t, q]) => btn(t + " (" + q + ")", t.replace(/'/g, ""))).join("")}
     </div>`;
-    box.innerHTML = barra + `<div class="nota">${visiveis.length} SS ${filtro === "__PR__" ? "de vazamento no Porto Rico" : filtro ? "de " + filtro : "pendente(s)"}</div>` + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
-      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.nova ? ` <span style="background:#2e7d32;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:bold">NOVA HOJE</span>` : ""}${(() => { const ka = cab.indexOf("abertura"); const p = prazoSS(x.tipo, ka >= 7 ? x.extras[ka - 7] : ""); return p ? alertaPrazoHTML(p, false) : (x.vencida ? `<div style="color:#c62828;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""); })()}
+    box.innerHTML = barra + `<div class="nota">${visiveis.length} SS ${filtro === "__PR__" ? "de vazamento no Porto Rico" : filtro ? "de " + filtro : "pendente(s)"}</div>` + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
+      <b>SS ${x.ss}</b> · ${x.tipo} · ${x.loc}${x.nova ? ` <span style="background:#0b5394;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:bold">NOVA HOJE</span>` : ""}${(() => { const ka = cab.indexOf("abertura"); const p = prazoSS(x.tipo, ka >= 7 ? x.extras[ka - 7] : ""); return p ? alertaPrazoHTML(p, false) : (x.vencida ? `<div style="color:#0b5394;font-weight:bold;margin-top:4px">VENCIDA – executar em campo com urgência, o cliente pode abrir outra SS</div>` : ""); })()}
       ${x.extras.map((v, k) => campoExtraSS(cab[7 + k], v)).join("")}
-      ${(() => { const k = cab.findIndex(h => /hidrom/i.test(String(h))); return String(x.loc).trim() === "São Desidério" && !(k >= 0 && String(x.extras[k - 7] || "").trim()) ? `<div style="font-size:14px;color:#b71c1c">Sem número do HD</div>` : ""; })()}
-      ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#b71c1c">Sem localização</div>`)}
+      ${(() => { const k = cab.findIndex(h => /hidrom/i.test(String(h))); return String(x.loc).trim() === "São Desidério" && !(k >= 0 && String(x.extras[k - 7] || "").trim()) ? `<div style="font-size:14px;color:#0b5394">Sem número do HD</div>` : ""; })()}
+      ${x.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${x.gps}" target="_blank">📍 Abrir localização no mapa</a></div>` : ((idxLocal >= 0 && String(x.extras[idxLocal - 7] || "").trim()) || LOCALIDADES_SEM_MAPA.includes(String(x.loc).trim()) ? "" : `<div style="font-size:14px;margin-top:4px;color:#0b5394">Sem localização</div>`)}
       <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço (opcional)</b><br>
         <button onclick="document.getElementById('pexcam_${x.ss}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:600">📷 Tirar foto</button>
         <button onclick="document.getElementById('pexgal_${x.ss}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#fff;color:#555;font-weight:600">Anexar do celular</button>
@@ -5175,7 +5175,7 @@ async function carregarAnexarDocumento() {
     if (res.erro) { box.textContent = res.erro; return; }
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], ss: String(l[2]).replace(/^'/, ""), serv: l[3], loc: l[4], situacao: l[6] || "", fotos: String(l[9] || "") }))
       .filter(x => x.situacao === "anexar").reverse();
-    box.innerHTML = `<h3>Anexar documento à SS já encerrada</h3>` + (itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #6a1b9a">
+    box.innerHTML = `<h3>Anexar documento à SS já encerrada</h3>` + (itens.length ? itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid #4a90d9">
       <b>SS ${x.ss}</b><br><span style="font-size:15px">${x.serv} · ${x.loc}</span><br>
       <span style="font-size:14px">Executada por ${x.quem} em ${formatarQuando(x.quando)}</span><br>
       <div style="font-size:14px">Fotos: ${x.fotos.split(" ").filter(Boolean).map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>
@@ -5352,7 +5352,7 @@ async function carregarPendAbrirEncerrar() {
     const itens = res.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], quem: l[1], tipo: l[2], esp: l[3], loc: l[4], obs: l[9] || "", situacao: l[10] || "pendente", fotos: l[15] || "" }))
       .filter(x => /\[ABRIR E ENCERRAR\]/.test(x.obs) && x.situacao === "pendente");
     if (!itens.length) { box.innerHTML = "<p>Nenhuma SS de abrir e encerrar pendente.</p>"; return; }
-    box.innerHTML = itens.reverse().map(p => `<div class="card" style="margin-bottom:10px;border-left:6px solid #c62828">
+    box.innerHTML = itens.reverse().map(p => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
       <b>${p.tipo}</b><br><span style="font-size:14px">${p.esp} · ${p.loc} · pedido por ${p.quem} em ${formatarQuando(p.quando)}</span>
       <pre style="white-space:pre-wrap;font-size:13px">${p.obs}</pre>
       ${p.fotos ? "<div style=\"font-size:14px\">Fotos: " + p.fotos.split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") + "</div>" : ""}
@@ -5395,7 +5395,7 @@ async function carregarPedidosDigiteam() {
     });
     const lista = Object.entries(grupos).reverse();
     window.digiGrupos = Object.fromEntries(lista);
-    box.innerHTML = lista.length ? `<h3>Pedidos para o Digiteam (${lista.length})</h3>` + lista.map(([id, g], k) => `<div class="card" style="margin-bottom:10px;border-left:6px solid #ef6c00">
+    box.innerHTML = lista.length ? `<h3>Pedidos para o Digiteam (${lista.length})</h3>` + lista.map(([id, g], k) => `<div class="card" style="margin-bottom:10px;border-left:6px solid #4a90d9">
       ${g.ss.every(s => /^Bairro:/.test(s)) ? `<b>${g.quem} pediu cortes no Digiteam</b>` : `<b>${g.quem} pediu ${g.ss.length} SS de ${g.tipo}</b>`}<br><span style="font-size:14px">${g.loc} · em ${formatarQuando(g.quando)}</span>
       <div style="font-size:13px;margin-top:4px">${g.ss.every(s => /^Bairro:/.test(s)) ? sspEsc(g.ss.join(" · ")) : "SS: " + g.ss.join(", ")}</div>
       <button class="acao" onclick="marcarDigiteamFeito(${k})">Mandado no Digiteam</button></div>`).join("") : "";
@@ -5459,14 +5459,14 @@ async function carregarPedidosSS(boxId = "pss_lista", soWhats = false) {
       const r = resp[p.linha];
       const blocoWhats = !sspEhWhats(p.obs) ? "" : `<div style="border-top:1px solid #ddd;margin-top:8px;padding-top:6px">
         <b>Resposta do responsável pela localidade</b>
-        ${r ? `<div class="nota" style="color:#2e7d32">${r.texto}<br>— ${r.quem} em ${formatarQuando(r.quando)}</div>`
+        ${r ? `<div class="nota" style="color:#0b5394">${r.texto}<br>— ${r.quem} em ${formatarQuando(r.quando)}</div>`
             : `<div class="nota">Ainda sem resposta do responsável.</div>`}
         ${soLeitura ? `<input id="wr_p_${p.linha}" class="campo" placeholder="Novo prazo que podemos dar ao cliente">
           <textarea id="wr_m_${p.linha}" class="campo" rows="2" placeholder="O que houve para demorar"></textarea>
           <button class="acao" onclick="responderWhats(${p.linha})">${r ? "Atualizar resposta" : "Enviar resposta"}</button>` : ""}
       </div>`;
-      return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${pend ? "#c62828" : "#2e7d32"}">
-        ${tarjaWhats ? `<div style="background:#25D366;color:#fff;font-weight:bold;padding:4px 8px;border-radius:6px;margin-bottom:6px">${tarjaWhats}</div>` : ""}
+      return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${pend ? "#0b5394" : "#0b5394"}">
+        ${tarjaWhats ? `<div style="background:#0b5394;color:#fff;font-weight:bold;padding:4px 8px;border-radius:6px;margin-bottom:6px">${tarjaWhats}</div>` : ""}
         <b>${p.tipo}</b><br><span style="font-size:14px">${p.esp} · ${p.loc} · pedido por ${p.quem} em ${formatarQuando(p.quando)}</span>
         <pre style="white-space:pre-wrap;font-size:13px">${ficha}</pre>
         ${p.fotos ? "<div style=\"font-size:14px\">Fotos para adicionar: " + p.fotos.split(" ").map((u, k) => `<a href="${u}" target="_blank">foto ${k + 1}</a>`).join(" · ") + "</div>" : ""}
@@ -5477,7 +5477,7 @@ async function carregarPedidosSS(boxId = "pss_lista", soWhats = false) {
           <div class="nota">Abrir e encerrar com foto: sai da lista quando você responder com o número e marcar "Foto anexada: Sim".</div>` : `<div class="nota">Abrir e encerrar sem foto: ao responder com o número, o pedido é concluído e sai da lista.</div>`) : `<div class="nota">Pedido só para gerar: basta o número da SS (sem foto).</div>`}
           <button class="acao" onclick="responderSS(${p.linha}, false)">Responder com a SS (sem Digiteam)</button>
           <button class="acao" onclick="responderSS(${p.linha}, true)">Gerar SS e mandar para o Digiteam</button>
-          ${window.MODO_GERENTE && !emPrevia() ? `<button class="acao" style="background:#c62828" onclick="cancelarPedidoSS(${p.linha})">Cancelar pedido (duplicado ou errado)</button>` : ""}`
+          ${window.MODO_GERENTE && !emPrevia() ? `<button class="acao" style="background:#0b5394" onclick="cancelarPedidoSS(${p.linha})">Cancelar pedido (duplicado ou errado)</button>` : ""}`
           : `<div>SS nº <b>${p.ss}</b> · respondida por ${p.por}${p.dg ? " · enviada ao Digiteam de <b>" + p.dg + "</b>" : ""}</div>`}
         ${blocoWhats}
       </div>`;
@@ -5723,12 +5723,12 @@ async function carregarLigNovaThiago() {
     const lista = sspMontarTodas(d).filter(ligNovaPronta);
     window.lntCache = {}; lista.forEach(it => { window.lntCache[it.ss] = it; });
     const campo = (it, n) => sspLimpo(((it.campos || []).find(c => c[0] === n) || [])[1]);
-    box.innerHTML = lista.length ? `<div class="nota">${lista.length} ligação(ões) nova(s) executada(s) para encerrar no SCI</div>` + lista.map(it => `<div class="card" style="margin-bottom:10px;border-left:6px solid #2e7d32">
+    box.innerHTML = lista.length ? `<div class="nota">${lista.length} ligação(ões) nova(s) executada(s) para encerrar no SCI</div>` + lista.map(it => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
       <div style="font-size:20px;font-weight:bold;color:#0b5394">SS ${sspEsc(it.ss)}</div>
       <div style="font-weight:600">${sspEsc(it.tipo)}</div>
       <div style="font-size:14px;margin:4px 0">${it.executada ? "✔ Executada no campo" : "✔ " + sspEsc(it.estadoSCI)}</div>
       <div style="font-size:15px">${sspEsc(campo(it, "Cliente"))}<br>${sspEsc([campo(it, "Endereço"), campo(it, "Bairro"), it.loc].filter(Boolean).join(" – "))}${it.mat ? "<br>Matrícula " + sspEsc(it.mat) : ""}</div>
-      <button class="acao" style="background:#2e7d32" onclick="ligNovaEncerrei('${sspEsc(it.ss)}', this)">Encerrei no SCI</button></div>`).join("") : "<p>Nenhuma ligação nova executada para encerrar.</p>";
+      <button class="acao" style="background:#0b5394" onclick="ligNovaEncerrei('${sspEsc(it.ss)}', this)">Encerrei no SCI</button></div>`).join("") : "<p>Nenhuma ligação nova executada para encerrar.</p>";
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
 }
 async function ligNovaEncerrei(ss, btn) {
@@ -5938,12 +5938,12 @@ function sspTramitar(d) {
 function sspTramitarHTML(lista) {
   if (!lista.length) return "<p>Nenhuma SS para tramitar.</p>";
   window.trmCache = {}; lista.forEach(x => { window.trmCache[x.ss] = x; });
-  return lista.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #6a1b9a">
+  return lista.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #4a90d9">
     <div style="font-size:20px;font-weight:bold;color:#0b5394">SS ${sspEsc(x.ss)}</div>
     <div style="font-weight:600">${sspEsc(x.tipo)}</div>
-    <div style="background:#6a1b9a;color:#fff;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:bold">↔ Tramitar no SCI de ${sspEsc(x.de)} para ${sspEsc(x.para)}</div>
+    <div style="background:#4a90d9;color:#fff;border-radius:8px;padding:6px 10px;margin:6px 0;font-weight:bold">↔ Tramitar no SCI de ${sspEsc(x.de)} para ${sspEsc(x.para)}</div>
     <div style="font-size:14px">${sspEsc(x.cliente)}${x.mat ? " · Matrícula " + sspEsc(x.mat) : ""}<br>${sspEsc([x.loc, x.setor, x.bairro].filter(Boolean).join(" · "))}</div>
-    <button class="acao" style="background:#6a1b9a" onclick="sspTramitei('${sspEsc(x.ss)}', this)">Tramitei no SCI</button></div>`).join("");
+    <button class="acao" style="background:#4a90d9" onclick="sspTramitei('${sspEsc(x.ss)}', this)">Tramitei no SCI</button></div>`).join("");
 }
 async function sspTramitei(ss, btn) {
   const x = (window.trmCache || {})[ss]; if (!x) return;
@@ -5972,7 +5972,7 @@ function sspCatsRender() {
     document.querySelectorAll(".sspsec_tit").forEach(t => { const k = t.dataset.cat;
       if (k === "ped") { t.innerHTML = ""; return; }
       const nome = k === "ee" ? "Pedidos de SS e não executadas" : rot[k], n = k === "ee" ? nPed : (c[k] || 0);
-      t.innerHTML = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">${nome} (${n})</div>`; });
+      t.innerHTML = `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">${nome} (${n})</div>`; });
     const secEE = document.querySelector('.sspsec[data-cat="ee"]'); if (secEE && nPed > 0) secEE.style.display = "";
     const eeL = document.getElementById("ee_lista"); if (eeL) eeL.style.display = (c.ee || 0) > 0 ? "" : "none";
     // 10/11: resumo no topo – o total do menu e de onde vem cada parte (toque para ir ao grupo)
@@ -5981,11 +5981,11 @@ function sspCatsRender() {
     const tot = partes.reduce((t, x) => t + x[2], 0);
     box.style.display = "block";
     // 12/11: resumo numa linha só (sem texto explicativo)
-    box.innerHTML = tot ? `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px"><b style="font-size:16px">${tot} pendentes:</b>${partes.map(([k, n, q]) => `<button onclick="const e=document.querySelector('.sspsec[data-cat=${k}]');if(e)e.scrollIntoView({behavior:'smooth'})" style="padding:5px 9px;border-radius:14px;border:1px solid #e65100;background:#fff;color:#e65100;font-weight:bold;font-size:13px">${n}: ${q}</button>`).join("")}</div>` : "";
+    box.innerHTML = tot ? `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px"><b style="font-size:16px">${tot} pendentes:</b>${partes.map(([k, n, q]) => `<button onclick="const e=document.querySelector('.sspsec[data-cat=${k}]');if(e)e.scrollIntoView({behavior:'smooth'})" style="padding:5px 9px;border-radius:14px;border:1px solid #4a90d9;background:#fff;color:#4a90d9;font-weight:bold;font-size:13px">${n}: ${q}</button>`).join("")}</div>` : "";
     const titPed = document.querySelector('.sspsec_tit[data-cat="ped"]'); if (titPed) titPed.innerHTML = "";
     return;
   }
-  box.innerHTML = extras.length ? [["ss", "SS do Excel", c.ss]].concat(extras.map(([k, r]) => [k, r, c[k]])).map(([k, rot, n]) => `<button onclick="window.sspCat='${k}';sspCatsRender()" style="flex:1 1 45%;margin:3px;padding:10px 6px;border-radius:10px;font-size:14px;font-weight:bold;border:2px solid #c62828;background:${at === k ? "#c62828" : "#fff"};color:${at === k ? "#fff" : "#c62828"}">${rot}${n === undefined ? "" : " (" + n + ")"}</button>`).join("") : "";
+  box.innerHTML = extras.length ? [["ss", "SS do Excel", c.ss]].concat(extras.map(([k, r]) => [k, r, c[k]])).map(([k, rot, n]) => `<button onclick="window.sspCat='${k}';sspCatsRender()" style="flex:1 1 45%;margin:3px;padding:10px 6px;border-radius:10px;font-size:14px;font-weight:bold;border:2px solid #0b5394;background:${at === k ? "#0b5394" : "#fff"};color:${at === k ? "#fff" : "#0b5394"}">${rot}${n === undefined ? "" : " (" + n + ")"}</button>`).join("") : "";
   if (!extras.some(([k]) => k === at)) window.sspCat = "ss";
   document.querySelectorAll(".sspsec").forEach(d => { d.style.display = d.dataset.cat === (window.sspCat || "ss") ? "" : "none"; });
 }
@@ -6020,7 +6020,7 @@ function sspAbrirTodas(chave) {
   if (!window.sspChaveTodas || !ks.includes(window.sspChaveTodas)) window.sspChaveTodas = ks.slice().sort((a, b) => n(b) - n(a))[0] || "sd";
   const atual = window.sspChaveTodas;
   const box = document.getElementById("ssp_locs");
-  if (box) box.innerHTML = `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${ks.map(k => `<button onclick="sspAbrirTodas('${k}')" style="flex:1 1 45%;margin:3px;padding:12px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid #c62828;background:${k === atual ? "#c62828" : "#fff"};color:${k === atual ? "#fff" : "#c62828"}">${SSP_LOCAIS[k]} (${n(k)})</button>`).join("")}</div>`;
+  if (box) box.innerHTML = `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${ks.map(k => `<button onclick="sspAbrirTodas('${k}')" style="flex:1 1 45%;margin:3px;padding:12px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid #0b5394;background:${k === atual ? "#0b5394" : "#fff"};color:${k === atual ? "#fff" : "#0b5394"}">${SSP_LOCAIS[k]} (${n(k)})</button>`).join("")}</div>`;
   carregarSSPend(atual);
 }
 async function carregarSSPend(chave) {
@@ -6052,12 +6052,12 @@ async function carregarSSPend(chave) {
     const nV = lista.filter(it => it.vencidaCampo && !it.executada).length; // encerradas no SCI, falta ir a campo
     const nE = lista.filter(sspEscritorio).length; // o escritório precisa encerrar no SCI
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
-    const barra = telaUnica ? "" : p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#c62828")}${btnF("digitacao", "Pendência de digitação", nD, "#6a1b9a")}${btnF("fotos", "Pendência de documentos", nF, "#ef6c00")}${nE ? btnF("escritorio", "Escritório encerrar", nE, "#b71c1c") : ""}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
+    const barra = telaUnica ? "" : p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#0b5394")}${btnF("digitacao", "Pendência de digitação", nD, "#4a90d9")}${btnF("fotos", "Pendência de documentos", nF, "#4a90d9")}${nE ? btnF("escritorio", "Escritório encerrar", nE, "#0b5394") : ""}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
       : window.sspDemandasVenc
-        ? `<div style="background:#b71c1c;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS encerradas no SCI, mas não em campo (${nV})</div>`
+        ? `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS encerradas no SCI, mas não em campo (${nV})</div>`
           + `<button class="acao" style="background:#0b5394" onclick="window.sspDemandasVenc=false;carregarSSPend('${chave}')">Ver todas as SS pendentes (${nC})</button>`
-        : `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`
-          + (nV ? `<button class="acao" style="background:#b71c1c" onclick="window.sspDemandasVenc=true;carregarSSPend('${chave}')">SS encerradas no SCI, mas não em campo (${nV})</button>` : "");
+        : `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`
+          + (nV ? `<button class="acao" style="background:#0b5394" onclick="window.sspDemandasVenc=true;carregarSSPend('${chave}')">SS encerradas no SCI, mas não em campo (${nV})</button>` : "");
     let visiveis = filtro === "pend" ? lista.filter(sspFaltaDigitador) : (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : filtro === "escritorio" ? lista.filter(sspEscritorio) : lista;
     // 09/11: filtros de visualização (tipo de serviço, período de abertura e cesta)
     const F = window.sspF = window.sspF || {};
@@ -6101,7 +6101,7 @@ async function carregarSSPend(chave) {
     const nPrazo = { venc: visiveis.filter(noPrazo.venc).length, h24: visiveis.filter(noPrazo.h24).length, h48: visiveis.filter(noPrazo.h48).length };
     if (F.prazo && noPrazo[F.prazo]) visiveis = visiveis.filter(noPrazo[F.prazo]);
     const balaoP = (rot, val, n, cor) => { const on = F.prazo === val; return `<button onclick="window.sspF.prazo=${on ? "''" : "'" + val + "'"};carregarSSPend('${chave}')" style="flex:1 1 30%;margin:3px;padding:10px 4px;border-radius:10px;font-size:14px;font-weight:bold;border:2px solid ${cor};background:${on ? cor : "#fff"};color:${on ? "#fff" : cor}">${rot} (${n})</button>`; };
-    const prazoHTML = !F.prazo && !nPrazo.venc && !nPrazo.h24 && !nPrazo.h48 ? "" : `<div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${balaoP("Vencidas", "venc", nPrazo.venc, "#b71c1c")}${balaoP("Vence em até 24h", "h24", nPrazo.h24, "#ef6c00")}${balaoP("Vence em até 48h", "h48", nPrazo.h48, "#8d6e00")}</div>`;
+    const prazoHTML = !F.prazo && !nPrazo.venc && !nPrazo.h24 && !nPrazo.h48 ? "" : `<div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${balaoP("Vencidas", "venc", nPrazo.venc, "#0b5394")}${balaoP("Vence em até 24h", "h24", nPrazo.h24, "#4a90d9")}${balaoP("Vence em até 48h", "h48", nPrazo.h48, "#4a90d9")}</div>`;
     const extras = [F.de, F.ate, F.cesta].filter(Boolean).length;
     const filtrosHTML = (tiposDisp.length ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${balao("Todos", "", nAntesTipo)}${tiposDisp.map(t => balao(t.replace(/^\d+\s*-\s*/, ""), t, contTipo[t])).join("")}</div>` : "") + lugarHTML + ruaHTML + prazoHTML
       + (telaUnica ? "" : `<details class="card" style="margin-bottom:8px"${extras ? " open" : ""}><summary style="font-weight:bold;cursor:pointer">📅 Período e cesta ${extras ? `(${visiveis.length} de ${totalAntes})` : ""}</summary>
@@ -6122,7 +6122,7 @@ async function carregarSSPend(chave) {
     if (modoSimples) { visiveis.forEach(it => { it._soFoto = !!(it.ss && it.digitada && sspFaltaFoto(it) && !sspFaltaDig(it) && !sspEscritorio(it)); });
       visiveis = [...visiveis.filter(it => !it._soFoto), ...visiveis.filter(it => it._soFoto)]; }
     const chip = (txt, cor) => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${cor}">${txt}</span>`;
-    const verde = "#2e7d32", vermelho = "#c62828", laranja = "#ef6c00", vinho = "#7f0000";
+    const verde = "#0b5394", vermelho = "#0b5394", laranja = "#4a90d9", vinho = "#0b5394";
     const eu = normalizarNome(window.credenciais.usuario);
     const selecionaveis = p.digitador ? visiveis.filter(it => it.ss && !it.digitada) : [];
     const ehGerDeyse = window.MODO_GERENTE && !emPrevia() && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse");
@@ -6131,31 +6131,31 @@ async function carregarSSPend(chave) {
       && !(it.subst && !it.subst.liberado) && !(!SSP_CORTE_NO_CAMPO.includes(it._chave || chave) && ehCorteSS(it.tipoCurto || it.tipo)) && !sspCorteComLeitura(it, it._chave || chave) && !sspFotoExigida(it.tipo);
     window.sspPodeLoteCampo = podeLoteCampo;
     const selCampo = visiveis.filter(podeLoteCampo);
-    const loteCampo = selCampo.length > 1 ? `<div class="card" style="margin-bottom:8px;background:#e8f5e9;border-left:6px solid #2e7d32">
+    const loteCampo = selCampo.length > 1 ? `<div class="card" style="margin-bottom:8px;background:#e8f1fb;border-left:6px solid #0b5394">
       <label style="font-size:16px;font-weight:bold"><input type="checkbox" onchange="document.querySelectorAll('.sspc_sel').forEach(c => c.checked = this.checked);sspContarSelCampo()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${selCampo.length})</label>
       <div class="nota" style="margin:4px 0">Marque as SS que você já executou. Para colocar foto, leitura ou observação, use o botão de cada SS.</div>
-      <button class="acao" id="sspc_lote_btn" style="background:#2e7d32" onclick="sspExecutarLote(this)">✔ Marcar selecionadas como executadas (0)</button></div>` : "";
-    const lote = selecionaveis.length || selGer.length ? `<div class="card" style="margin-bottom:8px;background:#f3e5f5;border-left:6px solid #6a1b9a">
+      <button class="acao" id="sspc_lote_btn" style="background:#0b5394" onclick="sspExecutarLote(this)">✔ Marcar selecionadas como executadas (0)</button></div>` : "";
+    const lote = selecionaveis.length || selGer.length ? `<div class="card" style="margin-bottom:8px;background:#e8f1fb;border-left:6px solid #4a90d9">
       <label style="font-size:16px;font-weight:bold"><input type="checkbox" id="ssp_sel_todas" onchange="document.querySelectorAll('.ssp_sel').forEach(c => c.checked = this.checked);sspContarSel()" style="transform:scale(1.4);margin-right:8px"> Selecionar todas (${Math.max(selecionaveis.length, selGer.length)})</label>
-      ${selecionaveis.length ? `<button class="acao" id="ssp_lote_btn" style="background:#6a1b9a" onclick="sspDigitarLote(this)">Marcar selecionadas como digitadas (0)</button>` : ""}
-      ${ehGerDeyse ? `<button class="acao" id="ssp_excl_btn" style="background:#c62828" onclick="sspExcluirLote(this)">🗑 Excluir selecionadas do painel (0)</button>` : ""}</div>` : "";
+      ${selecionaveis.length ? `<button class="acao" id="ssp_lote_btn" style="background:#4a90d9" onclick="sspDigitarLote(this)">Marcar selecionadas como digitadas (0)</button>` : ""}
+      ${ehGerDeyse ? `<button class="acao" id="ssp_excl_btn" style="background:#0b5394" onclick="sspExcluirLote(this)">🗑 Excluir selecionadas do painel (0)</button>` : ""}</div>` : "";
     if (silencioso) setTimeout(() => window.scrollTo(0, yAntes), 0);
     box.innerHTML = ocHTML + barra + filtrosFinal + lote + loteCampo + (filtro === "campo" && visiveis.length > 1 ? `<div class="nota">Ordem de visita a partir do escritório (vencidas primeiro).</div>` : "") + (visiveis.length ? "" : "<p>Nenhuma SS neste filtro.</p>") + visiveis.map((it, n) => {
       const id = sspEsc(it.id);
       const etapas = [];
       if (it._chave) etapas.push(chip(SSP_LOCAIS[it._chave], "#455a64")); // lista única: mostra a localidade
-      if (it.gerExec) etapas.push(chip("👩‍💼 Gerência: encerrar como executada", "#4a148c"));
-      if (it.cesta) etapas.push(chip("🎯 CESTA DE METAS", "#b71c1c"));
+      if (it.gerExec) etapas.push(chip("👩‍💼 Gerência: encerrar como executada", "#4a90d9"));
+      if (it.cesta) etapas.push(chip("🎯 CESTA DE METAS", "#0b5394"));
       if (it.prazo) { const fal = it.prazo.fim - new Date();
-        etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA há " + faltaTexto(fal) + " (venceu " + quandoVence(it.prazo.fim) + ")", vermelho) : chip((fal < 24 * 36e5 ? "⏰" : "⏳") + " Vence " + quandoVence(it.prazo.fim) + " – faltam " + faltaTexto(fal), fal < 24 * 36e5 ? laranja : "#8d6e00")); }
+        etapas.push(it.prazo.vencida ? chip("⚠ VENCIDA há " + faltaTexto(fal) + " (venceu " + quandoVence(it.prazo.fim) + ")", vermelho) : chip((fal < 24 * 36e5 ? "⏰" : "⏳") + " Vence " + quandoVence(it.prazo.fim) + " – faltam " + faltaTexto(fal), fal < 24 * 36e5 ? laranja : "#4a90d9")); }
       if (it.parada) etapas.push(chip("⏱ Parada: " + sspEsc(it.parada), vinho));
-      if (it.vencidaCampo && !it.executada) etapas.push(chip("⚠ Encerrada no SCI – falta confirmar em campo", "#b71c1c"));
-      if (it.escritorioEncerrar) etapas.push(chip("🏢 O escritório deve encerrar no SCI (o campo não vê)", "#b71c1c"));
+      if (it.vencidaCampo && !it.executada) etapas.push(chip("⚠ Encerrada no SCI – falta confirmar em campo", "#0b5394"));
+      if (it.escritorioEncerrar) etapas.push(chip("🏢 O escritório deve encerrar no SCI (o campo não vê)", "#0b5394"));
       if (it.tipoPedido === "digiteam") etapas.push(chip("Aguardando abertura e envio ao Digiteam", laranja));
       else {
         if (it.tipoPedido === "sci" && !modoSimples) etapas.push(chip("Aberta no SCI", "#0b5394"));
         if (!it.ss) etapas.push(chip("Aguardando número da SS", laranja));
-        if (it.assumida && !it.executada && !modoSimples) etapas.push(chip("🚶 Com " + sspEsc(sspNome(it.assumida.quem)), "#1565c0"));
+        if (it.assumida && !it.executada && !modoSimples) etapas.push(chip("🚶 Com " + sspEsc(sspNome(it.assumida.quem)), "#4a90d9"));
         if (!it.escritorioEncerrar && !modoSimples) etapas.push(it.executada ? chip("✔ Executada em campo (" + sspEsc(sspNome(it.executada.quem)) + ")", verde) : chip("Falta executar em campo", vermelho));
         if (p.digitador) { // digitação e documentos: só digitadores veem
           if (!modoSimples) etapas.push(it.digitada ? chip("✔ Digitada (" + sspEsc(sspNome(it.digitada.quem)) + ")", verde) : chip(it.escritorioEncerrar ? "Falta encerrar no SCI" : "Falta digitar", vermelho));
@@ -6167,38 +6167,38 @@ async function carregarSSPend(chave) {
       const debLoc = SSP_LOCAIS[it._chave || chave] || "";
       const debPdf = ehCorteSS(it.tipoCurto || it.tipo) && debLoc ? (window.sspDebPdfs || []).filter(q => sspMesmoLocal(q.loc, debLoc)).sort((a, b) => String(b.quando).localeCompare(String(a.quando)))[0] : null;
       const matDeb = sspLimpo(((it.campos || []).find(c => c[0] === "Matrícula") || [])[1]);
-      const ficha = sspFicha(it.campos) + (debPdf ? `<a href="${sspEsc(debPdf.url)}" target="_blank" style="display:block;text-align:center;text-decoration:none;background:#6a1b9a;color:#fff;border-radius:8px;padding:10px;margin:6px 0;font-weight:bold">📄 Ver débitos${matDeb ? " da matrícula " + sspEsc(matDeb) : ""} (PDF de ${formatarQuando(debPdf.quando)})</a>` : "");
+      const ficha = sspFicha(it.campos) + (debPdf ? `<a href="${sspEsc(debPdf.url)}" target="_blank" style="display:block;text-align:center;text-decoration:none;background:#4a90d9;color:#fff;border-radius:8px;padding:10px;margin:6px 0;font-weight:bold">📄 Ver débitos${matDeb ? " da matrícula " + sspEsc(matDeb) : ""} (PDF de ${formatarQuando(debPdf.quando)})</a>` : "");
       const fotosHTML = it.fotos.length ? `<div style="font-size:14px;margin-top:4px">Fotos: ${it.fotos.map((u, k) => `<a href="${sspEsc(u)}" target="_blank">foto ${k + 1}</a>`).join(" · ")}</div>` : "";
       const exige = sspFotoExigida(it.tipo);
       const corteDigi = !SSP_CORTE_NO_CAMPO.includes(it._chave || chave) && ehCorteSS(it.tipoCurto || it.tipo); // corte em São Desidério: exclusivo pelo Digiteam
-      if (corteDigi && !it.executada) etapas.push(chip("✂ Corte: executar e encerrar só pelo Digiteam", "#c62828"));
-      if (/programad/i.test(it.sitSCI || "")) etapas.push(chip("📲 Programada no Digiteam", "#6a1b9a"));
+      if (corteDigi && !it.executada) etapas.push(chip("✂ Corte: executar e encerrar só pelo Digiteam", "#0b5394"));
+      if (/programad/i.test(it.sitSCI || "")) etapas.push(chip("📲 Programada no Digiteam", "#4a90d9"));
       const podeCampo = (p.campo || (window.MODO_GERENTE && !emPrevia())) && !corteDigi && it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar && !(it.subst && !it.subst.liberado); // substituição só nos dias liberados
       const minha = it.assumida && normalizarNome(it.assumida.quem) === eu;
       // Tela das SS encerradas no SCI: um botão só, sem foto nem informações (a SS já foi encerrada no sistema)
       const acoesCampo = podeCampo && window.sspDemandasVenc && it.vencidaCampo
         ? `<input id="sspleit_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (opcional)">
           <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Observação (opcional)"></textarea>
-          <button class="acao" style="background:#2e7d32;font-size:18px" onclick="sspExecutar('${id}', this, true)">OK, foi executada em campo</button>`
+          <button class="acao" style="background:#0b5394;font-size:18px" onclick="sspExecutar('${id}', this, true)">OK, foi executada em campo</button>`
         : podeCampo ? `
         ${p.campo ? (minha ? `<button class="acao" style="background:#555" onclick="sspConfirmar('${id}', 'liberada', this)">Não vou mais (liberar)</button>`
-          : !it.assumida ? `<button class="acao" style="background:#1565c0" onclick="sspConfirmar('${id}', 'assumida', this)">🚶 Vou executar</button>` : "") : ""}
-        <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço ${exige ? `<span style="color:#c62828">(obrigatório: ${sspEsc(exige.texto)})</span>` : "(opcional)"}</b> – o app pergunta se você está no local; se sim, o GPS vai junto<br>
+          : !it.assumida ? `<button class="acao" style="background:#4a90d9" onclick="sspConfirmar('${id}', 'assumida', this)">🚶 Vou executar</button>` : "") : ""}
+        <div style="margin-top:8px;font-size:14px"><b>Fotos do serviço ${exige ? `<span style="color:#0b5394">(obrigatório: ${sspEsc(exige.texto)})</span>` : "(opcional)"}</b> – o app pergunta se você está no local; se sim, o GPS vai junto<br>
           <button onclick="document.getElementById('sspcam_${id}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:600">📷 Tirar foto</button>
           <button onclick="document.getElementById('sspgal_${id}').click()" style="margin:3px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#fff;color:#555;font-weight:600">Anexar do celular</button>
           <input type="file" id="sspcam_${id}" accept="image/*" capture="environment" style="display:none" onchange="sspAddFoto('${id}', this)">
           <input type="file" id="sspgal_${id}" accept="image/*" multiple style="display:none" onchange="sspAddFoto('${id}', this)">
           <div id="sspfotos_${id}" class="nota">${((window.fotosSsp || {})[it.id] || []).length} foto(s)</div></div>
-        ${sspCorteComLeitura(it, it._chave || chave) ? `<input id="sspleit_${id}" data-obrig="1" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro no corte (obrigatório)" style="border:2px solid #c62828">`
+        ${sspCorteComLeitura(it, it._chave || chave) ? `<input id="sspleit_${id}" data-obrig="1" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro no corte (obrigatório)" style="border:2px solid #0b5394">`
           : `<input id="sspleit_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (opcional)">`}
         <textarea id="sspinfo_${id}" class="campo" rows="2" placeholder="Observação (opcional): o que foi feito, materiais"></textarea>
         <button class="acao" onclick="sspExecutar('${id}', this)">${chave === "ang" ? "Serviço executado" : "Executei em campo"}</button>
         ${it.ss ? naoExecFormHTML(it.ss, it) : ""}
-        ${it.ss && /REV.*(CORT|SIT.*ABAST)/i.test(String(it.tipo || "")) ? `<button class="acao" style="background:#2e7d32" onclick="document.getElementById('rlg_${id}').style.display='block'">💧 Água já religada em campo</button>
-          <div id="rlg_${id}" style="display:none;margin-top:6px;background:#e8f5e9;border-radius:8px;padding:8px">
+        ${it.ss && /REV.*(CORT|SIT.*ABAST)/i.test(String(it.tipo || "")) ? `<button class="acao" style="background:#0b5394" onclick="document.getElementById('rlg_${id}').style.display='block'">💧 Água já religada em campo</button>
+          <div id="rlg_${id}" style="display:none;margin-top:6px;background:#e8f1fb;border-radius:8px;padding:8px">
             <div style="font-size:14px;margin-bottom:4px">O escritório encerra esta revisão como não executada e gera a religação no SCI.</div>
-            <input id="rlgl_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (obrigatório)" style="border:2px solid #2e7d32">
-            <button class="acao" style="background:#2e7d32" onclick="sspReligadaCampo('${id}', this)">Enviar ao escritório</button></div>` : ""}` : "";
+            <input id="rlgl_${id}" class="campo" inputmode="numeric" placeholder="Leitura do hidrômetro (obrigatório)" style="border:2px solid #0b5394">
+            <button class="acao" style="background:#0b5394" onclick="sspReligadaCampo('${id}', this)">Enviar ao escritório</button></div>` : ""}` : "";
       let acoesDig = "";
       if (p.digitador) {
         if (it.tipoPedido === "digiteam") acoesDig = `<input id="sspn_${id}" class="campo" placeholder="Número da SS aberta">${selectDigiteam("sspd_" + it.id)}
@@ -6206,17 +6206,17 @@ async function carregarSSPend(chave) {
         else {
           if (!it.ss) acoesDig += `<input id="sspn_${id}" class="campo" placeholder="Número da SS aberta"><button class="acao" onclick="sspResponder('${id}', false, this)">Informar número da SS</button>`;
           if (it.ss && !it.digitada) acoesDig += `<button class="acao" onclick="sspConfirmar('${id}', 'digitada', this)">Digitei / encerrei no SCI</button>`;
-          if (it.fotos.length && !it.fotoAnexada) acoesDig += `<button class="acao" style="background:#6a1b9a" onclick="sspConfirmar('${id}', 'foto anexada', this)">Anexei a foto na SS</button>`;
+          if (it.fotos.length && !it.fotoAnexada) acoesDig += `<button class="acao" style="background:#4a90d9" onclick="sspConfirmar('${id}', 'foto anexada', this)">Anexei a foto na SS</button>`;
         }
       }
       // 09/11: só a gerente – SS vencida ou vencendo em até 48h ganha duas decisões
       const venceLogo = it.prazo && (it.prazo.vencida || (it.prazo.fim - new Date()) < 48 * 36e5);
-      const acoesGer = window.MODO_GERENTE && it.ss && !it.executada && !it.gerExec && venceLogo ? `<div style="background:#f3e5f5;border-radius:10px;padding:8px;margin-top:8px">
-          <div style="font-size:13px;font-weight:bold;color:#4a148c;margin-bottom:4px">Só a gerente (SS vencida ou vencendo)</div>
-          <button class="acao" style="background:#c62828" onclick="gerVencida('${id}', 'nova', this)">Encerrar como não executada e abrir outra igual</button>
-          <button class="acao" style="background:#4a148c" onclick="gerVencida('${id}', 'exec', this)">Enviar aos digitadores para encerrar como executada</button></div>` : "";
-      const exclGer = window.MODO_GERENTE && it.ss && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse") ? `<button onclick="gerExcluirSS('${id}', this)" style="display:block;margin:8px 0 0 auto;padding:6px 12px;border-radius:8px;border:1px solid #c62828;background:#fff;color:#c62828;font-weight:bold">🗑 Excluir SS do painel</button>` : "";
-      const tituloFoto = it._soFoto && (n === 0 || !visiveis[n - 1]._soFoto) ? `<div style="background:#6a1b9a;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">📷 Digitadas – falta só anexar o documento (${visiveis.filter(x => x._soFoto).length})</div>` : "";
+      const acoesGer = window.MODO_GERENTE && it.ss && !it.executada && !it.gerExec && venceLogo ? `<div style="background:#e8f1fb;border-radius:10px;padding:8px;margin-top:8px">
+          <div style="font-size:13px;font-weight:bold;color:#4a90d9;margin-bottom:4px">Só a gerente (SS vencida ou vencendo)</div>
+          <button class="acao" style="background:#0b5394" onclick="gerVencida('${id}', 'nova', this)">Encerrar como não executada e abrir outra igual</button>
+          <button class="acao" style="background:#4a90d9" onclick="gerVencida('${id}', 'exec', this)">Enviar aos digitadores para encerrar como executada</button></div>` : "";
+      const exclGer = window.MODO_GERENTE && it.ss && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse") ? `<button onclick="gerExcluirSS('${id}', this)" style="display:block;margin:8px 0 0 auto;padding:6px 12px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">🗑 Excluir SS do painel</button>` : "";
+      const tituloFoto = it._soFoto && (n === 0 || !visiveis[n - 1]._soFoto) ? `<div style="background:#4a90d9;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">📷 Digitadas – falta só anexar o documento (${visiveis.filter(x => x._soFoto).length})</div>` : "";
       return tituloFoto + `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.prazo && it.prazo.vencida ? vermelho : it.parada ? vinho : it.tipoPedido === "digiteam" ? laranja : "#0b5394"}">
         ${filtro === "campo" ? `<span style="float:right;font-weight:bold;color:#0b5394">${n + 1}º</span>` : ""}
         <div style="font-size:20px;font-weight:bold;color:#0b5394">${(p.digitador && it.ss && !it.digitada) || (ehGerDeyse && it.ss) ? `<input type="checkbox" class="ssp_sel" value="${id}" onchange="sspContarSel()" style="transform:scale(1.5);margin-right:10px">` : ""}${selCampo.length > 1 && podeLoteCampo(it) ? `<input type="checkbox" class="sspc_sel" value="${id}" onchange="sspContarSelCampo()" style="transform:scale(1.5);margin-right:10px">` : ""}${it.ss ? "SS " + sspEsc(it.ss) : "Pedido de SS (sem número)"}</div>
@@ -6225,11 +6225,11 @@ async function carregarSSPend(chave) {
         <div style="margin:6px 0">${etapas.join("")}</div>
         ${it.subst ? substAvisoHTML(it.subst) : ""}
         ${ficha}${fotosHTML}
-        ${it.executada && it.executada.info ? `<div style="background:#fff8e1;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:15px">📝 <b>Campo informou:</b> ${sspEsc(it.executada.info)}</div>` : ""}
+        ${it.executada && it.executada.info ? `<div style="background:#e8f1fb;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:15px">📝 <b>Campo informou:</b> ${sspEsc(it.executada.info)}</div>` : ""}
         ${it.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(it.gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
-        ${filtro === "campo" && baseLocPrecisaConfirmar(it) ? `<div style="background:#e3f2fd;border-radius:10px;padding:8px;margin-top:6px"><div style="font-weight:bold;margin-bottom:4px">A localização do mapa está correta?</div>
-          <button class="acao" style="background:#2e7d32" onclick="baseLocConfirmar('${id}', true, this)">Sim, está correta</button>
-          <button class="acao" style="background:#c62828" onclick="baseLocConfirmar('${id}', false, this)">Não — enviar minha localização agora</button></div>` : ""}
+        ${filtro === "campo" && baseLocPrecisaConfirmar(it) ? `<div style="background:#e8f1fb;border-radius:10px;padding:8px;margin-top:6px"><div style="font-weight:bold;margin-bottom:4px">A localização do mapa está correta?</div>
+          <button class="acao" style="background:#0b5394" onclick="baseLocConfirmar('${id}', true, this)">Sim, está correta</button>
+          <button class="acao" style="background:#0b5394" onclick="baseLocConfirmar('${id}', false, this)">Não — enviar minha localização agora</button></div>` : ""}
         ${acoesCampo}${acoesDig}${acoesGer}${exclGer}
       </div>`;
     }).join("");
@@ -6249,9 +6249,9 @@ function sspOcorrencias(ocs, chave) {
 }
 function sspOcorrenciasHTML(lista) {
   if (!lista.length) return "";
-  return `<div style="background:#6a1b9a;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Ocorrência operacional (${lista.length})</div>` +
-    lista.map(o => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${o.situacao === "solicitada" ? "#c62828" : "#f9a825"}">
-      <div style="font-size:18px;font-weight:bold;color:#6a1b9a">${o.situacao === "solicitada" ? "Abrir ocorrência no SCI" : "Encerrar ocorrência nº " + sspEsc(o.num) + " no SCI"}</div>
+  return `<div style="background:#4a90d9;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Ocorrência operacional (${lista.length})</div>` +
+    lista.map(o => `<div class="card" style="margin-bottom:10px;border-left:6px solid ${o.situacao === "solicitada" ? "#0b5394" : "#4a90d9"}">
+      <div style="font-size:18px;font-weight:bold;color:#4a90d9">${o.situacao === "solicitada" ? "Abrir ocorrência no SCI" : "Encerrar ocorrência nº " + sspEsc(o.num) + " no SCI"}</div>
       <div style="font-weight:600">${sspEsc(o.tipo)} · ${sspEsc(o.loc)}</div>
       <span style="font-size:13px;color:#555">Pedido por ${sspEsc(sspNome(o.quem))} em ${formatarQuando(o.quando)}</span>
       <div style="background:#f6f9fc;border-radius:8px;padding:6px 10px;margin:6px 0;font-size:15px">${sspEsc(o.end)}<br>${ocDescHtml(sspEsc(o.desc))}</div>
@@ -6457,7 +6457,7 @@ async function sspResponder(id, digiteam, btn) {
 // o funcionário escolhe a localidade e o bairro, e o pedido vai para "Pedidos para o Digiteam" (aba AcaoSS).
 const ehCorteSS = t => { const s = String(t || "").toUpperCase(); return !/RELIG|RESTAB|REVIS/.test(s) && (/^\s*(20|42)\s*[-.]/.test(s) || /CORTE/.test(s)); }; // 09/11: revisão de ligação cortada não é corte (o campo pode executar ou informar que já religou)
 const CORTE_TIPO = "42.1 - CORTE POR FALTA DE PAGAMENTO";
-const AVISO_CORTE = `<div style="background:#c62828;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:10px">⚠ Executar exclusivamente pelo Digiteam.</div>`;
+const AVISO_CORTE = `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:10px">⚠ Executar exclusivamente pelo Digiteam.</div>`;
 Object.assign(TELAS, { cortes: () => telaCortes() });
 // Equipe de cada Excel do SCI (quem recebe a SS é o Excel/botão, não a localidade escrita na SS)
 const SCI_EQUIPES_PAINEL = { "São Desidério": ["luzenildo", "joaquim", "carlito", "francisco"], "Angico": ["ramon", "renato"], "Catolândia": ["isaque", "isaac"], "Baianópolis": ["ivo", "janiogualberto"] };
@@ -6537,7 +6537,7 @@ function menuAgenteCampo(itens) {
 }
 function telaCortes() {
   const locs = cortesLocais();
-  return `<h2>Cortes (42.1)</h2>${locs.some(l => /desiderio/.test(normalizarNome(l))) || !locs.length ? AVISO_CORTE : `<div class="nota" style="background:#e8f5e9;border-left:6px solid #2e7d32"><b>Catolândia e Baianópolis:</b> o corte pode ser encerrado pelo painel, em "SS em aberto no sistema", informando a leitura do hidrômetro no corte. Depois vai para o digitador.</div>`}
+  return `<h2>Cortes (42.1)</h2>${locs.some(l => /desiderio/.test(normalizarNome(l))) || !locs.length ? AVISO_CORTE : `<div class="nota" style="background:#e8f1fb;border-left:6px solid #0b5394"><b>Catolândia e Baianópolis:</b> o corte pode ser encerrado pelo painel, em "SS em aberto no sistema", informando a leitura do hidrômetro no corte. Depois vai para o digitador.</div>`}
     <div id="ct_pdf"></div>
     <div class="nota">Esta tela é só para consulta. Para receber cortes no Digiteam, escolha o bairro abaixo e envie.</div>
     <h3>Pedir cortes de um bairro no Digiteam</h3>
@@ -6558,7 +6558,7 @@ async function carregarCortes() {
   cortesBairros();
   debitosCorteLista().then(pdfs => { const el = document.getElementById("ct_pdf"); if (!el) return;
     const locs = cortesLocais(); const ult = {}; pdfs.forEach(p => { const l = locs.find(x => sspMesmoLocal(p.loc, x)); if (l && (!ult[l] || String(p.quando) > String(ult[l].quando))) ult[l] = p; });
-    el.innerHTML = Object.entries(ult).map(([l, p]) => `<a href="${sspEsc(p.url)}" target="_blank" class="acao" style="display:block;text-align:center;text-decoration:none;background:#6a1b9a;margin-bottom:6px">📄 Débitos das matrículas em corte – ${sspEsc(l)} (${formatarQuando(p.quando)})</a>`).join(""); }).catch(() => {});
+    el.innerHTML = Object.entries(ult).map(([l, p]) => `<a href="${sspEsc(p.url)}" target="_blank" class="acao" style="display:block;text-align:center;text-decoration:none;background:#4a90d9;margin-bottom:6px">📄 Débitos das matrículas em corte – ${sspEsc(l)} (${formatarQuando(p.quando)})</a>`).join(""); }).catch(() => {});
   const box = document.getElementById("ct_lista"); if (!box) return;
   try {
     const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "SSAbertas" });
@@ -6569,7 +6569,7 @@ async function carregarCortes() {
     if (!lista.length) { box.innerHTML = "<p>Nenhum corte em aberto.</p>"; return; }
     const porLoc = {}; lista.forEach(x => (porLoc[x.loc] = porLoc[x.loc] || []).push(x));
     box.innerHTML = `<div style="margin-bottom:8px;font-weight:bold">${Object.entries(porLoc).map(([l, xs]) => `${sspEsc(l)}: ${xs.length}`).join(" · ")}</div>` +
-      lista.map(x => `<div class="card" style="margin-bottom:6px;border-left:6px solid #c62828">
+      lista.map(x => `<div class="card" style="margin-bottom:6px;border-left:6px solid #0b5394">
         <div style="font-size:18px;font-weight:bold;color:#0b5394">SS ${sspEsc(x.ss)}</div><div style="font-weight:600">${sspEsc(x.tipo)}</div>
         ${sspFicha([["Cliente", String(x.nome).replace(/\|.*$/, "")], ["Endereço", x.end], ["Bairro", x.bairro], ["Hidrômetro", x.hid], ["Telefone", x.tel], ["Matrícula", x.mat]])}
         <span style="font-size:13px;color:#555">${sspEsc(x.loc)}${x.abertura ? " · aberta em " + sspEsc(sspTxtData(x.abertura) || x.abertura) : ""}</span>
@@ -6609,7 +6609,7 @@ function sspAtalho(btn, tipo, esp) {
   btn.style.background = "#0b5394"; btn.style.color = "#fff"; btn.textContent = "✔ " + btn.textContent;
   const sel = document.getElementById("ps_esp"), nome = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : "";
   const msg = document.getElementById("ssp_atalho_msg");
-  if (msg) msg.innerHTML = `<div style="background:#e8f5e9;border-left:6px solid #2e7d32;padding:8px 10px;border-radius:6px;margin:4px 0;font-weight:bold">✔ Tipo preenchido: Vazamento de água · ${sspEsc(nome)}. Agora escolha a localidade, o bairro e escreva a observação.</div>`;
+  if (msg) msg.innerHTML = `<div style="background:#e8f1fb;border-left:6px solid #0b5394;padding:8px 10px;border-radius:6px;margin:4px 0;font-weight:bold">✔ Tipo preenchido: Vazamento de água · ${sspEsc(nome)}. Agora escolha a localidade, o bairro e escreva a observação.</div>`;
   const alvo = document.getElementById("ps_acao") || document.getElementById("ps_tipo");
   if (alvo) setTimeout(() => alvo.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
 }
@@ -6664,14 +6664,14 @@ async function carregarResumoGerencia(dias) {
     window.rgCSV = linhasCSV;
     const paradas = sit.flatMap(s => s.lista.filter(it => it.parada || (it.prazo && it.prazo.vencida)).map(it => [s.loc, it.ss || "pedido sem número", String(it.tipo).slice(0, 40), it.parada || "vencida"]));
     box.innerHTML = `<h3>Situação agora</h3>${tab(["Localidade", "Falta campo", "Falta digitação", "Falta foto", "Vencidas", "Paradas"], sit.map(s => [s.loc, s.campo, s.dig, s.foto, s.venc, s.parada]))}
-      ${paradas.length ? `<h3 style="color:#c62828">Vencidas e paradas (${paradas.length})</h3>` + tab(["Localidade", "SS", "Tipo", "Motivo"], paradas) : ""}
+      ${paradas.length ? `<h3 style="color:#0b5394">Vencidas e paradas (${paradas.length})</h3>` + tab(["Localidade", "SS", "Tipo", "Motivo"], paradas) : ""}
       <h3>Executadas em campo – ${periodoTxt} (${totalExec})</h3>
       ${nH ? `<div class="nota">Tempo médio entre o pedido/lançamento e a execução: <b>${fmtH(media)}</b> (${nH} SS)</div>` : ""}
       ${totalExec ? tab(["Agente", "Executadas"], ordem(porAgente)) : "<p>Nenhuma no período.</p>"}
       <h3>Digitadas – ${periodoTxt} (${totalDig})</h3>${totalDig ? tab(["Digitador", "Digitadas"], ordem(porDig)) : "<p>Nenhuma no período.</p>"}
       <h3>Pedidos de SS – ${periodoTxt}</h3>${Object.keys(pedidos).length ? tab(["Localidade", "Pedidos"], ordem(pedidos)) : "<p>Nenhum no período.</p>"}
       <button class="acao" onclick="rgCopiar()">Copiar resumo (para WhatsApp ou e-mail)</button>
-      <button class="acao" style="background:#2e7d32" onclick="rgBaixar()">Baixar planilha (CSV)</button>`;
+      <button class="acao" style="background:#0b5394" onclick="rgBaixar()">Baixar planilha (CSV)</button>`;
   } catch (e) { box.textContent = "Não consegui carregar: " + (e && e.message ? e.message : "erro") + "."; }
 }
 function rgCopiar() {
@@ -6718,8 +6718,8 @@ function abrirAlmox(op) {
     const tipo = op === "adicionar" ? "Entrada (acrescentar)" : "Retirada";
     area.innerHTML = `<h3>${op === "adicionar" ? "Adicionar item" : "Retirar item"}</h3>
       <input type="hidden" id="ac_tipo" value="${tipo}">
-      ${(document.getElementById("ac_local") || {}).value ? "" : `<div class="nota" style="color:#c62828;font-weight:600">Escolha de qual almoxarifado sai/entra o material:</div>
-      <select class="campo" style="border:2px solid #c62828" onchange="document.getElementById('ac_local').value=this.value;this.style.border='2px solid #2e7d32'"><option value="">Local do almoxarifado…</option>${locaisAlmoxDaPessoa().map(l => `<option>${l}</option>`).join("")}</select>`}
+      ${(document.getElementById("ac_local") || {}).value ? "" : `<div class="nota" style="color:#0b5394;font-weight:600">Escolha de qual almoxarifado sai/entra o material:</div>
+      <select class="campo" style="border:2px solid #0b5394" onchange="document.getElementById('ac_local').value=this.value;this.style.border='2px solid #0b5394'"><option value="">Local do almoxarifado…</option>${locaisAlmoxDaPessoa().map(l => `<option>${l}</option>`).join("")}</select>`}
       <input class="campo" placeholder="🔎 Pesquisar item (ex.: luva 63)" oninput="almoxBuscar(this.value)"><div id="ac_res"></div>
       <select id="ac_mat" class="campo">${opcoesMat}</select>
       <div class="nota">Digite parte do nome ou o código; a lista mostra só o que combinar (se sobrar um item, ele já fica escolhido).</div>
@@ -6773,7 +6773,7 @@ async function estoqueGeral() {
     const estado = calcularSaldosAlmox(res.dados, local);
     const linhas = CATALOGO_ALMOX.map(([c, d, sd]) => {
       const saldo = saldoDoItem(estado, local, c, sd);
-      return `<tr><td>${c}</td><td>${d}</td><td style="${saldo <= 0 ? "color:#c62828;font-weight:bold" : ""}">${saldo}</td></tr>`;
+      return `<tr><td>${c}</td><td>${d}</td><td style="${saldo <= 0 ? "color:#0b5394;font-weight:bold" : ""}">${saldo}</td></tr>`;
     }).join("");
     box.innerHTML = `<p>${local}: ${CATALOGO_ALMOX.length} itens. Saldo em vermelho = zerado ou negativo.</p>
       <table><tr><th>Código</th><th>Material</th><th>Saldo</th></tr>${linhas}</table>`;
@@ -6834,7 +6834,7 @@ function almoxEscolher(cod) {
   const sel = document.getElementById("ac_mat"); if (!sel) return;
   sel.value = cod; sel.dispatchEvent(new Event("change"));
   const it = CATALOGO_ALMOX.find(([c]) => c === cod);
-  const box = document.getElementById("ac_res"); if (box) box.innerHTML = `<div class="nota" style="background:#e8f5e9;border-radius:8px;padding:8px;font-weight:600">✔ Escolhido: ${sspEsc(it ? it[1] : cod)}</div>`;
+  const box = document.getElementById("ac_res"); if (box) box.innerHTML = `<div class="nota" style="background:#e8f1fb;border-radius:8px;padding:8px;font-weight:600">✔ Escolhido: ${sspEsc(it ? it[1] : cod)}</div>`;
   const q = document.getElementById("ac_qtd"); if (q) q.focus();
 }
 function filtrarPedidoMaterial() {
@@ -7117,7 +7117,7 @@ async function carregarSolicitacoesAquisicao(boxId = "aq_lista") {
            <input id="aq_l_${p.linha}" class="campo" placeholder="Loja onde buscar (se liberado)">
            <textarea id="aq_o_${p.linha}" class="campo" rows="2" placeholder="Observação"></textarea>
            <button class="acao" onclick="responderAquisicao(${p.linha})">Enviar resposta</button>`;
-      return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.situacao ? "#2e7d32" : "#c62828"}">
+      return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${p.situacao ? "#0b5394" : "#0b5394"}">
         <b>${p.material}</b> · qtd ${p.qtd} · ${p.urg}${p.prazo ? " · prazo " + p.prazo : ""}<br>
         <span style="font-size:14px">Pedido por ${p.quem} em ${formatarQuando(p.quando)} · ${p.motivo}</span>
         <button class="acao" style="margin:6px 0;padding:6px" onclick="navigator.clipboard.writeText(${JSON.stringify(texto).replace(/"/g, "&quot;")}).then(() => alert('Texto copiado.'))">Copiar texto (WhatsApp)</button>
@@ -7262,7 +7262,7 @@ const EPI_ETAPAS = {
   assinado: "Ficha assinada, aguardando a gerência receber a ficha",
   encerrado: "Encerrado"
 };
-const EPI_COR = { pendente: "#c62828", enviado: "#f9a825", assinado: "#0a6e8a", encerrado: "#2e7d32" };
+const EPI_COR = { pendente: "#0b5394", enviado: "#4a90d9", assinado: "#0b5394", encerrado: "#0b5394" };
 // Um pedido = todas as linhas com mesmo usuário e mesma data_hora (vários itens)
 async function listarEpiGrupos() {
   const res = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "EPI" });
@@ -7279,7 +7279,7 @@ async function listarEpiGrupos() {
   return Object.values(grupos).sort((x, y) => String(y.data) < String(x.data) ? -1 : 1);
 }
 function epiCard(g, papel) {
-  const cor = EPI_COR[g.situacao] || "#c62828";
+  const cor = EPI_COR[g.situacao] || "#0b5394";
   let botao = "";
   if (papel === "gestao") {
     if (g.situacao === "pendente") botao = `<button class="acao" onclick="atualizarEpi(${g.linhas[0]}, 'enviado')">Marcar como enviado ao funcionário</button>`;
@@ -7836,7 +7836,7 @@ async function carregarNiveis(chave) {
         const v = valores[hora + "|" + r];
         const minha = v && (String(v.operador).toLowerCase() === String(window.credenciais.usuario).toLowerCase() || (window.MODO_GERENTE && !emPrevia())); // a gerente corrige qualquer nível
         const errado = v && (typeof v.valor !== "number" && (isNaN(Number(String(v.valor).replace(",", "."))) || /^\d{4}-\d{2}-\d{2}T/.test(String(v.valor))));
-        html += `<tr><td>${hora}</td>${multi ? `<td>${r}</td>` : ""}<td>${v ? (errado ? '<b style="color:#c62828">⚠ valor errado – corrigir</b>' : v.valor) : "—"}</td><td>${v ? v.operador : ""}</td>` +
+        html += `<tr><td>${hora}</td>${multi ? `<td>${r}</td>` : ""}<td>${v ? (errado ? '<b style="color:#0b5394">⚠ valor errado – corrigir</b>' : v.valor) : "—"}</td><td>${v ? v.operador : ""}</td>` +
           `<td>${minha ? `<button class="acao" style="margin:0;padding:4px 8px" onclick="editarNivel('${chave}', ${v.linha}, '${v.valor}')">Editar</button>` : ""}</td></tr>`;
       });
     }
@@ -8070,7 +8070,7 @@ function telaComunicado() {
         <select id="cd_equipe" class="campo" onchange="cdAvisoUNBM()"><option value="">Equipe…</option>${cdOpts(CD_EQUIPES)}</select>
       </div>
       <textarea id="cd_pedido_ext" class="campo" rows="2" placeholder="O que foi solicitado (opcional). Ex.: equipe para hoje realizar preventiva nas duas bombas"></textarea>
-      <div id="cd_aviso_unbm" class="nota" style="color:#b45309;display:none">Para a UNBM: só relatar o que foi observado e pedir avaliação; não indicar o que a equipe deve verificar ou fazer.</div>
+      <div id="cd_aviso_unbm" class="nota" style="color:#0b5394;display:none">Para a UNBM: só relatar o que foi observado e pedir avaliação; não indicar o que a equipe deve verificar ou fazer.</div>
     </details>
 
     <details class="card" style="margin-bottom:12px"><summary><b>Atividades da equipe</b> (opcional)</summary>
@@ -8102,7 +8102,7 @@ function telaComunicado() {
   <textarea id="cd_texto" class="campo" rows="14" placeholder="O texto aparece aqui. Você pode ajustar antes de copiar."></textarea>
   <div style="display:flex;gap:8px">
     <button class="acao" onclick="copiarTexto('cd_texto')">📋 Copiar</button>
-    <button class="acao" style="background:#25D366" onclick="cdWhats()">Abrir no WhatsApp</button>
+    <button class="acao" style="background:#0b5394" onclick="cdWhats()">Abrir no WhatsApp</button>
   </div>
   <button class="acao" style="background:#999" onclick="cdLimpar()">Limpar formulário</button>`;
 }
@@ -8310,7 +8310,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "12/11 16h59";
+const VERSAO_PAINEL = "12/11 17h04";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
