@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h33</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h37</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1704,7 +1704,9 @@ function mostrarMenu(itens, titulo) {
     const pool = []; itens.forEach(i => { if (i.nome === "Outros" && i.sub) i.sub.forEach(j => pool.push(j)); else pool.push(i); });
     const tirar = f => { const k = pool.findIndex(f); return k >= 0 ? pool.splice(k, 1)[0] : null; };
     const principal = [];
-    let x; while ((x = tirar(i => /^ssPend/.test(i.tela || "")))) principal.push(x);
+    let x;
+    if ((x = tirar(i => i.tela === "ssWhats"))) principal.push(x); // 11/11: SS solicitadas via WhatsApp fica no painel principal do agente
+    while ((x = tirar(i => /^ssPend/.test(i.tela || "")))) principal.push(x);
     while ((x = tirar(i => /^ssVenc/.test(i.tela || "")))) principal.push(x);
     if ((x = tirar(i => i.urgente || i.tela === "servicosUrgentes"))) principal.push(x);
     if ((x = tirar(i => i.nome === "Solicitação no SCI"))) principal.push(x);
@@ -8206,7 +8208,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 22h33";
+const VERSAO_PAINEL = "11/11 22h37";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
