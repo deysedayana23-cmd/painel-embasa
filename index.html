@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 15h10</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 21h57</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -441,6 +441,7 @@ const TELAS = {
     <div class="nota">Quando marcada como entregue, o item continua visível e você é avisada.</div>`,
 
   almoxarifadoCatalogo: () => telaAlmoxarifado(),
+  comunicadoDiario: () => telaComunicado(),
 
   almoxarifado: () => `
     <h2>Almoxarifado</h2>
@@ -1888,6 +1889,7 @@ function abrir(i) {
     if (it.tela === "resumoGerencia") carregarResumoGerencia(0);
     if (it.tela === "cortes") carregarCortes();
     if (it.tela === "semLocalizacao") carregarSemLocalizacao();
+    if (it.tela === "comunicadoDiario") cdIniciar();
     if (it.local) window.almoxLocalPreset = it.local;
     if (it.tela === "rotina") { if (window.MODO_GERENTE) carregarRotinaConsulta(); else abrirRotina(); }
     if (it.tela === "pendenciasEstado") carregarEstadoSS();
@@ -4243,6 +4245,8 @@ function menuDoPerfil() {
     const outros = [...resto, {nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}];
     if ((window.MODO_GERENTE && !emPrevia()) || n.includes("thiago")) outros.push({nome: "Matrículas sem localização", tela: "semLocalizacao"});
     const principal = [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}];
+    // Comunicado diário: só a gerente vê
+    if ((window.MODO_GERENTE && !emPrevia()) || n.includes("deyse")) principal.push({nome: "Comunicado diário", tela: "comunicadoDiario"});
     if ((window.MODO_GERENTE && !emPrevia()) || QUEM_ABRE_OCORRENCIA.some(x => n.includes(x))) principal.push({nome: "Pedidos de ocorrência operacional", tela: "ocorPedidos"});
     return [...principal, {nome: "Almoxarifado", tela: "almoxarifadoCatalogo"}, {nome: "Outros", sub: outros.filter(i => i.tela !== "ocorPedidos")}];
   }
@@ -7841,8 +7845,320 @@ async function cancelarDemandaAgersa(linha) {
     renderAtual();
   } catch (e) { alert("Não consegui cancelar. Verifique a internet."); }
 }
+// ===== COMUNICADO DIÁRIO (só a gerente): formulário que monta o texto pronto para o WhatsApp =====
+const CD_SIGLAS = ["SLA", "SAMS", "SAIS", "SAIC", "SIAA"];
+const CD_LOCAIS = ["São Desidério", "Catolândia", "Povoado Angico", "Baianópolis", "Mozondó"];
+const CD_SIGLA_PADRAO = { "São Desidério": "SLA", "Catolândia": "SAIS" };
+const CD_BAIRROS = ["Porto Rico", "Cidade Nova", "Vila do Padre", "Vila Rudu", "Jerrim", "Alto do Cristo", "Tangará", "Centro"];
+const CD_FUNC = ["Joaquim", "Luzenildo", "Carlito", "Francisco", "Isaac", "Ivo Carlos", "Jânio Gualberto", "Jânio Lima", "Acácio", "Eduardo", "Igor", "Oseias", "Sandro"];
+// [singular, plural]
+const CD_SERV = [["substituição de hidrômetro", "substituições de hidrômetro"], ["corte", "cortes"], ["vazamento de hidrômetro", "vazamentos de hidrômetro"],
+  ["falta de água", "faltas de água"], ["ligação nova", "ligações novas"], ["vazamento de rede", "vazamentos de rede"], ["vazamento de ramal", "vazamentos de ramal"],
+  ["manobra de registro", "manobras de registro"], ["Digitinho", "Digitinho"]];
+const CD_EQUIPES = ["UNBM", "UNBA", "UNBG", "NB", "CNBC", "Prefeitura"];
+const CD_RES = ["Reservatório 1", "Reservatório 2", "RAD Catolândia"];
+const CD_TIPOS = ["Comunicado Diário", "Atualização", "Relatório Diário UNS", "Operação na Ponta"];
+
+function cdOpts(lista, sel) { return lista.map(x => `<option ${x === sel ? "selected" : ""}>${x}</option>`).join(""); }
+function cdV(id) { const e = document.getElementById(id); return e ? String(e.value || "").trim() : ""; }
+function cdNum(v) { return String(v || "").trim().replace(/\./g, ","); }
+function cdDataBR(iso, sep) { if (!iso) return ""; const [a, m, d] = iso.split("-"); return [d, m, a].join(sep || "/"); }
+function cdHora(hhmm) { if (!hhmm) return ""; const [h, m] = hhmm.split(":"); return h + "h" + (m && m !== "00" ? m : ""); }
+function cdAgoraHHMM() { const d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+function cdListaE(arr) { return arr.length <= 1 ? (arr[0] || "") : arr.slice(0, -1).join(", ") + " e " + arr[arr.length - 1]; }
+function cdFrase(t) { t = String(t || "").trim(); if (!t) return ""; return /[.!?…:]$/.test(t) ? t : t + "."; }
+
+function telaComunicado() {
+  return `<h2>Comunicado diário</h2>
+  <div class="nota" style="margin-top:0">Preencha só o que tiver. O texto sai pronto para colar no WhatsApp (com negrito). O rascunho fica guardado neste aparelho.</div>
+  <select id="cd_tipo" class="campo" onchange="cdMostrar()">${cdOpts(CD_TIPOS, "Comunicado Diário")}</select>
+  <div style="display:flex;gap:8px">
+    <div style="flex:1"><label class="nota">Data</label><input id="cd_data" type="date" class="campo"></div>
+    <div style="flex:1" class="cd-atu"><label class="nota">Hora da atualização</label><input id="cd_hora" type="time" class="campo"></div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <div style="flex:1"><label class="nota">Sistema</label><select id="cd_sigla" class="campo">${cdOpts(CD_SIGLAS, "SLA")}</select></div>
+    <div style="flex:2"><label class="nota">Localidade</label><select id="cd_local" class="campo" onchange="cdLocalMudou()">${cdOpts(CD_LOCAIS, "São Desidério")}</select></div>
+  </div>
+
+  <div class="cd-nponta">
+    <input id="cd_ocnum" class="campo" inputmode="numeric" placeholder="Nº da ocorrência operacional no SCI (opcional)">
+    <label class="nota">Ocorrência principal</label>
+    <textarea id="cd_princ" class="campo" rows="5" placeholder="Texto corrido, curto. Ex.: Bairros Porto Rico e Cidade Nova amanheceram sem abastecimento…"></textarea>
+
+    <details class="card" style="margin-bottom:12px"><summary><b>Bairros sem água, previsão e números da ETA</b> (opcional)</summary>
+      <div class="nota">Bairros afetados</div>
+      <div id="cd_bairros" style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0">${CD_BAIRROS.map(b => `<label style="border:1px solid #cfd6e0;border-radius:16px;padding:6px 10px;background:#fff"><input type="checkbox" value="${b}"> ${b}</label>`).join("")}</div>
+      <input id="cd_bairro_outro" class="campo" placeholder="Outro bairro (opcional)">
+      <div style="display:flex;gap:8px">
+        <div style="flex:1"><label class="nota">Sem água desde</label><input id="cd_semagua" type="time" class="campo"></div>
+        <div style="flex:1"><label class="nota">Previsão de retorno (dia)</label><input id="cd_prev_data" type="date" class="campo"></div>
+        <div style="flex:1"><label class="nota">(hora)</label><input id="cd_prev_hora" type="time" class="campo"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input id="cd_vaz_ant" class="campo" inputmode="decimal" placeholder="Vazão ETA antes (m³/h)" oninput="cdInfo()">
+        <input id="cd_vaz" class="campo" inputmode="decimal" placeholder="Vazão ETA agora (m³/h)" oninput="cdInfo()">
+      </div>
+      <div style="display:flex;gap:8px">
+        <input id="cd_pres" class="campo" inputmode="decimal" placeholder="Pressão captação (mca)" oninput="cdInfo()">
+        <input id="cd_pres_norm" class="campo" inputmode="decimal" placeholder="Normal (mca)" value="78" oninput="cdInfo()">
+      </div>
+      <div id="cd_info" class="nota" style="margin-top:0"></div>
+      <div class="nota">Reservatórios</div>
+      <div id="cd_res"></div>
+      <button class="acao" style="background:#555;padding:8px" onclick="cdAddRes()">+ Reservatório</button>
+    </details>
+
+    <label class="nota">Ocorrência secundária (opcional)</label>
+    <textarea id="cd_sec" class="campo" rows="3"></textarea>
+
+    <details class="card" style="margin-bottom:12px"><summary><b>Equipe externa informada</b> (opcional)</summary>
+      <div style="display:flex;gap:8px">
+        <input id="cd_contato" class="campo" placeholder="Nome (ex.: Alexandre)">
+        <select id="cd_equipe" class="campo" onchange="cdAvisoUNBM()"><option value="">Equipe…</option>${cdOpts(CD_EQUIPES)}</select>
+      </div>
+      <textarea id="cd_pedido_ext" class="campo" rows="2" placeholder="O que foi solicitado (opcional). Ex.: equipe para hoje realizar preventiva nas duas bombas"></textarea>
+      <div id="cd_aviso_unbm" class="nota" style="color:#b45309;display:none">Para a UNBM: só relatar o que foi observado e pedir avaliação; não indicar o que a equipe deve verificar ou fazer.</div>
+    </details>
+
+    <details class="card" style="margin-bottom:12px"><summary><b>Atividades da equipe</b> (opcional)</summary>
+      <div class="nota">Para juntar dois funcionários na mesma linha (ex.: Carlito e Francisco), escolha o segundo em "junto com".</div>
+      <div id="cd_ativ"></div>
+      <button class="acao" style="background:#555;padding:8px" onclick="cdAddAtiv()">+ Atividade</button>
+      <label class="nota" style="display:block;margin-top:8px"><input type="checkbox" id="cd_total"> Mostrar o total de serviços</label>
+    </details>
+
+    <details class="card cd-atu" style="margin-bottom:12px" open><summary><b>Próximas manobras</b></summary>
+      <div id="cd_man"></div>
+      <button class="acao" style="background:#555;padding:8px" onclick="cdAddMan()">+ Manobra</button>
+      <div class="nota">Sem manobras, sai "Nenhuma manobra com horário informado no momento."</div>
+    </details>
+
+    <input id="cd_mencoes" class="campo" placeholder="Menções no final (opcional). Ex.: @Wilames UNBA">
+    <label class="nota" style="display:block;margin-bottom:10px"><input type="checkbox" id="cd_ok"> Terminar com ✅</label>
+  </div>
+
+  <div class="cd-ponta">
+    <label class="nota">Data da solicitação</label><input id="cd_p_data" type="date" class="campo">
+    <input id="cd_p_dias" class="campo" placeholder="Dia(s) de operar na ponta. Ex.: 20 de agosto de 2026">
+    <input id="cd_p_motivo" class="campo" placeholder="Motivo (sai em MAIÚSCULAS)">
+    <textarea id="cd_p_just" class="campo" rows="3" placeholder="Justificativa resumida. Ex.: devido à queda de vazão na captação, que reduziu a reservação"></textarea>
+    <input id="cd_p_custo" class="campo" inputmode="decimal" placeholder="Custo (R$)" value="104,94">
+  </div>
+
+  <button class="acao" onclick="cdGerar()">Gerar texto</button>
+  <textarea id="cd_texto" class="campo" rows="14" placeholder="O texto aparece aqui. Você pode ajustar antes de copiar."></textarea>
+  <div style="display:flex;gap:8px">
+    <button class="acao" onclick="copiarTexto('cd_texto')">📋 Copiar</button>
+    <button class="acao" style="background:#25D366" onclick="cdWhats()">Abrir no WhatsApp</button>
+  </div>
+  <button class="acao" style="background:#999" onclick="cdLimpar()">Limpar formulário</button>`;
+}
+
+function cdLinhaRes(r) {
+  r = r || {};
+  return `<div class="cd-res-l" style="display:flex;gap:6px;align-items:center">
+    <select class="campo cd-r-nome" style="flex:2">${cdOpts(CD_RES, r.nome)}</select>
+    <input class="campo cd-r-niv" style="flex:1" placeholder="Atual (m ou %)" value="${r.niv || ""}">
+    <input class="campo cd-r-norm" style="flex:1" placeholder="Normal" value="${r.norm || ""}">
+    <button onclick="this.parentNode.remove();cdSalvar()" style="border:none;background:none;font-size:20px">✕</button></div>`;
+}
+function cdLinhaAtiv(a) {
+  a = a || {};
+  return `<div class="cd-ativ-l card" style="margin-bottom:6px;padding:8px">
+    <div style="display:flex;gap:6px">
+      <select class="campo cd-a-f1" style="flex:1"><option value="">Funcionário…</option>${cdOpts(CD_FUNC, a.f1)}</select>
+      <select class="campo cd-a-f2" style="flex:1"><option value="">junto com…</option>${cdOpts(CD_FUNC, a.f2)}</select>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input class="campo cd-a-qtd" style="flex:1" inputmode="numeric" placeholder="Qtd" value="${a.qtd || ""}">
+      <select class="campo cd-a-tipo" style="flex:3">${CD_SERV.map(s => `<option ${s[0] === a.tipo ? "selected" : ""}>${s[0]}</option>`).join("")}</select>
+      <button onclick="this.closest('.cd-ativ-l').remove();cdSalvar()" style="border:none;background:none;font-size:20px">✕</button>
+    </div></div>`;
+}
+function cdLinhaMan(m) {
+  m = m || {};
+  return `<div class="cd-man-l card" style="margin-bottom:6px;padding:8px">
+    <div style="display:flex;gap:6px">
+      <select class="campo cd-m-dia" style="flex:1">${cdOpts(["Hoje", "Amanhã", "Outra data"], m.dia || "Hoje")}</select>
+      <input class="campo cd-m-data" type="date" style="flex:1" value="${m.data || ""}">
+      <input class="campo cd-m-hora" type="time" style="flex:1" value="${m.hora || ""}">
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input class="campo cd-m-desc" style="flex:1" placeholder="Descrição. Ex.: abertura do registro do bar, no Tangará (Francisco e Carlito)" value="${(m.desc || "").replace(/"/g, "&quot;")}">
+      <button onclick="this.closest('.cd-man-l').remove();cdSalvar()" style="border:none;background:none;font-size:20px">✕</button>
+    </div></div>`;
+}
+function cdAddRes(r) { document.getElementById("cd_res").insertAdjacentHTML("beforeend", cdLinhaRes(r)); }
+function cdAddAtiv(a) { document.getElementById("cd_ativ").insertAdjacentHTML("beforeend", cdLinhaAtiv(a)); }
+function cdAddMan(m) { document.getElementById("cd_man").insertAdjacentHTML("beforeend", cdLinhaMan(m)); }
+
+function cdLocalMudou() { const s = CD_SIGLA_PADRAO[cdV("cd_local")]; if (s) document.getElementById("cd_sigla").value = s; }
+function cdAvisoUNBM() { document.getElementById("cd_aviso_unbm").style.display = cdV("cd_equipe") === "UNBM" ? "block" : "none"; }
+function cdMostrar() {
+  const t = cdV("cd_tipo");
+  document.querySelectorAll(".cd-atu").forEach(e => e.style.display = t === "Atualização" ? "" : "none");
+  document.querySelectorAll(".cd-ponta").forEach(e => e.style.display = t === "Operação na Ponta" ? "" : "none");
+  document.querySelectorAll(".cd-nponta").forEach(e => e.style.display = t === "Operação na Ponta" ? "none" : "");
+}
+function cdInfo() {
+  const n = v => parseFloat(String(v).replace(",", "."));
+  const va = n(cdV("cd_vaz_ant")), v = n(cdV("cd_vaz")), p = n(cdV("cd_pres")), pn = n(cdV("cd_pres_norm"));
+  const out = [];
+  if (va > 0 && !isNaN(v)) out.push("Variação da vazão: " + ((v - va) / va * 100).toFixed(1).replace(".", ",") + "%");
+  if (!isNaN(p) && !isNaN(pn)) out.push("Diferença de pressão: " + String(+(pn - p).toFixed(2)).replace(".", ",") + " mca");
+  document.getElementById("cd_info").textContent = out.length ? out.join(" · ") + " (só para conferência, não sai no texto)" : "";
+}
+
+// Guarda o rascunho no aparelho
+const CD_IDS = ["cd_tipo", "cd_data", "cd_hora", "cd_sigla", "cd_local", "cd_ocnum", "cd_princ", "cd_bairro_outro", "cd_semagua", "cd_prev_data", "cd_prev_hora",
+  "cd_vaz_ant", "cd_vaz", "cd_pres", "cd_pres_norm", "cd_sec", "cd_contato", "cd_equipe", "cd_pedido_ext", "cd_mencoes", "cd_p_data", "cd_p_dias", "cd_p_motivo", "cd_p_just", "cd_p_custo", "cd_texto"];
+function cdColetar() {
+  const d = {};
+  CD_IDS.forEach(id => d[id] = (document.getElementById(id) || {}).value || "");
+  d.total = document.getElementById("cd_total").checked;
+  d.ok = document.getElementById("cd_ok").checked;
+  d.bairros = [...document.querySelectorAll("#cd_bairros input:checked")].map(i => i.value);
+  d.res = [...document.querySelectorAll(".cd-res-l")].map(l => ({ nome: l.querySelector(".cd-r-nome").value, niv: l.querySelector(".cd-r-niv").value.trim(), norm: l.querySelector(".cd-r-norm").value.trim() }));
+  d.ativ = [...document.querySelectorAll(".cd-ativ-l")].map(l => ({ f1: l.querySelector(".cd-a-f1").value, f2: l.querySelector(".cd-a-f2").value, qtd: l.querySelector(".cd-a-qtd").value.trim(), tipo: l.querySelector(".cd-a-tipo").value }));
+  d.man = [...document.querySelectorAll(".cd-man-l")].map(l => ({ dia: l.querySelector(".cd-m-dia").value, data: l.querySelector(".cd-m-data").value, hora: l.querySelector(".cd-m-hora").value, desc: l.querySelector(".cd-m-desc").value.trim() }));
+  return d;
+}
+function cdSalvar() { if (!document.getElementById("cd_tipo")) return; try { localStorage.setItem("comunicadoRascunho", JSON.stringify(cdColetar())); } catch (e) {} }
+function cdIniciar() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem("comunicadoRascunho") || "null"); } catch (e) {}
+  const hoje = hojeISO();
+  if (d) {
+    CD_IDS.forEach(id => { const e = document.getElementById(id); if (e && d[id] != null) e.value = d[id]; });
+    document.getElementById("cd_total").checked = !!d.total;
+    document.getElementById("cd_ok").checked = !!d.ok;
+    document.querySelectorAll("#cd_bairros input").forEach(i => i.checked = (d.bairros || []).includes(i.value));
+    (d.res || []).forEach(cdAddRes); (d.ativ || []).forEach(cdAddAtiv); (d.man || []).forEach(cdAddMan);
+  }
+  // Data e hora sempre de hoje/agora ao abrir
+  document.getElementById("cd_data").value = hoje;
+  document.getElementById("cd_p_data").value = hoje;
+  document.getElementById("cd_hora").value = cdAgoraHHMM();
+  if (!document.querySelector(".cd-ativ-l")) cdAddAtiv();
+  cdMostrar(); cdAvisoUNBM(); cdInfo();
+  if (!window.__cdOuvindo) {
+    window.__cdOuvindo = true;
+    const app = document.getElementById("app");
+    app.addEventListener("input", cdSalvar);
+    app.addEventListener("change", cdSalvar);
+  }
+}
+function cdLimpar() {
+  if (!confirm("Limpar todo o formulário?")) return;
+  try { localStorage.removeItem("comunicadoRascunho"); } catch (e) {}
+  const app = document.getElementById("app");
+  app.innerHTML = `<button class="voltar" onclick="renderAtual()">← Voltar</button>` + telaComunicado();
+  cdIniciar();
+}
+
+function cdTextoAtividades(ativ, mostrarTotal) {
+  const grupos = []; let total = 0;
+  ativ.filter(a => a.f1 || a.f2).forEach(a => {
+    const nomes = [a.f1, a.f2].filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i);
+    const chave = nomes.slice().sort().join("|");
+    let g = grupos.find(x => x.chave === chave);
+    if (!g) { g = { chave, nomes, itens: [], digitinho: false }; grupos.push(g); }
+    const s = CD_SERV.find(x => x[0] === a.tipo) || [a.tipo, a.tipo];
+    const q = parseInt(a.qtd, 10);
+    if (s[0] === "Digitinho") { g.digitinho = true; if (q > 0) { g.itens.push(q + " no Digitinho"); total += q; } return; }
+    if (q > 0) { g.itens.push(q + " " + (q === 1 ? s[0] : s[1])); total += q; } else g.itens.push(s[0]);
+  });
+  const linhas = grupos.map(g => {
+    let corpo = cdListaE(g.itens);
+    if (g.digitinho && !g.itens.some(i => /Digitinho/.test(i))) corpo = "no Digitinho" + (corpo ? ", com " + corpo : "");
+    return cdListaE(g.nomes) + ": " + (corpo || "—") + ".";
+  });
+  if (mostrarTotal && total) linhas.push("Total: " + total + " " + (total === 1 ? "serviço" : "serviços") + ".");
+  return linhas.join("\n");
+}
+
+function cdGerar() {
+  const d = cdColetar();
+  const tipo = d.cd_tipo, data = cdDataBR(d.cd_data), local = d.cd_local, sigla = d.cd_sigla;
+  let t = "";
+  if (tipo === "Operação na Ponta") {
+    if (!d.cd_p_dias || !d.cd_p_motivo || !d.cd_p_just) { alert("Preencha dia(s), motivo e justificativa."); return; }
+    const just = d.cd_p_just.replace(/\.\s*$/, "").replace(/^\s*[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/, c => c.toLowerCase());
+    t = "*SOLICITAÇÃO PARA OPERAR NA PONTA* 🕐\n\n*DATA DA SOLICITAÇÃO*\n" + cdDataBR(d.cd_p_data, "-") +
+      "\n\n*SISTEMA*\n" + sigla + " – " + local +
+      "\n\n*MOTIVO*\n" + d.cd_p_motivo.toUpperCase() +
+      "\n\n*JUSTIFICATIVA*\nSolicitamos autorização para operar na ponta no(s) dia(s) " + d.cd_p_dias + ", " + just +
+      ". Diante disso, torna-se necessária a operação na ponta para reestabelecer e manter o abastecimento adequado à população." +
+      "\n\nCusto operação na ponta - R$ " + (cdNum(d.cd_p_custo) || "104,94");
+  } else {
+    // Frases montadas a partir dos campos de bairros, previsão e números
+    const auto = [];
+    const bairros = d.bairros.concat(d.cd_bairro_outro ? [d.cd_bairro_outro] : []);
+    if (bairros.length && d.cd_semagua) auto.push((bairros.length > 1 ? "Os bairros " : "O bairro ") + cdListaE(bairros) + (bairros.length > 1 ? " estão" : " está") + " sem abastecimento desde as " + cdHora(d.cd_semagua) + " de hoje (" + data.slice(0, 5) + ").");
+    else if (bairros.length) auto.push((bairros.length > 1 ? "Bairros afetados: " : "Bairro afetado: ") + cdListaE(bairros) + ".");
+    if (d.cd_prev_hora) {
+      const mesmoDia = !d.cd_prev_data || d.cd_prev_data === d.cd_data;
+      auto.push(mesmoDia ? "Previsão de restabelecimento às " + cdHora(d.cd_prev_hora) + "." : "Previsão de retorno às " + cdHora(d.cd_prev_hora) + " do dia " + cdDataBR(d.cd_prev_data).slice(0, 5) + ".");
+    }
+    if (d.cd_vaz && d.cd_vaz_ant) auto.push("Vazão da ETA de " + cdNum(d.cd_vaz_ant) + " m³/h para " + cdNum(d.cd_vaz) + " m³/h.");
+    else if (d.cd_vaz) auto.push("Vazão da ETA em " + cdNum(d.cd_vaz) + " m³/h.");
+    if (d.cd_pres) auto.push("Pressão na captação em " + cdNum(d.cd_pres) + " mca" + (d.cd_pres_norm ? " (sendo o normal " + cdNum(d.cd_pres_norm) + " mca)" : "") + ".");
+    const res = d.res.filter(r => r.niv);
+    const fmtNiv = v => /%$/.test(v) ? v : (/[a-z]$/i.test(v) ? cdNum(v) : cdNum(v) + " m");
+    if (res.length) auto.push(res.map(r => r.nome + " com " + fmtNiv(r.niv) + (r.norm ? " (sendo o normal " + fmtNiv(r.norm) + ")" : "")).join("; ") + ".");
+
+    let externo = "";
+    if (d.cd_contato || d.cd_equipe) {
+      externo = (d.cd_contato || "A equipe") + (d.cd_equipe ? (d.cd_contato ? " (" + d.cd_equipe + ")" : " " + d.cd_equipe) : "") + " foi informado.";
+      if (d.cd_pedido_ext) externo += " Solicitada " + d.cd_pedido_ext.replace(/^\s*solicitad[ao]\s+/i, "").replace(/\.\s*$/, "") + ".";
+    }
+    const ativ = cdTextoAtividades(d.ativ, d.total);
+
+    if (tipo === "Relatório Diário UNS") {
+      const itens = [];
+      if (d.cd_ocnum) itens.push("Ocorrência operacional nº " + d.cd_ocnum + ".");
+      [d.cd_princ, d.cd_sec].forEach(bloco => String(bloco || "").split(/\n+/).map(s => s.trim()).filter(Boolean).forEach(s => itens.push(cdFrase(s))));
+      auto.forEach(s => itens.push(s));
+      if (externo) itens.push(externo);
+      if (ativ) ativ.split("\n").forEach(s => itens.push(s));
+      if (!itens.length) { alert("Escreva a ocorrência principal."); return; }
+      t = "*RELATÓRIO DIÁRIO UNS - " + data + "*\n\n*" + local.toUpperCase() + " - " + sigla + "*\n\n" + itens.map(s => "* " + s).join("\n");
+    } else {
+      if (!d.cd_princ && !auto.length) { alert("Escreva a ocorrência principal."); return; }
+      const titulo = tipo === "Atualização" ? "*Atualização do Comunicado Diário – " + data + " | " + cdHora(d.cd_hora) + "*" : "*COMUNICADO DIÁRIO – " + data + "*";
+      const blocos = [titulo, "*" + sigla + " " + local + "*"];
+      if (d.cd_ocnum) blocos.push("Ocorrência operacional nº " + d.cd_ocnum + ".");
+      if (d.cd_princ) blocos.push(d.cd_princ.trim());
+      if (auto.length) blocos.push(auto.join(" "));
+      if (d.cd_sec) blocos.push(d.cd_sec.trim());
+      if (externo) blocos.push(externo);
+      if (ativ) blocos.push(ativ);
+      if (tipo === "Atualização") {
+        const man = d.man.filter(m => m.desc);
+        const linhas = man.map(m => {
+          const dia = m.dia === "Hoje" ? "Hoje" : m.dia === "Amanhã" ? "Amanhã" + (m.data ? " (" + cdDataBR(m.data).slice(0, 5) + ")" : "") : (m.data ? cdDataBR(m.data).slice(0, 5) : "Data a definir");
+          return "• " + dia + ": " + m.desc.replace(/\.\s*$/, "") + ". " + (m.hora ? "Às " + cdHora(m.hora) + "." : "Sem horário informado.");
+        });
+        blocos.push("*Resumo dos horários das próximas manobras*\n" + (linhas.length ? linhas.join("\n") : "Nenhuma manobra com horário informado no momento."));
+      }
+      t = blocos.join("\n\n");
+    }
+    const fim = [d.cd_mencoes, d.ok ? "✅" : ""].filter(Boolean).join(" ");
+    if (fim) t += "\n\n" + fim;
+  }
+  document.getElementById("cd_texto").value = t;
+  cdSalvar();
+  document.getElementById("cd_texto").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+function cdWhats() {
+  const t = cdV("cd_texto");
+  if (!t) { alert("Gere o texto primeiro."); return; }
+  window.open("https://wa.me/?text=" + encodeURIComponent(t), "_blank");
+}
+
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 15h10";
+const VERSAO_PAINEL = "11/11 21h57";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
