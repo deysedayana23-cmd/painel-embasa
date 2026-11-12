@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#c62828;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#c62828;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 22h44</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 11/11 23h05</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#c62828;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -603,6 +603,10 @@ const TELAS = {
   ssRede: () => telaPedidoSS(true),
   ssRamal: () => telaPedidoSS(true),
   pedidosSS: () => telaPedidosSS(),
+  baseLocImport: () => `<h2>Importar base de localizações</h2><div class="nota">Cole aqui a exportação da IA (uma matrícula por linha: <b>matrícula, latitude, longitude</b>) ou escolha o arquivo CSV. Matrícula que já existe é substituída pela nova; as outras continuam.</div>
+    <input type="file" id="bli_arq" accept=".csv,.txt" class="campo" onchange="baseLocLerArquivo(this)">
+    <textarea id="bli_txt" class="campo" rows="8" placeholder="74690205, -12.358025, -44.978328"></textarea>
+    <button class="acao" onclick="baseLocImportar(this)">Importar para a base</button><div id="bli_res" class="nota"></div>`,
   semLocalizacao: () => `<h2>Matrículas sem localização</h2><div class="nota">Matrículas das SS pendentes que ainda não têm coordenada (nem na tabela, nem na BaseLocalizacao, nem no GPS de campo).</div><div id="sl2_lista">Carregando...</div>`,
   ssDigiteam: () => telaSSLista("Solicitação ao Digiteam"),
   analiseConsumo: () => `<h2>Análise de consumo</h2>
@@ -4246,6 +4250,7 @@ function menuDoPerfil() {
     const resto = achatarMenu(menuBaseDoPerfil(n)).filter(i => !["almoxarifadoCatalogo", "encerrarEscritorio"].includes(i.tela) && i.nome !== "Almoxarifado");
     const outros = [...resto, {nome: "Pendências de abrir e encerrar SS", tela: "pendAbrirEncerrar"}];
     if ((window.MODO_GERENTE && !emPrevia()) || n.includes("thiago")) outros.push({nome: "Matrículas sem localização", tela: "semLocalizacao"});
+    if (window.MODO_GERENTE && !emPrevia()) outros.push({nome: "Importar base de localizações", tela: "baseLocImport"});
     const principal = [{nome: "Pendências de SS a digitar", tela: "encerrarEscritorio"}];
     // Comunicado diário: só a gerente vê
     if ((window.MODO_GERENTE && !emPrevia()) || n.includes("deyse")) principal.push({nome: "Comunicado diário", tela: "comunicadoDiario"});
@@ -5187,17 +5192,73 @@ async function marcarAnexado(linha) {
 const LOCALIDADES_SEM_MAPA = ["Catolândia"];
 // Aba BaseLocalizacao: matricula | coordenadas | fonte | data  (coordenadas no formato "lat,lon")
 async function carregarBaseLocalizacao() {
-  const base = {};
+  const base = {}; window.baseFonte = {};
   try {
     const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "BaseLocalizacao" });
     if (r.erro) return base;
     r.dados.slice(1).forEach(l => {
       const m = String(l[0] || "").trim();
       const c = String(l[1] || "").match(/(-?\d+[.,]\d+)\s*[,; ]\s*(-?\d+[.,]\d+)/);
-      if (m && c) base[m] = c[1].replace(",", ".") + "," + c[2].replace(",", ".");
+      if (m && c) { base[m] = c[1].replace(",", ".") + "," + c[2].replace(",", "."); window.baseFonte[m] = String(l[2] || ""); }
     });
   } catch (e) {}
   return base;
+}
+
+// ===== 11/11: base de localizações (importação da IA, confirmação em campo e fotos do serviço) =====
+async function baseLocGravar(linhas) {
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  return chamarApi({ acao: "gravarVarias", ...cred, aba: "BaseLocalizacao", linhas });
+}
+function baseLocLerArquivo(inp) {
+  const f = (inp.files || [])[0]; if (!f) return;
+  const r = new FileReader(); r.onload = () => { document.getElementById("bli_txt").value = String(r.result || ""); }; r.readAsText(f);
+}
+async function baseLocImportar(btn) {
+  const txt = String((document.getElementById("bli_txt") || {}).value || "");
+  const agora = new Date().toISOString(), vistos = {}, linhas = [];
+  txt.split(/\r?\n/).forEach(l => {
+    const nums = l.replace(/;/g, ",").match(/-?\d+(?:[.,]\d+)?/g) || [];
+    // formato: matrícula, [setor], lat, lon  → a matrícula é o primeiro número; lat/lon são os dois últimos
+    if (nums.length < 3) return;
+    const mat = String(l).match(/\d{5,}/); if (!mat) return;
+    const lon = parseFloat(nums[nums.length - 1].replace(",", ".")), lat = parseFloat(nums[nums.length - 2].replace(",", "."));
+    if (!(lat < -5 && lat > -25 && lon < -35 && lon > -50)) return; // fora da Bahia = linha inválida
+    vistos[mat[0]] = [ "'" + mat[0], lat.toFixed(6) + "," + lon.toFixed(6), "importação IA", agora ];
+  });
+  Object.keys(vistos).forEach(k => linhas.push(vistos[k]));
+  const res = document.getElementById("bli_res");
+  if (!linhas.length) { res.textContent = "Não encontrei nenhuma linha válida."; return; }
+  sspTravar(btn, "Importando...");
+  try {
+    for (let i = 0; i < linhas.length; i += 150) {
+      const r = await baseLocGravar(linhas.slice(i, i + 150));
+      if (r.erro) { res.textContent = "Erro: " + r.erro + " (importadas até agora: " + i + ")"; sspDestravar(btn); return; }
+    }
+    res.textContent = linhas.length + " matrícula(s) importada(s) para a base.";
+  } catch (e) { res.textContent = "Não consegui importar. Verifique a internet."; }
+  sspDestravar(btn);
+}
+function baseLocPrecisaConfirmar(it) {
+  const f = String((window.baseFonte || {})[it.mat] || "");
+  return !!(it.gpsBase && it.mat && !it.executada && !/^(confirmada|campo)/i.test(f));
+}
+async function baseLocConfirmar(id, certa, btn) {
+  const it = (window.sspCache || {})[id]; if (!it || !it.mat || (btn && btn.disabled)) return;
+  sspTravar(btn, "Salvando...");
+  try {
+    let coord = it.gps, fonte = "confirmada " + window.credenciais.usuario;
+    if (!certa) {
+      alert("Vá até o imóvel e toque OK para enviar a localização de onde você está.");
+      window.__gpsDecisao = null;
+      const pos = await obterPosicao();
+      if (!pos) { alert("Não consegui pegar a localização. Ligue o GPS e confirme que está no local."); sspDestravar(btn); return; }
+      coord = pos.lat.toFixed(6) + "," + pos.lon.toFixed(6); fonte = "campo " + window.credenciais.usuario;
+    }
+    const r = await baseLocGravar([["'" + it.mat, coord, fonte, new Date().toISOString()]]);
+    if (r.erro) { alert(r.erro); sspDestravar(btn); return; }
+    carregarSSPend(window.sspChave);
+  } catch (e) { alert("Não consegui salvar. Tente de novo."); sspDestravar(btn); }
 }
 async function carregarSemLocalizacao() {
   const box = document.getElementById("sl2_lista");
@@ -5975,6 +6036,7 @@ async function carregarSSPend(chave) {
     lista.forEach(it => {
       const g = (String(it.gpsCol || "").match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || String((it.campos.find(c => /Logradouro/.test(c[0])) || [])[1] || "").match(/GPS:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/) || []);
       it.gps = g[1] ? g[1] + "," + g[2] : (it.mat && base[it.mat]) || "";
+      it.gpsBase = !g[1] && !!(it.mat && base[it.mat]);
     });
     window.sspCache = {}; lista.forEach(it => { window.sspCache[it.id] = it; });
     const p = sspPapel(chave);
@@ -6148,6 +6210,9 @@ async function carregarSSPend(chave) {
         ${ficha}${fotosHTML}
         ${it.executada && it.executada.info ? `<div style="background:#fff8e1;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:15px">📝 <b>Campo informou:</b> ${sspEsc(it.executada.info)}</div>` : ""}
         ${it.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(it.gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
+        ${filtro === "campo" && baseLocPrecisaConfirmar(it) ? `<div style="background:#e3f2fd;border-radius:10px;padding:8px;margin-top:6px"><div style="font-weight:bold;margin-bottom:4px">A localização do mapa está correta?</div>
+          <button class="acao" style="background:#2e7d32" onclick="baseLocConfirmar('${id}', true, this)">Sim, está correta</button>
+          <button class="acao" style="background:#c62828" onclick="baseLocConfirmar('${id}', false, this)">Não — enviar minha localização agora</button></div>` : ""}
         ${acoesCampo}${acoesDig}${acoesGer}${exclGer}
       </div>`;
     }).join("");
@@ -6243,6 +6308,8 @@ async function sspExecutar(id, btn, semFotoObrig) {
     const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo",
       linhas: [[new Date().toISOString(), "'" + (it.ss || it.id), it.tipoCurto || it.tipo, it.loc, nomesDoUsuario(), "executada", confirmado]] });
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    // 11/11: foto enviada no local (GPS confirmado por "estou no local") com matrícula alimenta a base
+    if (fotos.length && pos && it.mat) { try { await baseLocGravar([["'" + it.mat, pos.lat.toFixed(6) + "," + pos.lon.toFixed(6), "campo foto " + window.credenciais.usuario, new Date().toISOString()]]); } catch (e) {} }
     if (window.fotosSsp) delete window.fotosSsp[id];
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui registrar: " + (e && e.message ? e.message : "erro") + ". Tente de novo."); sspDestravar(btn); }
@@ -8209,7 +8276,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "11/11 22h44";
+const VERSAO_PAINEL = "11/11 23h05";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
