@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 17h45</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 18h00</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1716,6 +1716,7 @@ function mostrarMenu(itens, titulo) {
     if ((x = tirar(i => i.nome === "Solicitação no SCI"))) principal.push(x);
     else if (["ramon", "renato"].some(n => identidadeAtual().includes(n))) { const sciAg = (PERFIS["Agente de campo (exemplo: Luzenildo)"] || []).find(i => i.nome === "Solicitação no SCI"); if (sciAg) principal.push(sciAg); } // Angico: mesma tela do Joaquim
     if ((x = tirar(i => i.tela === "pedirSS"))) principal.push(x);
+    if ((x = tirar(i => i.tela === "inativas"))) principal.push(x); // 12/11: Inativas no painel principal, com contagem
     if ((x = tirar(i => i.tela === "telemetria"))) principal.push(x);
     const outros = pool.filter(i => i.tela !== "substHD" && i.nome !== "Outros").filter((i, k, a) => a.findIndex(j => j.nome === i.nome) === k);
     itens = [...principal.map(i => Object.assign({}, i, { prioridade: false, grande: false })), { nome: "Outros", sub: outros }];
@@ -1838,8 +1839,19 @@ async function atualizarContagemSS() {
     contarAgersa(),
     contar("SSAbertas", l => l[0] && ehCorteSS(l[1]) && !/encerrad|cancelad|conclu|saiu|escrit/i.test(l[5] || "") && locsCorte.includes(normalizarNome(l[2])))
   ]);
-  const [pendEx, digi, ssp, pedidosDigi] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens(), contarPedidosDigi(cred)]);
-  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi, pedidosDigi }, ssp);
+  // 12/11: inativas da(s) localidade(s) de quem está usando (a gerente vê todas)
+  const contarInativas = async () => {
+    try {
+      const [ina, ped] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "Inativas" }), chamarApi({ acao: "listar", ...cred, aba: "PedidoInativa" }).catch(() => ({ dados: [] }))]);
+      if (ina.erro) return 0;
+      const religadas = new Set(inatPedidos((ped && ped.dados) || []).filter(p => p.tipo === "religacao").map(p => p.mat));
+      const ger = window.MODO_GERENTE && !emPrevia();
+      return ina.dados.slice(1).map(l => ({ mat: sspLimpo(l[0]), loc: l[1], setor: l[2], bairro: l[6], grupo: l[12] }))
+        .filter(x => x.mat && !religadas.has(x.mat) && (ger || inatDoMeuGrupo(x))).length;
+    } catch (e) { return 0; }
+  };
+  const [pendEx, digi, ssp, pedidosDigi, inativas] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens(), contarPedidosDigi(cred), contarInativas()]);
+  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi, pedidosDigi, inativas }, ssp);
   if (window.contagemSS.sspTodas !== undefined) { // pedidos de SS (os que a pessoa vê) e o encerrar pelo escritório entram no total do botão único
     window.contagemSS.sspTodas += Number(encerrar) || 0;
     try { const rp = await chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" }); window.contagemSS.sspTodas += rp && rp.dados ? pssFiltrar(rp.dados).length : 0; } catch (e) {}
@@ -3362,7 +3374,7 @@ function lerPedidosDigiteam(acsDados, saDados) {
     .sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
 }
 Object.assign(TELAS, { pedidosDigi: () => `<h2>Pedidos ao Digiteam</h2><div class="nota">Pedidos dos agentes para receber SS no Digiteam. Os pedidos são colocados no Digiteam só às 8h e às 13h30. Se despachar na mão, toque em "Marcar como despachado" que o agente é avisado.</div><div id="pdg_lista">Carregando...</div>` });
-Object.assign(CONTAGEM_SS_TELAS, { pedidosDigi: "pedidosDigi" });
+Object.assign(CONTAGEM_SS_TELAS, { pedidosDigi: "pedidosDigi", inativas: "inativas" });
 function ehDigitadorPainel() { return (window.MODO_GERENTE && !emPrevia()) || SSP_DIGITADORES.some(n => identidadeAtual().includes(n)); }
 function pedidosDigiNoMenu(itens) {
   if (!ehDigitadorPainel() || itens.some(i => i.tela === "pedidosDigi")) return itens;
@@ -3703,11 +3715,18 @@ function inatPedidos(dados) {
   return linhas.filter(l => l[10] === "pendente" && sspDepoisDoZero(l[0])).map(l => ({ id: inatId(l), quando: l[0], quem: l[1], mat: sspLimpo(l[2]), tipo: l[3], grupo: l[4], nome: l[5], end: l[6],
     leitura: l[7], obs: l[8], fotos: String(l[9] || "").split(/\s+/).filter(u => /^https?:/.test(u)), ssOrigem: sspLimpo(l[11]), feito: feitos[inatId(l)] || null }));
 }
+// 12/11: a inativa vai para a equipe da localidade/setor dela (São Marcos e Passagem de Pedra = Baianópolis), igual às SS
+function inatGrupoDe(x) {
+  const onde = normalizarNome([x.loc, x.bairro, x.setor].filter(Boolean).join(" "));
+  if (/saomarcos|passagemdepedra/.test(onde)) return "Baianópolis";
+  return unidadeDaLoc(x.loc) || grupoDono(x.grupo, x.loc) || String(x.grupo || "").trim();
+}
+function inatDoMeuGrupo(x) { const g = grupoSCIDoUsuario(); return !!g && inatGrupoDe(x) === g; }
 function inativasNoMenu(itens) {
   const ger = window.MODO_GERENTE && !emPrevia();
   if ((!ger && !grupoSCIDoUsuario()) || itens.some(i => i.tela === "inativas")) return itens;
   let k = itens.findIndex(i => i.tela === "ssDigiteam" || i.tela === "ssPendAng");
-  const it = { nome: "Inativas" + (window.inatData ? " (atualizada em " + window.inatData + ")" : ""), tela: "inativas", grande: !ger };
+  const it = { nome: "Inativas", tela: "inativas", grande: !ger };
   itens.splice(k >= 0 ? k + 1 : Math.min(1, itens.length), 0, it);
   return itens;
 }
@@ -3716,7 +3735,7 @@ async function atualizarDataInativas(cred) {
     const st = await chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" });
     const l = (st.dados || []).slice(1).find(x => x[0] === "Inativas");
     window.inatData = l ? formatarQuando(l[1]).replace(/\/\d{4},?/, "") : "";
-    document.querySelectorAll("#app button.btn").forEach(b => { if (/^Inativas/.test(b.textContent)) b.textContent = "Inativas" + (window.inatData ? " (atualizada em " + window.inatData + ")" : ""); });
+    // 12/11: o botão mostra só "Inativas" + a contagem; a data da lista aparece dentro da tela
   } catch (e) {}
 }
 Object.assign(TELAS, { inativas: () => `<h2>Inativas</h2>
@@ -3734,7 +3753,7 @@ async function carregarInativas() {
   const pedidos = inatPedidos(ped.dados), eu = normalizarNome(window.credenciais.usuario);
   const religadas = new Set(pedidos.filter(p => p.tipo === "religacao").map(p => p.mat));
   let lista = (ina.dados || []).slice(1).map(l => ({ mat: sspLimpo(l[0]), loc: l[1], setor: l[2], nome: l[3], cat: l[4], sit: l[5], bairro: l[6], end: l[7], hid: l[8], meses: l[9], valor: l[10], corte: l[11], grupo: l[12] }))
-    .filter(x => x.mat && !religadas.has(x.mat) && (ger || x.grupo === meuG));
+    .filter(x => x.mat && !religadas.has(x.mat) && (ger || inatDoMeuGrupo(x)));
   window.inatCache = {}; lista.forEach(x => { window.inatCache[x.mat] = x; });
   const stL = (st.dados || []).slice(1).find(x => x[0] === "Inativas");
   const topo = `<div class="nota">${stL ? "Lista atualizada em <b>" + formatarQuando(stL[1]) + "</b>." : "Lista ainda não enviada pelo escritório."} ${lista.length} matrícula(s)${ger ? "" : " da sua equipe"}.</div>`;
@@ -8365,7 +8384,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "12/11 17h45";
+const VERSAO_PAINEL = "12/11 18h00";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
