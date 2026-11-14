@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 12/11 18h00</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 14/11 14h41</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1830,9 +1830,9 @@ async function atualizarContagemSS() {
     (async () => { try {
       const [ee, sa, ist] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }), chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] })), chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }).catch(() => ({ dados: [] }))]);
       if (ee.erro) return 0;
-      const lin = ee.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], ss: l[2], loc: l[4], obs: l[5], situacao: l[6] || "pendente" }));
+      const lin = ee.dados.slice(1).map((l, i) => ({ linha: i + 2, quando: l[0], ss: l[2], serv: l[3], loc: l[4], obs: l[5], situacao: l[6] || "pendente" }));
       const fora = eeSairamDoExcel(lin, sa && sa.dados, ist && ist.dados);
-      return lin.filter(x => x.situacao === "pendente" && !fora.has(x.linha) && sspMemoriaValida(x.quando)).length;
+      return lin.filter(x => x.situacao === "pendente" && !fora.has(x.linha) && sspMemoriaValida(x.quando) && !eeEhLigNova(x)).length;
     } catch (e) { return 0; } })(),
     contar("PedidoSS", l => (l[10] || "pendente") === "pendente" && !sspPedidoNaTelaLocal(l[4], l[9])),
     contar("Ocorrencia", l => l[0] && ["solicitada", "finalizada"].includes(l[6] || "solicitada")),
@@ -3201,6 +3201,8 @@ async function enviarEncerrarEscritorio() {
 // 09/11: SS pedida para o escritório encerrar que NÃO veio no Excel do SCI (Pendências da unidade) importado depois do pedido
 // já foi encerrada no sistema: sai da lista sozinha. Se ainda aparece em aberto na aba SSAbertas, continua.
 // Pedidos de SS vencida / nova SS ficam (o escritório ainda precisa informar a nova SS).
+// 14/11: ligação nova com estado é exclusiva do Thiago – não entra também no "escritório encerrar"
+const eeEhLigNova = x => /LIGACAO DE AGUA|LIGACAO NOVA|LIG NOVA/i.test(String(x.serv || "")) && !/RELIG/i.test(String(x.serv || "")) && !!String(x.ss || "").trim();
 function eeSairamDoExcel(eeLinhas, saDados, impDados) {
   const fechada = sit => /encerrad|cancelad|conclu|saiu/i.test(String(sit || ""));
   const abertas = new Set(), grupoDaSS = {};
@@ -3239,7 +3241,7 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
     // 12/11: "não executado" informado antes de zerar as listas continua aqui enquanto a SS estiver aberta no SCI (antes sumia do campo e do escritório)
     const abertasSCI = new Set(((saEE && saEE.dados) || []).slice(1).filter(l => !/encerrad|cancelad|conclu|saiu/i.test(String(l[5] || ""))).map(l => String(l[0] || "").replace(/^'/, "").trim()));
     const naoExecAberta = x => /\[NÃO EXECUTADO\]/.test(String(x.obs || "")) && abertasSCI.has(String(x.ss || "").replace(/^'/, "").trim());
-    const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && sspMemoriaValida(x.quando)).reverse();
+    const itens = todasEE.filter(x => x.situacao === "pendente" && !foraEE.has(x.linha) && sspMemoriaValida(x.quando) && !eeEhLigNova(x)).reverse();
     const notaSaiu = saiuEE.length ? `<details class="nota" style="margin-bottom:8px"><summary>✔ ${saiuEE.length} SS saíram desta lista porque não vieram mais no Excel do SCI (já encerradas no sistema)</summary>${saiuEE.map(x => "SS " + String(x.ss).replace(/^'/, "") + " · " + sspEsc(x.serv) + " · " + sspEsc(x.loc)).join("<br>")}</details>` : "";
     // 12/11: selecionar todas e concluir de uma vez
     const eeSelecionaveis = gerencia ? itens.filter(x => !/\[VENCIDA\]|\[NOVA SS\]/.test(String(x.obs))) : [];
@@ -5783,7 +5785,8 @@ async function sspDados() {
 // 10/11: ligação nova de água já executada (campo informou ou o SCI diz "serviço cobrado não pode ser encerrado pelo agente de campo"):
 // é exclusiva do Thiago encerrar – sai da lista dos outros digitadores
 const ehLigNovaSS = it => /LIGACAO DE AGUA|LIGACAO NOVA|LIG NOVA/i.test(String(it.tipo || "")) && !/RELIG/i.test(String(it.tipo || ""));
-const ligNovaPronta = it => ehLigNovaSS(it) && !!it.ss && !it.digitada && (!!it.executada || /cobrado|agente de campo/i.test(String(it.estadoSCI || "")));
+// 14/11: ligação nova com a coluna Estado preenchida (qualquer estado) vai para o botão do Thiago
+const ligNovaPronta = it => ehLigNovaSS(it) && !!it.ss && !it.digitada && (!!it.executada || !!String(it.estadoSCI || "").trim());
 const ehThiagoOuDeyse = () => ["thiago", "tiago", "deyse"].some(n => identidadeAtual().includes(n));
 // 10/11: SS programada no Digiteam não aparece para o campo (só para os digitadores)
 function sspMontar(d, chave) { const dig = chave === "todas" || sspPapel(chave).digitador;
@@ -8384,7 +8387,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "12/11 18h00";
+const VERSAO_PAINEL = "14/11 14h41";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
