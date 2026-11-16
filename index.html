@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h08</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h12</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 16h08";
+const VERSAO_PAINEL = "16/11 16h12";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -8684,8 +8684,7 @@ const LEIT_GRUPOS = {
   "137": { loc: "São Desidério", rotas: ["S1 R4", "S1 R7", "S2 R7", "S2 R12", "S2 R13", "S4 R7", "S5 R1", "S5 R3"], barreiras: true },
   "114": { loc: "Catolândia (setores 3 a 8) · Buriti Cortado (setor 1)" },
   "126": { loc: "Catolândia (setores 10 a 14 e 16) · Mozondó (setor 1)" },
-  "130": { loc: "Angico (setor 1)" },
-  "161": { loc: "Baianópolis (setores 1 e 3) · Catolândia (setores 1 e 2)", semCronograma: true }
+  "130": { loc: "Angico (setor 1)" }
 };
 // Início da leitura combinado com a gerência (quando não houver, vale a data do roteiro gerado)
 const LEIT_INICIO = { "137|DEZ/26": "2026-11-20" };
@@ -8733,13 +8732,12 @@ async function leitCarregarRotina() {
   // 16/11: um botão por grupo no topo; a página mostra só o grupo escolhido (o primeiro ciclo ainda não exportado de cada grupo)
   const ciclos = {};
   leitCiclos().forEach(c => { if (ciclos[c[0]]) return; const st = leitEtapas(ev, c[0], c[1]); if (leitPasso(st, c[0]) < 5 || leitDias(c[3]) >= 0) ciclos[c[0]] = c; });
-  const grupos = Object.keys(ciclos).sort((a, b) => ciclos[a][3].localeCompare(ciclos[b][3])).concat(["161"]);
+  const grupos = Object.keys(ciclos).sort((a, b) => ciclos[a][3].localeCompare(ciclos[b][3])); // 16/11: grupo 161 retirado do Sinval
   if (!grupos.includes(window.leitGrupoSel)) window.leitGrupoSel = grupos[0];
   const sel = window.leitGrupoSel;
   const chips = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${grupos.map(g => { const c = ciclos[g], st = c && leitEtapas(ev, g, c[1]), ps = c ? leitPasso(st, g) : 0;
     const marca = !c ? "" : ps >= 5 ? " ✔" : leitDias(c[3]) <= 1 ? " ⚠" : "";
     return `<button onclick="window.leitGrupoSel='${g}';leitCarregarRotina()" style="min-height:48px;padding:6px 14px;border-radius:999px;font-weight:bold;font-size:16px;border:2px solid #0b5394;${g === sel ? "background:#0b5394;color:#fff" : "background:#fff;color:#0b5394"}">${g}${marca}</button>`; }).join("")}</div>`;
-  if (sel === "161") { box.innerHTML = chips + `<div class="card"><b>Grupo 161</b> – ${LEIT_GRUPOS["161"].loc}<div class="nota">Datas ainda não definidas no cronograma.</div></div>`; return; }
   const c = ciclos[sel];
   const [g, ref, rot, exp, hd1, hd2, venc] = c, st = leitEtapas(ev, g, ref), passo = leitPasso(st, g), info = LEIT_GRUPOS[g];
   const ini = LEIT_INICIO[g + "|" + ref] || rot, falta = leitDias(exp);
@@ -8792,8 +8790,7 @@ async function leitEvento(k, etapa, rota, btn) {
 }
 // ---------- Datas das leituras ----------
 Object.assign(TELAS, { leitDatas: () => `<h2>Datas das leituras</h2><div class="nota">Datas em vermelho caem no sábado ou domingo.</div>` + Object.keys(LEIT_GRUPOS).filter(g => !LEIT_GRUPOS[g].semCronograma).map(g => `<details class="card" style="margin-bottom:8px" ${g === "137" ? "open" : ""}><summary style="font-weight:bold;font-size:17px">Grupo ${g} · ${LEIT_GRUPOS[g].loc}</summary>
-  <div style="overflow-x:auto"><table style="font-size:14px;margin-top:6px"><tr><th>Ref.</th><th>Iniciar</th><th>Exportar</th><th>Sem trocar HD</th><th>Venc.</th></tr>${LEIT_CRONO.filter(c => c[0] === g && leitDias(c[3]) >= -3).map(c => `<tr><td>${c[1]}</td><td>${leitData(LEIT_INICIO[g + "|" + c[1]] || c[2])}</td><td>${leitData(c[3])}</td><td>${leitData(c[4])} a ${leitData(c[5])}</td><td>${leitData(c[6])}</td></tr>`).join("")}</table></div></details>`).join("")
-  + `<div class="card"><b>Grupo 161</b><div class="nota">Datas ainda não definidas.</div></div>` });
+  <div style="overflow-x:auto"><table style="font-size:14px;margin-top:6px"><tr><th>Ref.</th><th>Iniciar</th><th>Exportar</th><th>Sem trocar HD</th><th>Venc.</th></tr>${LEIT_CRONO.filter(c => c[0] === g && leitDias(c[3]) >= -3).map(c => `<tr><td>${c[1]}</td><td>${leitData(LEIT_INICIO[g + "|" + c[1]] || c[2])}</td><td>${leitData(c[3])}</td><td>${leitData(c[4])} a ${leitData(c[5])}</td><td>${leitData(c[6])}</td></tr>`).join("")}</table></div></details>`).join("") });
 // ---------- Rotas de leitura (mapa) ----------
 Object.assign(TELAS, { leitRotas: () => { setTimeout(() => { location.href = "rotas.html"; }, 50); return `<h2>Rotas de leitura</h2><div class="nota">Abrindo o mapa...</div>`; } });
 // ---------- Contas retidas a entregar ----------
