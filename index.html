@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 11h12</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 11h15</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3762,6 +3762,9 @@ const ABA_VEICULOS = [
   { nome: "Motobomba", fixo: 0 },
   { nome: "Outros", outro: true }
 ];
+// 16/11: o nível do tanque é escolhido por fração (a gerente pediu assim)
+const ABA_NIVEIS = [["0", "Zerado"], ["0.25", "1/4"], ["0.5", "2/4 (metade)"], ["0.75", "3/4"], ["1", "4/4 (cheio)"]];
+function abaFracTxt(v) { const n = ABA_NIVEIS.find(x => x[0] === String(v)); return n ? n[1] : String(v || ""); }
 function abaVeic(nome) { return ABA_VEICULOS.find(v => v.nome === nome) || null; }
 function abaLitros(v) { return (Number(String(v).replace(",", ".")) || 0); }
 function abaMoeda(v) { return "R$ " + abaLitros(v).toFixed(2).replace(".", ","); }
@@ -3782,12 +3785,22 @@ async function carregarAbastecimento() {
       <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
       <div style="font-size:26px;font-weight:bold;color:#0b5394">${u ? abaMoeda(u[8]) : "sem registro"}</div>
       ${u ? `<div class="nota">informado por ${sspEsc(sspNome(u[1]))} em ${formatarQuando(u[0])}</div>` : ""}</div>`; }).join("");
-  const ger = window.MODO_GERENTE && !emPrevia();
-  const hist = ger && dados.length ? `<details class="card" style="margin-top:10px"><summary style="font-weight:bold;font-size:16px">Últimos abastecimentos (${dados.length})</summary>${
-    dados.slice(-40).reverse().map(l => `<div style="border-bottom:1px solid #e8f1fb;padding:6px 0;font-size:15px">
-      <b>${sspEsc(l[3] === "Outros" ? l[4] : l[3])}</b> · ${abaLitros(l[6]).toString().replace(".", ",")} L · ${sspEsc(sspNome(l[1]))}<br>
-      <span class="nota">${formatarQuando(l[0])} · ${sspEsc(l[2])} · saldo ${abaMoeda(l[7])} → ${abaMoeda(l[8])}${l[5] ? " · nível antes: " + sspEsc(l[5]) + " L" : ""}</span></div>`).join("")}</details>` : "";
-  box.innerHTML = saldos + `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` + hist;
+  // 16/11: as movimentações são só da gerente (Deyse); os funcionários veem apenas o saldo
+  const soDeyse = window.MODO_GERENTE && !emPrevia() && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse");
+  const linhaHist = l => `<div style="border-bottom:1px solid #e8f1fb;padding:8px 0;font-size:15px">
+      <b>${sspEsc(l[3] === "Outros" ? l[4] : l[3])}</b> · ${String(abaLitros(l[6])).replace(".", ",")} L abastecidos
+      <div class="nota">${formatarQuando(l[0])} · por ${sspEsc(sspNome(l[1]))}</div>
+      <div class="nota">Saldo do cartão: ${abaMoeda(l[7])} → <b>${abaMoeda(l[8])}</b>${l[9] ? " · autorizado: " + sspEsc(l[9]) + " L" : ""}</div>
+      <div class="nota">Tanque: ${l[5] ? sspEsc(l[5]) + " L" : "?"} antes → ${l[11] ? sspEsc(l[11]) + " L" : "?"} depois</div></div>`;
+  const hist = soDeyse ? `<h3 style="margin-top:14px">Movimentações (só você vê)</h3>` + ABA_CARTOES.map(c => {
+    const d = dados.filter(l => String(l[2] || "") === c).reverse();
+    return `<details class="card" style="margin-bottom:8px"><summary style="font-weight:bold;font-size:16px">${sspEsc(c)} (${d.length})</summary>${
+      d.length ? d.map(linhaHist).join("") : '<p class="nota">Nenhum abastecimento registrado.</p>'}</details>`; }).join("") : "";
+  const okMsg = window.abaOk ? `<div class="card" style="margin-bottom:10px;background:#e8f1fb;border-left:6px solid #0b5394">
+    <div style="font-size:18px;font-weight:bold">✔ Abastecimento registrado</div>
+    <div style="font-size:21px;font-weight:bold;color:#0b5394;margin-top:6px">Favor devolver o cartão a Tiago.</div></div>` : "";
+  window.abaOk = false;
+  box.innerHTML = okMsg + saldos + `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` + hist;
 }
 function abaForm() {
   const f = document.getElementById("aba_form"); if (!f) return;
@@ -3799,12 +3812,14 @@ function abaForm() {
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">3) O que vai abastecer</div>
     <select class="campo" id="aba_veic" onchange="abaVeicMudou()"><option value="">Escolha…</option>${ABA_VEICULOS.map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
     <div id="aba_outro_box" style="display:none"><input class="campo" id="aba_outro" placeholder="Escreva o que vai abastecer"></div>
-    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">4) Nível que está agora (em litros)</div>
-    <input class="campo" id="aba_nivel" inputmode="decimal" placeholder="Ex.: 0,4" oninput="abaCalcular()">
+    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">4) Como está o tanque agora</div>
+    <select class="campo" id="aba_nivel" onchange="abaCalcular()"><option value="">Escolha…</option>${ABA_NIVEIS.map(n => `<option value="${n[0]}">${n[1]}</option>`).join("")}</select>
     <div id="aba_aut"></div>
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">5) Quantos litros foram abastecidos</div>
     <input class="campo" id="aba_litros" inputmode="decimal" placeholder="Ex.: 10">
-    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">6) Saldo do cartão DEPOIS de abastecer (R$)</div>
+    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">6) Como ficou o tanque DEPOIS de abastecer</div>
+    <select class="campo" id="aba_nivel2"><option value="">Escolha…</option>${ABA_NIVEIS.map(n => `<option value="${n[0]}">${n[1]}</option>`).join("")}</select>
+    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">7) Saldo do cartão DEPOIS de abastecer (R$)</div>
     <input class="campo" id="aba_saldo2" inputmode="decimal" placeholder="Ex.: 190,00">
     <button class="acao" onclick="abaGravar(this)">Gravar abastecimento</button></div>`;
   f.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -3816,38 +3831,37 @@ function abaVeicMudou() {
 }
 function abaCalcular() {
   const box = document.getElementById("aba_aut"); if (!box) return;
-  const v = abaVeic(document.getElementById("aba_veic").value), nivel = abaLitros(document.getElementById("aba_nivel").value);
+  const v = abaVeic(document.getElementById("aba_veic").value), frac = Number(document.getElementById("aba_nivel").value || 0);
+  const temFrac = document.getElementById("aba_nivel").value !== "";
   let txt = "";
   if (v && v.fixo) txt = "Você está autorizado a abastecer <b>" + v.fixo + " litros</b>.";
-  else if (v && v.tanque) { const lib = Math.max(0, v.tanque - nivel);
-    txt = "Tanque de " + v.tanque + " L. Você está autorizado a abastecer <b>" + lib.toFixed(1).replace(".", ",") + " litros</b>."; }
+  else if (v && v.tanque && temFrac) { const lib = Math.max(0, v.tanque * (1 - frac));
+    txt = "Tanque de " + v.tanque + " L, está " + abaFracTxt(frac) + ". Você está autorizado a abastecer <b>" + String(Number(lib.toFixed(1))).replace(".", ",") + " litros</b>."; }
   else if (v) txt = "O limite de litros deste item ainda não foi definido pela gerente.";
   box.innerHTML = txt ? `<div style="background:#e8f1fb;border-left:6px solid #0b5394;border-radius:8px;padding:10px;margin:8px 0;font-size:17px">${txt}</div>` : "";
 }
 async function abaGravar(btn) {
   const g = id => (document.getElementById(id) || {}).value || "";
   const cartao = g("aba_cartao"), veic = g("aba_veic"), outro = g("aba_outro").trim();
-  const s1 = g("aba_saldo1"), nivel = g("aba_nivel"), litros = g("aba_litros"), s2 = g("aba_saldo2");
+  const s1 = g("aba_saldo1"), nivel = g("aba_nivel"), litros = g("aba_litros"), nivel2 = g("aba_nivel2"), s2 = g("aba_saldo2");
   if (!cartao) { alert("Escolha o cartão ou o posto."); return; }
   if (!s1) { alert("Informe o saldo do cartão ANTES de abastecer."); return; }
   if (!veic) { alert("Escolha o que vai abastecer."); return; }
   const v = abaVeic(veic);
   if (v && v.outro && !outro) { alert("Escreva o que vai abastecer."); return; }
-  if (!nivel) { alert("Informe o nível que está agora, em litros."); return; }
+  if (!nivel) { alert("Escolha como está o tanque agora."); return; }
   if (!litros) { alert("Informe quantos litros foram abastecidos."); return; }
+  if (!nivel2) { alert("Escolha como ficou o tanque depois de abastecer."); return; }
   if (!s2) { alert("Informe o saldo do cartão DEPOIS de abastecer."); return; }
-  const lib = v && v.fixo ? v.fixo : (v && v.tanque ? Math.max(0, v.tanque - abaLitros(nivel)) : 0);
+  const lib = v && v.fixo ? v.fixo : (v && v.tanque ? Math.max(0, v.tanque * (1 - Number(nivel || 0))) : 0);
   if (lib && abaLitros(litros) > lib + 0.001 && !confirm("Você abasteceu " + litros + " L, mais do que os " + lib + " L autorizados. Gravar assim mesmo?")) return;
   sspTravar(btn);
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Abastecimento",
-      linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, outro, nivel, litros, s1, s2, String(lib || ""), nomesDoUsuario()]] });
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, outro, abaFracTxt(nivel), litros, s1, s2, String(lib ? Number(lib.toFixed(1)) : ""), nomesDoUsuario(), abaFracTxt(nivel2)]] });
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
-    const f = document.getElementById("aba_form");
-    if (f) f.innerHTML = `<div class="card" style="margin-top:10px;background:#e8f1fb;border-left:6px solid #0b5394">
-      <div style="font-size:18px;font-weight:bold">✔ Abastecimento registrado</div>
-      <div style="font-size:20px;font-weight:bold;color:#0b5394;margin-top:6px">Favor devolver o cartão a Tiago.</div></div>`;
-    carregarAbastecimento();
+    window.abaOk = true; // a mensagem aparece no topo da tela depois de recarregar
+    await carregarAbastecimento();
   } catch (e) { alert("Não consegui gravar. Verifique a internet."); sspDestravar(btn); }
 }
 Object.assign(TELAS, { abastecimento: () => { setTimeout(carregarAbastecimento, 0); return `<h2>Abastecimento</h2><div id="aba_tela">Carregando...</div>`; } });
@@ -8498,7 +8512,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 11h12";
+const VERSAO_PAINEL = "16/11 11h15";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
