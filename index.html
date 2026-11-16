@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h33</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 16h33";
+const VERSAO_PAINEL = "16/11 16h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -8817,8 +8817,39 @@ async function leitCarregarEntregas() {
       <div style="font-size:19px;font-weight:bold">${sspEsc(l[5])}</div><div>${sspEsc(l[6])}</div><div class="nota" style="margin:2px 0">Com ajuda: <b>${sspEsc(l[8] || "—")}</b></div>
       ${f ? `<div style="font-weight:bold;color:${f[9] === "tudo" ? "#15803d" : "#b45309"}">${f[9] === "tudo" ? "✅ Entregou tudo" : "⚠ Entregou parte · faltaram " + sspEsc(f[10]) + (f[11] ? " · " + sspEsc(f[11]) : "")} · ${formatarQuando(f[0])} · ${sspEsc(sspNome(f[1]))}</div>`
         : ger ? `<div class="nota">⏳ Aguardando o Sinval</div>` : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="acao" style="background:#15803d;margin:0" onclick="leitEntregar('${l[4]}','tudo',this)">Entreguei tudo</button><button class="acao" style="background:#555;margin:0" onclick="leitEntregar('${l[4]}','parte',this)">Entreguei parte</button></div>`}</div>`; };
-  box.innerHTML = (prog.length ? prog.map(card).join("") : `<div class="nota">Nenhuma entrega programada.</div>`)
+  box.innerHTML = entPorGrupo(d, ger) + `<h3 style="margin:16px 0 6px">📅 Programação combinada</h3>` + (prog.length ? prog.map(card).join("") : `<div class="nota">Nenhuma entrega programada.</div>`)
     + (ger ? `<details class="card"><summary><b>Programar nova entrega</b></summary><input id="ent_loc" class="campo" placeholder="Local (ex.: Mozondó)"><input id="ent_desc" class="campo" placeholder="O que entregar"><input id="ent_dia" class="campo" placeholder="Quando (ex.: 20/11 sex · manhã)"><input id="ent_aj" class="campo" placeholder="Quem ajuda"><button class="acao" onclick="leitProgramar(this)">Programar</button></details>` : "");
+}
+// 16/11: retidas separadas por localidade e grupo de faturamento; São Desidério rota a rota
+const ENT_LOCAIS = [
+  { loc: "Angico", itens: [{ g: "130", nome: "Grupo 130 · setor 1" }] },
+  { loc: "São Desidério", itens: [{ g: "137", nome: "Grupo 137", rotas: true }] },
+  { loc: "Catolândia", itens: [{ g: "161", nome: "Grupo 161 · setores 1 e 2" }, { g: "114", nome: "Grupo 114 · setores 3 a 8" }, { g: "126", nome: "Grupo 126 · setores 10 a 14 e 16" }] },
+  { loc: "Buriti Cortado", itens: [{ g: "114", nome: "Grupo 114 · setor 1" }] },
+  { loc: "Mozondó", itens: [{ g: "126", nome: "Grupo 126 · setor 1" }] }
+];
+const ENT_MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+function entRefAnterior(ref) { const [m, a] = ref.split("/"); let i = ENT_MESES.indexOf(m) - 1, y = +a; if (i < 0) { i = 11; y--; } return ENT_MESES[i] + "/" + String(y).padStart(2, "0"); }
+// referência das retidas = última leitura do grupo que já começou (roteiro gerado até hoje)
+function entRef(g) { const cs = LEIT_CRONO.filter(c => c[0] === g).sort((a, b) => a[2].localeCompare(b[2])); const ja = cs.filter(c => leitDias(c[2]) <= 0).pop(); return ja ? ja[1] : cs.length ? entRefAnterior(cs[0][1]) : ""; }
+function entPorGrupo(d, ger) {
+  const feitos = d.filter(l => l[3] === "entregue_grupo");
+  const ult = k => feitos.filter(l => l[4] === k).pop();
+  const linha = (k, titulo, grande) => { const f = ult(k), ok = f && f[9] === "tudo";
+    const est = f ? `<span style="font-weight:bold;color:${ok ? "#15803d" : "#b45309"}">${ok ? "✅ Entregou tudo" : "⚠ Parte · faltaram " + sspEsc(f[10]) + (f[11] ? " · " + sspEsc(f[11]) : "")}</span><div class="nota" style="margin:0">${formatarQuando(f[0])} · ${sspEsc(sspNome(f[1]))}</div>` : `<span class="nota" style="margin:0">⏳ a entregar</span>`;
+    const bts = ger || ok ? "" : `<div style="display:flex;gap:6px;flex-shrink:0"><button class="acao" style="width:auto;margin:0;padding:10px;background:#15803d" onclick="entMarcar('${k}','tudo',this)">${f ? "Agora entreguei tudo" : "Entreguei tudo"}</button>${f ? "" : `<button class="acao" style="width:auto;margin:0;padding:10px;background:#555" onclick="entMarcar('${k}','parte',this)">Parte</button>`}</div>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee"><div><b style="${grande ? "font-size:16px" : ""}">${titulo}</b><br>${est}</div>${bts}</div>`; };
+  return ENT_LOCAIS.map(L => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394"><div style="font-size:19px;font-weight:bold">${L.loc}</div>`
+    + L.itens.map(it => { const ref = entRef(it.g), base = it.g + "|" + ref + "|" + L.loc;
+      if (!it.rotas) return linha(base + "|", `${it.nome} · ref. ${ref}`, true);
+      const rs = LEIT_GRUPOS[it.g].rotas, n = rs.filter(r => { const f = ult(base + "|" + r); return f && f[9] === "tudo"; }).length;
+      return `<div style="font-weight:bold;margin-top:4px">${it.nome} · ref. ${ref} · ${n} de ${rs.length} rotas entregues</div>` + rs.map(r => linha(base + "|" + r, r.replace("S", "Setor ").replace(" R", " · Rota "))).join(""); }).join("") + `</div>`).join("");
+}
+async function entMarcar(k, res, btn) {
+  const [g, ref, loc, rota] = k.split("|"); let faltaram = "", obs = "";
+  if (res === "parte") { faltaram = prompt("Quantas contas faltaram entregar?") || ""; if (!faltaram) return; obs = prompt("Por quê? (ex.: casa fechada, endereço não encontrado)") || ""; }
+  else if (!confirm("Confirmar que entregou TODAS as retidas de " + loc + (rota ? " · " + rota.replace("S", "Setor ").replace(" R", " Rota ") : " · grupo " + g) + "?")) return;
+  if (await leitGravar("EntregaRetidas", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "entregue_grupo", k, loc, rota || "", "'" + ref, g, res, faltaram, obs], btn)) leitCarregarEntregas();
 }
 async function leitEntregar(id, res, btn) {
   let faltaram = "", obs = "";
