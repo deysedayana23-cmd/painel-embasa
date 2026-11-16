@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h03</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h08</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 16h03";
+const VERSAO_PAINEL = "16/11 16h08";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -8721,8 +8721,8 @@ function leitPasso(st, g) { // em qual passo o grupo está (0 a 5)
   if (st.tem("exportado")) return 5; if (st.tem("retidas_descarregadas")) return 4; if (st.tem("impressao_liberada")) return 3;
   const rotasOk = !LEIT_GRUPOS[g].rotas || LEIT_GRUPOS[g].rotas.every(r => st.rotasFeitas.has(r));
   const barrOk = !LEIT_GRUPOS[g].barreiras || st.tem("barreiras_descarregou");
-  if (st.tem("leitura_descarregada") || (LEIT_GRUPOS[g].rotas && rotasOk && st.tem("iniciado"))) return barrOk ? 2 : 1.5;
-  return st.tem("iniciado") ? 1 : 0;
+  if (st.tem("leitura_descarregada") || (LEIT_GRUPOS[g].rotas && rotasOk)) return barrOk ? 2 : 1.5;
+  return st.tem("iniciado") || st.e.some(l => l[5] === "rota_iniciada") ? 1 : 0;
 }
 // ---------- Sinval: Rotina do mês ----------
 Object.assign(TELAS, { leitRotina: () => { setTimeout(leitCarregarRotina, 0); return `<h2>Rotina do mês</h2><div class="nota">Leia cada grupo nas datas combinadas. Exporte só na data de exportação, nem antes nem depois.</div><div id="leit_box">Carregando...</div>`; } });
@@ -8730,41 +8730,61 @@ async function leitCarregarRotina() {
   const box = document.getElementById("leit_box"); if (!box) return;
   const ev = await leitListar("LeituraEventos");
   const ger = ehGerLeitura() && !ehLeiturista();
-  const html = leitCiclos().slice(0, 6).map(c => {
-    const [g, ref, rot, exp, hd1, hd2, venc] = c, st = leitEtapas(ev, g, ref), passo = leitPasso(st, g), info = LEIT_GRUPOS[g];
-    const ini = LEIT_INICIO[g + "|" + ref] || rot, falta = leitDias(exp);
-    const cor = passo >= 5 ? "#15803d" : falta <= 1 ? "#b00020" : "#0b5394";
-    const k = g + "|" + ref;
-    let acoes = "";
-    if (passo < 5) {
+  // 16/11: um botão por grupo no topo; a página mostra só o grupo escolhido (o primeiro ciclo ainda não exportado de cada grupo)
+  const ciclos = {};
+  leitCiclos().forEach(c => { if (ciclos[c[0]]) return; const st = leitEtapas(ev, c[0], c[1]); if (leitPasso(st, c[0]) < 5 || leitDias(c[3]) >= 0) ciclos[c[0]] = c; });
+  const grupos = Object.keys(ciclos).sort((a, b) => ciclos[a][3].localeCompare(ciclos[b][3])).concat(["161"]);
+  if (!grupos.includes(window.leitGrupoSel)) window.leitGrupoSel = grupos[0];
+  const sel = window.leitGrupoSel;
+  const chips = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${grupos.map(g => { const c = ciclos[g], st = c && leitEtapas(ev, g, c[1]), ps = c ? leitPasso(st, g) : 0;
+    const marca = !c ? "" : ps >= 5 ? " ✔" : leitDias(c[3]) <= 1 ? " ⚠" : "";
+    return `<button onclick="window.leitGrupoSel='${g}';leitCarregarRotina()" style="min-height:48px;padding:6px 14px;border-radius:999px;font-weight:bold;font-size:16px;border:2px solid #0b5394;${g === sel ? "background:#0b5394;color:#fff" : "background:#fff;color:#0b5394"}">${g}${marca}</button>`; }).join("")}</div>`;
+  if (sel === "161") { box.innerHTML = chips + `<div class="card"><b>Grupo 161</b> – ${LEIT_GRUPOS["161"].loc}<div class="nota">Datas ainda não definidas no cronograma.</div></div>`; return; }
+  const c = ciclos[sel];
+  const [g, ref, rot, exp, hd1, hd2, venc] = c, st = leitEtapas(ev, g, ref), passo = leitPasso(st, g), info = LEIT_GRUPOS[g];
+  const ini = LEIT_INICIO[g + "|" + ref] || rot, falta = leitDias(exp);
+  const cor = passo >= 5 ? "#15803d" : falta <= 1 ? "#b00020" : "#0b5394";
+  const k = g + "|" + ref;
+  const rotasIni = new Set(st.e.filter(l => l[5] === "rota_iniciada").map(l => l[6]));
+  let acoes = "";
+  if (passo < 5) {
+    if (info.rotas && passo < 2) { // grupo com rotas (137): rota a rota
+      const feitas = info.rotas.filter(r => st.rotasFeitas.has(r)).length;
+      acoes += `<div style="margin-top:10px;font-weight:bold">${ger ? "Rotas do Sinval" : "Suas rotas"} · ${feitas} de ${info.rotas.length} descarregadas</div>` + info.rotas.map(r => {
+        const fz = st.rotasFeitas.has(r), in_ = rotasIni.has(r);
+        const est = fz ? `<span style="color:#15803d;font-weight:bold">✅ descarregada</span>` : in_ ? `<span style="color:#b45309;font-weight:bold">▶ em leitura</span>` : `<span class="nota" style="margin:0">não iniciada</span>`;
+        const bt = ger || fz ? "" : in_ ? `<button class="acao" style="width:auto;margin:0;padding:10px;background:#15803d" onclick="leitEvento('${k}','rota_descarregada','${r}',this)">Leitura descarregada</button>`
+          : `<button class="acao" style="width:auto;margin:0;padding:10px" onclick="leitEvento('${k}','rota_iniciada','${r}',this)">Iniciar rota</button>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee"><div><b>${r.replace("S", "Setor ").replace(" R", " · Rota ")}</b><br>${est}</div>${bt}</div>`; }).join("");
+    } else {
       if (!ger && passo === 0) acoes += `<button class="acao" onclick="leitEvento('${k}','iniciado','',this)">▶ Iniciar grupo ${g}</button>`;
-      if (!ger && passo >= 1 && passo < 2 && info.rotas) acoes += `<div style="margin-top:8px;font-weight:bold">Suas rotas (marque assim que digitar e descarregar):</div>` + info.rotas.map(r => st.rotasFeitas.has(r)
-        ? `<div style="padding:8px 0;border-bottom:1px solid #eee">✅ ${r} · descarregada</div>`
-        : `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee"><b>${r}</b><button class="acao" style="width:auto;margin:0;padding:10px" onclick="leitEvento('${k}','rota_descarregada','${r}',this)">Digitada e descarregada</button></div>`).join("");
-      if (!ger && passo >= 1 && passo < 2 && !info.rotas) acoes += `<button class="acao" onclick="leitEvento('${k}','leitura_descarregada','',this)">Leitura descarregada</button>`;
-      if (info.barreiras && passo < 2) acoes += `<div class="nota" style="margin-top:8px">Equipe de Barreiras (demais rotas): ${st.tem("barreiras_descarregou") ? "✅ descarregou" : "⏳ aguardando o Thiago marcar"}</div>`
-        + (ger && !st.tem("barreiras_descarregou") ? `<button class="acao" onclick="leitEvento('${k}','barreiras_descarregou','',this)">Barreiras descarregou todas as contas</button>` : "");
-      if (ger && passo >= 2 && passo < 3) acoes += `<button class="acao" onclick="leitEvento('${k}','impressao_liberada','',this)">Liberar roteiro de impressão (retidas analisadas)</button>`;
-      if (ger && passo < 2) acoes += `<div class="nota">Liberar o roteiro de impressão acende quando todas as rotas estiverem descarregadas.</div>`;
-      if (!ger && passo >= 3 && passo < 4) acoes += `<div class="aviso" style="background:#fff7ed;border-left-color:#b45309"><b>Roteiro de impressão do grupo ${g} disponível.</b> Carregue, imprima as retidas e descarregue.</div><button class="acao" onclick="leitEvento('${k}','retidas_descarregadas','',this)">Retidas impressas e descarregadas</button>`;
-      if (ger && passo >= 4) acoes += falta > 0 ? `<button class="acao" disabled style="background:#ccc">Exportar só em ${leitData(exp)}</button>` : `<button class="acao" onclick="leitEvento('${k}','exportado','',this)">Grupo exportado</button>`;
-      if (!ger && passo >= 4) acoes += `<div class="nota">✅ Pronto. A gerência exporta em ${leitData(exp)}.</div>`;
+      if (!ger && passo >= 1 && passo < 2) acoes += `<div class="nota" style="color:#b45309;font-weight:bold">▶ Leitura em andamento</div><button class="acao" style="background:#15803d" onclick="leitEvento('${k}','leitura_descarregada','',this)">Leitura descarregada</button>`;
+      if (ger && passo < 2) acoes += `<div class="nota">${passo === 0 ? "⏳ O Sinval ainda não iniciou." : "▶ O Sinval está lendo."}</div>`;
     }
-    const passos = LEIT_PASSOS.map((p, i) => `<div style="flex:1;height:8px;border-radius:4px;background:${passo > i ? "#15803d" : passo === i || (i === 1 && passo === 1.5) ? "#b45309" : "#dfe6f0"}" title="${p[1]}"></div>`).join("");
-    return `<div class="card" style="margin-bottom:12px;border-left:6px solid ${cor}">
-      <div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:20px;font-weight:bold">Grupo ${g} · ${ref}</div><div class="nota" style="margin:0">${info.loc}</div></div>
-      <div style="text-align:center;background:${passo >= 5 ? "#e7f6ec" : "#fdecea"};border-radius:10px;padding:6px 10px"><div style="font-size:24px;font-weight:bold;color:${cor}">${passo >= 5 ? "✔" : Math.max(0, falta)}</div><div style="font-size:12px">${passo >= 5 ? "exportado" : "dias p/ exportar"}</div></div></div>
-      <div style="display:flex;gap:4px;margin:10px 0 4px">${passos}</div><div class="nota" style="margin:0 0 8px">${passo >= 5 ? "Concluído" : (LEIT_PASSOS[Math.floor(passo)] || ["", ""])[1] + (passo === 1.5 ? " (falta Barreiras)" : "")}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:14px">
-        <div>Iniciar a leitura<br><b>${leitData(ini)}</b></div><div>Exportar<br><b style="color:#b00020">${leitData(exp)}</b></div>
-        <div>Proibido trocar HD<br><b>${leitData(hd1)} a ${leitData(hd2)}</b></div><div>Vencimento<br><b>${leitData(venc)}</b></div></div>
-      ${acoes}</div>`;
-  }).join("");
-  box.innerHTML = html + `<div class="card"><b>Grupo 161</b> – ${LEIT_GRUPOS["161"].loc}<div class="nota">Datas ainda não definidas no cronograma.</div></div>`;
+    if (info.barreiras && passo < 2) acoes += `<div class="nota" style="margin-top:8px">Equipe de Barreiras (demais rotas): ${st.tem("barreiras_descarregou") ? "✅ descarregou" : "⏳ aguardando o Thiago marcar"}</div>`
+      + (ger && !st.tem("barreiras_descarregou") ? `<button class="acao" onclick="leitEvento('${k}','barreiras_descarregou','',this)">Barreiras descarregou todas as contas</button>` : "");
+    if (ger && passo >= 2 && passo < 3) acoes += `<button class="acao" onclick="leitEvento('${k}','impressao_liberada','',this)">Liberar roteiro de impressão (retidas analisadas)</button>`;
+    if (ger && passo < 2) acoes += `<div class="nota">"Liberar roteiro de impressão" aparece quando toda a leitura estiver descarregada.</div>`;
+    if (!ger && passo >= 2 && passo < 3) acoes += `<div class="nota">✅ Leitura descarregada. Aguarde a gerência analisar as retidas e liberar o roteiro de impressão.</div>`;
+    if (!ger && passo >= 3 && passo < 4) acoes += `<div class="aviso" style="background:#fff7ed;border-left-color:#b45309"><b>Roteiro de impressão do grupo ${g} disponível.</b> Carregue, imprima as retidas e descarregue.</div><button class="acao" onclick="leitEvento('${k}','retidas_descarregadas','',this)">Retidas impressas e descarregadas</button>`;
+    if (ger && passo >= 3 && passo < 4) acoes += `<div class="nota">⏳ Aguardando o Sinval imprimir e descarregar as retidas.</div>`;
+    if (ger && passo >= 4) acoes += falta > 0 ? `<button class="acao" disabled style="background:#ccc">Exportar só em ${leitData(exp)}</button>` : `<button class="acao" onclick="leitEvento('${k}','exportado','',this)">Grupo exportado</button>`;
+    if (!ger && passo >= 4) acoes += `<div class="nota">✅ Pronto. A gerência exporta em ${leitData(exp)}.</div>`;
+  }
+  const passos = LEIT_PASSOS.map((p, i) => `<div style="flex:1;height:8px;border-radius:4px;background:${passo > i ? "#15803d" : passo === i || (i === 1 && passo === 1.5) ? "#b45309" : "#dfe6f0"}" title="${p[1]}"></div>`).join("");
+  const prox = LEIT_CRONO.filter(x => x[0] === g && x[2] > rot).slice(0, 1).map(x => `<div class="nota">Próxima leitura deste grupo: ${x[1]} · iniciar ${leitData(LEIT_INICIO[g + "|" + x[1]] || x[2])} · exportar ${leitData(x[3])}</div>`).join("");
+  box.innerHTML = chips + `<div class="card" style="margin-bottom:12px;border-left:6px solid ${cor}">
+    <div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:20px;font-weight:bold">Grupo ${g} · ${ref}</div><div class="nota" style="margin:0">${info.loc}</div></div>
+    <div style="text-align:center;background:${passo >= 5 ? "#e7f6ec" : "#fdecea"};border-radius:10px;padding:6px 10px"><div style="font-size:24px;font-weight:bold;color:${cor}">${passo >= 5 ? "✔" : Math.max(0, falta)}</div><div style="font-size:12px">${passo >= 5 ? "exportado" : "dias p/ exportar"}</div></div></div>
+    <div style="display:flex;gap:4px;margin:10px 0 4px">${passos}</div><div class="nota" style="margin:0 0 8px">${passo >= 5 ? "Concluído" : ["Iniciar", "Leitura em andamento", "Análise das retidas (gerência)", "Imprimir e descarregar as retidas", "Exportar (gerência)"][Math.floor(passo)] + (passo === 1.5 ? " · falta a equipe de Barreiras" : "")}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:14px">
+      <div>Iniciar a leitura<br><b>${leitData(ini)}</b></div><div>Exportar<br><b style="color:#b00020">${leitData(exp)}</b></div>
+      <div>Proibido trocar HD<br><b>${leitData(hd1)} a ${leitData(hd2)}</b></div><div>Vencimento<br><b>${leitData(venc)}</b></div></div>
+    ${acoes}</div>${prox}`;
 }
 async function leitEvento(k, etapa, rota, btn) {
   const [g, ref] = k.split("|");
-  const nomes = { iniciado: "Iniciar o grupo " + g + "?", leitura_descarregada: "Confirmar que a leitura do grupo " + g + " foi descarregada?", rota_descarregada: "Confirmar que a rota " + rota + " foi digitada e descarregada?",
+  const nomes = { iniciado: "Iniciar o grupo " + g + "?", leitura_descarregada: "Confirmar que a leitura do grupo " + g + " foi descarregada?", rota_descarregada: "Confirmar que a leitura da rota " + rota + " foi descarregada?", rota_iniciada: "Iniciar a leitura da rota " + rota + "?",
     barreiras_descarregou: "Confirmar que a equipe de Barreiras descarregou todas as contas do grupo " + g + "?", impressao_liberada: "Liberar o roteiro de impressão do grupo " + g + "? O Sinval será avisado.",
     retidas_descarregadas: "Confirmar que as retidas do grupo " + g + " foram impressas e descarregadas?", exportado: "Confirmar que o grupo " + g + " foi exportado?" };
   if (!confirm(nomes[etapa] || "Confirmar?")) return;
