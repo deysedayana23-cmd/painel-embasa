@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 15h00</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 15h34</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 15h00";
+const VERSAO_PAINEL = "16/11 15h34";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -8846,7 +8846,7 @@ async function leitEnviarMudanca(btn) {
 function leitAltPedidos(d) { const resp = {}; d.filter(l => l[3] === "resposta").forEach(l => { resp[l[4]] = l; }); return d.filter(l => l[3] !== "resposta").map(l => ({ l, r: resp[l[4]] })); }
 async function leitMinhasAlteracoes() { const box = document.getElementById("mr_lista"); if (!box) return; const eu = normalizarNome(window.credenciais.usuario);
   const p = leitAltPedidos(await leitListar("AlteracaoMatricula")).filter(x => normalizarNome(x.l[1]) === eu).reverse();
-  box.innerHTML = p.length ? p.map(({ l, r }) => `<div class="card" style="margin-bottom:6px"><b>${l[3] === "fora_da_rota" ? "Fora da rota" : "Mudança de rota"}</b> · ${formatarQuando(l[0])}<br>${sspEsc(l[8])} → <b>${sspEsc(l[9] || "?")}</b><br>${r ? (r[11] === "alterado" ? "✅ Arrumado no SCI" : "❌ Não procede: " + sspEsc(String(r[11]).replace(/^nao_procede:?\s*/, ""))) : "⏳ Aguardando o escritório"}</div>`).join("") : "Nenhuma ainda."; }
+  box.innerHTML = p.length ? p.filter(x => x.l[3] !== "leitura_projetada").map(({ l, r }) => `<div class="card" style="margin-bottom:6px"><b>${l[3] === "fora_da_rota" ? "Fora da rota" : "Mudança de rota"}</b> · ${formatarQuando(l[0])}<br>${sspEsc(l[8])} → <b>${sspEsc(l[9] || "?")}</b><br>${r ? (r[11] === "alterado" ? "✅ Arrumado no SCI" : "❌ Não procede: " + sspEsc(String(r[11]).replace(/^nao_procede:?\s*/, ""))) : "⏳ Aguardando o escritório"}</div>`).join("") : "Nenhuma ainda."; }
 Object.assign(TELAS, { locHidrometro: () => `<h2>Localização do hidrômetro</h2><div class="aviso" style="background:#e8f1fb;border-left-color:#0b5394">Ajude a montar o mapa das matrículas: fique em frente ao imóvel, tire uma foto <b>nítida</b> do número do hidrômetro e envie. Não precisa digitar nada.</div>
   <label><b>Foto do número do hidrômetro</b><input type="file" id="lh_foto" accept="image/*" capture="environment" class="campo"></label>
   <button class="acao" onclick="leitEnviarLocHid(this)">📍 Enviar foto e localização</button><div id="lh_res" class="nota"></div>` });
@@ -8862,6 +8862,34 @@ async function leitEnviarLocHid(btn) {
     document.getElementById("lh_res").innerHTML = `✅ Enviado. Você já cadastrou <b>${res.filter(l => normalizarNome(l[1]) === eu).length}</b> hidrômetro(s) no mapa. Pode enviar o próximo.`;
   } else sspDestravar(btn);
 }
+// ---------- Leitura projetada: Cival repetiu a leitura do sistema; informa a leitura real para corrigir depois de exportar (16/11) ----------
+Object.assign(TELAS, { leitProjetada: () => { setTimeout(leitMinhasProjetadas, 0); return `<h2>Leitura projetada · leitura real</h2>
+  <div class="aviso" style="background:#fff7ed;border-left-color:#b45309">Use quando a conta ia ficar retida por leitura anterior errada e você <b>liberou repetindo a leitura do sistema</b>. Informe aqui a leitura <b>real</b> do hidrômetro: o escritório corrige no SCI depois de exportar, para a conta do mês seguinte sair certa.</div>
+  <label>Grupo<select id="lp_grupo" class="campo">${Object.keys(LEIT_GRUPOS).map(g => `<option value="${g}">${g} · ${LEIT_GRUPOS[g].loc}</option>`).join("")}</select></label>
+  <input id="lp_mat" class="campo" inputmode="numeric" placeholder="Matrícula">
+  <input id="lp_hd" class="campo" placeholder="Número do hidrômetro (se não souber a matrícula)">
+  <input id="lp_lancada" class="campo" inputmode="numeric" placeholder="Leitura que foi lançada (a do sistema)">
+  <input id="lp_real" class="campo" inputmode="numeric" placeholder="Leitura REAL que está no hidrômetro">
+  <label><b>Foto do visor do hidrômetro (obrigatória)</b><input type="file" id="lp_foto" accept="image/*" capture="environment" class="campo"></label>
+  <input id="lp_obs" class="campo" placeholder="Observação (opcional)">
+  <button class="acao" style="background:#b45309" onclick="leitEnviarProjetada(this)">Enviar ao escritório</button>
+  <h3>Minhas leituras informadas</h3><div id="lp_lista">Carregando...</div>`; } });
+async function leitEnviarProjetada(btn) {
+  const g = id => (document.getElementById(id) || {}).value.trim();
+  if (!g("lp_mat") && !g("lp_hd")) { alert("Informe a matrícula ou o número do hidrômetro."); return; }
+  if (!g("lp_real")) { alert("Informe a leitura real."); return; }
+  if (!((document.getElementById("lp_foto") || {}).files || []).length) { alert("Tire a foto do visor do hidrômetro."); return; }
+  sspTravar(btn, "Procurando o GPS... (até 35s)");
+  const pos = await obterPosicao();
+  let url = ""; try { url = await leitFoto("lp_foto", pos); } catch (e) { alert("Não consegui enviar a foto: " + e.message); sspDestravar(btn); return; }
+  const ident = [g("lp_mat") && "matrícula " + g("lp_mat"), g("lp_hd") && "HD " + g("lp_hd")].filter(Boolean).join(" · ");
+  if (await leitGravar("AlteracaoMatricula", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "leitura_projetada", "p" + Date.now().toString(36), url, pos ? pos.lat.toFixed(7) : "", pos ? pos.lon.toFixed(7) : "",
+    "grupo " + g("lp_grupo") + " · " + ident + (g("lp_lancada") ? " · lançada " + g("lp_lancada") : ""), "leitura real " + g("lp_real"), g("lp_obs"), ""], null)) { alert("Enviado. O escritório corrige no SCI depois de exportar o grupo."); abrirTela("leitProjetada"); }
+  else sspDestravar(btn);
+}
+async function leitMinhasProjetadas() { const box = document.getElementById("lp_lista"); if (!box) return; const eu = normalizarNome(window.credenciais.usuario);
+  const p = leitAltPedidos(await leitListar("AlteracaoMatricula")).filter(x => x.l[3] === "leitura_projetada" && normalizarNome(x.l[1]) === eu).reverse();
+  box.innerHTML = p.length ? p.map(({ l, r }) => `<div class="card" style="margin-bottom:6px">${sspEsc(l[8])} → <b>${sspEsc(l[9])}</b> · ${formatarQuando(l[0])}<br>${r ? (r[11] === "alterado" ? "✅ Corrigida no SCI" : "❌ " + sspEsc(String(r[11]).replace(/^nao_procede:?\s*/, ""))) : "⏳ Aguardando exportar e corrigir"}</div>`).join("") : "Nenhuma ainda."; }
 // ---------- Gerência: Leitura e matrículas ----------
 Object.assign(TELAS, { gerLeitura: () => { setTimeout(gerCarregarAlteracoes, 0); return `<h2>Leitura e matrículas</h2>
   <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -8877,10 +8905,10 @@ async function gerCarregarAlteracoes() {
   const p = leitAltPedidos(await leitListar("AlteracaoMatricula")).reverse();
   const pend = p.filter(x => !x.r), res = p.filter(x => x.r).slice(0, 15);
   const mapa = l => l[6] ? `<a href="https://www.google.com/maps?q=${l[6]},${l[7]}" target="_blank">Ver no mapa</a>` : "sem GPS";
-  box.innerHTML = (pend.length ? pend.map(({ l }) => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394"><b>${l[3] === "fora_da_rota" ? "Matrícula fora da rota" : "Mudança de rota"}</b> · ${sspEsc(sspNome(l[1]))} · ${formatarQuando(l[0])}
+  box.innerHTML = (pend.length ? pend.map(({ l }) => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394"><b>${l[3] === "fora_da_rota" ? "Matrícula fora da rota" : l[3] === "leitura_projetada" ? "Leitura projetada · corrigir para a real" : "Mudança de rota"}</b> · ${sspEsc(sspNome(l[1]))} · ${formatarQuando(l[0])}${l[3] === "leitura_projetada" ? `<div class="nota" style="color:#b00020">Alterar no SCI só DEPOIS de exportar o grupo${(() => { const gm = String(l[8]).match(/grupo (\d+)/); const c = gm && leitCiclos().find(x => x[0] === gm[1]); return c ? " (exporta " + leitData(c[3]) + ")" : ""; })()}.</div>` : ""}
     <div>Está: ${sspEsc(l[8] || "?")}<br>Deveria: <b>${sspEsc(l[9] || "(ver foto e mapa)")}</b>${l[10] ? "<br>" + sspEsc(l[10]) : ""}</div>
     <div style="margin:6px 0">${l[5] ? `<a href="${sspEsc(l[5])}" target="_blank">Ver foto do HD</a> · ` : ""}${mapa(l)}</div>
-    <button class="acao" style="background:#15803d" onclick="gerResponderAlt('${l[4]}','alterado',this)">Alterado no SCI · avisar</button>
+    <button class="acao" style="background:#15803d" onclick="gerResponderAlt('${l[4]}','alterado',this)">${l[3] === "leitura_projetada" ? "Leitura corrigida no SCI · avisar" : "Alterado no SCI · avisar"}</button>
     <button class="acao" style="background:#777" onclick="gerResponderAlt('${l[4]}','nao',this)">Não procede (dizer o motivo)</button></div>`).join("") : `<div class="nota">Nenhuma pendente.</div>`)
     + (res.length ? `<details class="card"><summary>Resolvidas (${res.length})</summary>${res.map(({ l, r }) => `<div style="padding:6px 0;border-bottom:1px solid #eee">${sspEsc(l[8])} → ${sspEsc(l[9])} · ${r[11] === "alterado" ? "✅ alterado" : "❌ não procede"} · ${sspEsc(sspNome(r[1]))}</div>`).join("")}</details>` : "");
   const loc = await leitListar("LocalizacaoHidrometro"), lb = document.getElementById("ga_loc");
@@ -8896,7 +8924,7 @@ async function gerResponderAlt(id, tipo, btn) {
 // ---------- menu do Cival ----------
 function menuLeiturista() {
   return [{ nome: "Rotina do mês", tela: "leitRotina", prioridade: true }, { nome: "Rotas de leitura (mapa)", tela: "leitRotas" }, { nome: "Datas das leituras", tela: "leitDatas" },
-    { nome: "Contas retidas a entregar", tela: "leitEntregas" }, { nome: "Contas da prefeitura", tela: "leitPrefeitura" }, { nome: "Solicitar mudança de rota", tela: "leitMudanca" },
+    { nome: "Contas retidas a entregar", tela: "leitEntregas" }, { nome: "Contas da prefeitura", tela: "leitPrefeitura" }, { nome: "Leitura projetada · leitura real", tela: "leitProjetada" }, { nome: "Solicitar mudança de rota", tela: "leitMudanca" },
     { nome: "Localização do hidrômetro", tela: "locHidrometro" }, { nome: "Informar vazamento", tela: "pedirSS" }, { nome: "Abastecimento", tela: "abastecimento" },
     { nome: "Outros", sub: [{ nome: "Trocar minha senha", tela: "trocarSenha" }] }];
 }
