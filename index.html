@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h49</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 17h09</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3771,8 +3771,8 @@ const ABA_VEICULOS = [
   { nome: "Moto de Joaquim", tanque: 0, moto: "joaquim", info: "Moto JPI · com engate, sem carretinha" },
   { nome: "Moto de Francisco", tanque: 0, moto: "francisco" },
   { nome: "Moto de Isaque", tanque: 16, moto: "isaque", info: "Placa PLY-3173 · Honda CG 160 · 2022" },
-  { nome: "Moto de Jânio Gualberto", tanque: 0, moto: "janiogualberto" },
-  { nome: "Moto de Ivo Carlos", tanque: 0, moto: "ivo" },
+  { nome: "Moto da Gêneros (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SJX-3G61 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo da Gêneros)" },
+  { nome: "Moto do Consórcio (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SKG-9G98 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo do Consórcio)" },
   { nome: "Carro da EMBASA", tanque: 0 },
   { nome: "Motobomba grande", fixo: 0 },
   { nome: "Motobomba pequeno", fixo: 0 },
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 16h49";
+const VERSAO_PAINEL = "16/11 17h09";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -9069,7 +9069,7 @@ function menuLeiturista() {
 // ===== Checklist da moto (toda segunda) e Uso do carro (toda vez que usar) – 16/11 =====
 const CHECK_MOTO = ["Pneus (calibragem e desgaste)", "Freios", "Farol", "Lanterna", "Setas", "Buzina", "Retrovisores", "Corrente / relação", "Óleo do motor", "Documento (CRLV)", "Capacete"];
 const CHECK_CARRO = ["Pneus e estepe", "Freios", "Faróis, lanternas e setas", "Óleo e água", "Limpador de para-brisa", "Cintos de segurança", "Macaco, triângulo e chave de roda", "Documento (CRLV)", "Limpeza", "Lataria sem avarias novas"];
-const minhaMoto = () => ABA_VEICULOS.find(v => v.moto && identidadeAtual().includes(v.moto));
+const minhaMoto = () => ABA_VEICULOS.find(v => v.moto && [].concat(v.moto).some(m => identidadeAtual().includes(m)));
 function checkItens(lista, pre) { return lista.map((it, i) => `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee"><span>${it}</span>
   <select id="${pre}${i}" class="campo" style="width:auto;margin:0"><option value="ok">OK</option><option value="problema">Problema</option></select></div>`).join(""); }
 function checkLer(lista, pre) { const p = []; lista.forEach((it, i) => { if ((document.getElementById(pre + i) || {}).value === "problema") p.push(it); }); return p; }
