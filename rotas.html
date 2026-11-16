@@ -145,7 +145,28 @@ function novaPos(p) {
   desenhar();
 }
 let vigia = null;
-function ligarGPS() { if (vigia !== null || !navigator.geolocation) return; vigia = navigator.geolocation.watchPosition(novaPos, e => aviso("Não consegui o GPS: " + e.message + ". Ligue a localização do celular e permita para o navegador."), { enableHighAccuracy: true, maximumAge: 2000, timeout: 30000 }); }
+// 16/11: GPS com diagnóstico (permissão negada / localização desligada / demorando) e nova tentativa
+let gpsErro = "";
+function gpsFalhou(e) {
+  gpsErro = e.code === 1 ? "negado" : e.code === 2 ? "desligado" : "demorando";
+  if (e.code !== 3 && vigia !== null) { navigator.geolocation.clearWatch(vigia); vigia = null; }
+  if (e.code === 3) navigator.geolocation.getCurrentPosition(novaPos, () => {}, { enableHighAccuracy: false, maximumAge: 600000, timeout: 20000 }); // usa a localização aproximada enquanto o GPS não fixa
+  if (!document.getElementById("fora") || document.getElementById("fora").style.display !== "flex")
+    aviso(gpsErro === "negado" ? "A localização está bloqueada para o aplicativo. Toque no cadeado 🔒 ao lado do endereço › Permissões › Localização › Permitir." : gpsErro === "desligado" ? "A localização do celular está desligada. Puxe a barra de cima do celular e ligue a Localização." : "Procurando o GPS… fique num lugar aberto.", 7000);
+}
+function ligarGPS() {
+  if (!navigator.geolocation) { gpsErro = "sem"; return; }
+  if (vigia !== null) return;
+  vigia = navigator.geolocation.watchPosition(p => { gpsErro = ""; novaPos(p); }, gpsFalhou, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+}
+// pedido direto (o Android mostra "Permitir localização" e, se estiver desligada, "Ativar localização do aparelho")
+function pedirLocalizacao() {
+  if (!navigator.geolocation) return;
+  gpsErro = ""; if (vigia !== null) { navigator.geolocation.clearWatch(vigia); vigia = null; }
+  navigator.geolocation.getCurrentPosition(p => { gpsErro = ""; novaPos(p); ligarGPS(); }, gpsFalhou, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  ligarGPS();
+}
+setTimeout(pedirLocalizacao, 800); // já pede a permissão ao abrir o mapa
 document.getElementById("bIr").onclick = () => {
   if (est.ativo) { est.ativo = false; salvar(); desenhar(); evento("rota_pausada", Math.round(est.s / TOTAL * 100) + "% feito"); aviso("Rota pausada em " + Math.round(est.s / TOTAL * 100) + "%. Amanhã toque em Continuar."); return; }
   est.ativo = true; salvar(); ligarGPS(); evento(est.s > 5 ? "rota_continuada" : "rota_iniciada", Math.round(est.s / TOTAL * 100) + "% feito"); mapa.setView(pontoEm(est.s), 19); desenhar();
@@ -182,12 +203,18 @@ function reduzir(arq) { return new Promise((ok, no) => { const u = URL.createObj
 const quem = () => LOGIN ? LOGIN.usuario : "";
 function evento(etapa, obs) { enfileirar({ aba: "LeituraEventos", linha: [new Date().toISOString(), quem(), quem(), "137", "", etapa, "São Desidério · " + R.nome, obs || ""] }); }
 let tipoFoto = "";
-function pedirFoto(tipo) { tipoFoto = tipo; ligarGPS(); document.getElementById("foto").click(); }
+function pedirFoto(tipo) { tipoFoto = tipo; if (!ultimaPos) pedirLocalizacao(); else ligarGPS(); document.getElementById("foto").click(); }
 // 16/11: fora da rota = localização + número do HD + foto do HD (tela própria)
 let foraFoto = "", foraTimer = null;
 const $f = id => document.getElementById(id);
-function foraGps() { const p = ultimaPos; $f("fGps").innerHTML = p ? `📍 Localização OK${precisao ? " (±" + Math.round(precisao) + " m)" : ""}` : "📍 Pegando a localização… espere o ponto azul no mapa"; $f("fGps").style.background = p ? "#e7f6ec" : "#fff7ed"; }
-document.getElementById("bFora").onclick = () => { ligarGPS(); foraFoto = ""; $f("fHd").value = ""; $f("fPrev").style.display = "none"; $f("fBtFoto").textContent = "📷 Tirar foto do hidrômetro"; $f("fora").style.display = "flex"; foraGps(); clearInterval(foraTimer); foraTimer = setInterval(foraGps, 1500); };
+function foraGps() { const p = ultimaPos, bt = `<button onclick="pedirLocalizacao();foraGps()" style="display:block;width:100%;min-height:48px;margin-top:8px;border:0;border-radius:10px;background:#b45309;color:#fff;font:700 16px system-ui">📍 Ativar / permitir localização</button>`;
+  $f("fGps").innerHTML = p ? `📍 Localização OK${precisao ? " (±" + Math.round(precisao) + " m)" : ""}`
+    : gpsErro === "negado" ? `<b>⚠ Localização bloqueada para o aplicativo.</b><br>Toque no cadeado 🔒 ao lado do endereço lá em cima › <b>Permissões</b> › <b>Localização</b> › <b>Permitir</b>.<br>Se não tiver o cadeado: Configurações do celular › Apps › Chrome › Permissões › Localização › Permitir.<br>Depois toque no botão abaixo.${bt}`
+    : gpsErro === "desligado" ? `<b>⚠ A localização do celular está desligada.</b><br>Puxe a barra de cima da tela e ligue <b>Localização</b>. Depois toque no botão abaixo.${bt}`
+    : gpsErro === "sem" ? "⚠ Este celular não tem localização."
+    : `📍 Pegando a localização… (pode levar até 1 minuto, de preferência fora de casa/prédio)${bt}`;
+  $f("fGps").style.background = p ? "#e7f6ec" : "#fff7ed"; }
+document.getElementById("bFora").onclick = () => { if (!ultimaPos) pedirLocalizacao(); else ligarGPS(); foraFoto = ""; $f("fHd").value = ""; $f("fPrev").style.display = "none"; $f("fBtFoto").textContent = "📷 Tirar foto do hidrômetro"; $f("fora").style.display = "flex"; foraGps(); clearInterval(foraTimer); foraTimer = setInterval(foraGps, 1500); };
 $f("fCancelar").onclick = () => { $f("fora").style.display = "none"; clearInterval(foraTimer); };
 $f("fBtFoto").onclick = () => $f("fFoto").click();
 $f("fFoto").onchange = async e => { if (!e.target.files.length) return; try { foraFoto = await reduzir(e.target.files[0]); $f("fPrev").src = "data:image/jpeg;base64," + foraFoto.replace(/^data:image\/\w+;base64,/, ""); $f("fPrev").style.display = "block"; $f("fBtFoto").textContent = "📷 Tirar outra foto"; } catch (er) { aviso("Não consegui ler a foto. Tente de novo."); } e.target.value = ""; };
@@ -195,7 +222,7 @@ $f("fEnviar").onclick = () => {
   const hd = $f("fHd").value.trim().toUpperCase(), p = ultimaPos;
   if (!hd) { alert("Digite o número do hidrômetro."); return; }
   if (!foraFoto) { alert("Tire a foto do hidrômetro."); return; }
-  if (!p) { alert("Ainda sem localização. Espere o ponto azul aparecer no mapa."); return; }
+  if (!p) { pedirLocalizacao(); foraGps(); alert(gpsErro === "negado" ? "A localização está bloqueada. Siga o passo em laranja na tela para permitir." : gpsErro === "desligado" ? "Ligue a localização do celular (barra de cima da tela) e tente de novo." : "Ainda pegando a localização. Espere aparecer \"Localização OK\" e toque em Enviar."); return; }
   const id = "m" + Date.now().toString(36);
   enfileirar({ aba: "AlteracaoMatricula", foto: foraFoto, nomeFoto: "fora-da-rota-" + id + ".jpg", linha: [new Date().toISOString(), quem(), quem(), "fora_da_rota", id, "__FOTO__", p[0].toFixed(7), p[1].toFixed(7), "São Desidério · " + R.nome, "", "HD nº " + hd + " · matrícula fora da rota (enviada pelo mapa)", ""] });
   $f("fora").style.display = "none"; clearInterval(foraTimer);
