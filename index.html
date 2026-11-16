@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 17h09</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 17h41</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3773,7 +3773,7 @@ const ABA_VEICULOS = [
   { nome: "Moto de Isaque", tanque: 16, moto: "isaque", info: "Placa PLY-3173 · Honda CG 160 · 2022" },
   { nome: "Moto da Gêneros (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SJX-3G61 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo da Gêneros)" },
   { nome: "Moto do Consórcio (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SKG-9G98 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo do Consórcio)" },
-  { nome: "Carro da EMBASA", tanque: 0 },
+  { nome: "Carro da EMBASA", tanque: 0, info: "Placa TYQ-4G63" },
   { nome: "Motobomba grande", fixo: 0 },
   { nome: "Motobomba pequeno", fixo: 0 },
   { nome: "Gerador grande", fixo: 11, info: "Gerador 14 HP Motomil" },
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 17h09";
+const VERSAO_PAINEL = "16/11 17h41";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -9109,7 +9109,7 @@ async function checkCarregarCarro() {
   const souEu = emUso && normalizarNome(u[1]) === normalizarNome(window.credenciais.usuario);
   box.innerHTML = (emUso ? `<div class="aviso" style="background:#fff7ed;border-left-color:#b45309"><b>Carro em uso por ${sspEsc(sspNome(u[1]))}</b> desde ${formatarQuando(u[0])}${u[8] ? " · " + sspEsc(u[8]) : ""} · KM ${sspEsc(u[5])}</div>` : `<div class="aviso" style="background:#e7f6ec;border-left-color:#15803d"><b>Carro disponível.</b></div>`)
     + (emUso && (souEu || ger) ? `<div class="card"><b>Registrar a volta</b><input id="cc_km2" class="campo" inputmode="numeric" placeholder="KM na chegada"><input id="cc_obs2" class="campo" placeholder="Teve algum problema? (opcional)"><button class="acao" style="background:#15803d" onclick="checkVoltaCarro(this,${abaLitros(u[5]) || 0})">Cheguei · devolver o carro</button></div>` : "")
-    + (!emUso ? `<div class="card"><b>Saída</b><input id="cc_km" class="campo" inputmode="numeric" placeholder="KM na saída"><input id="cc_dest" class="campo" placeholder="Destino / motivo">${checkItens(CHECK_CARRO, "cc_i")}
+    + (!emUso ? `<div class="card"><b>Saída</b><input id="cc_km" class="campo" inputmode="numeric" placeholder="KM na saída${u && u[5] ? " (último: " + sspEsc(u[5]) + ")" : ""}"><input id="cc_dest" class="campo" placeholder="Destino / motivo">${checkItens(CHECK_CARRO, "cc_i")}
       <input id="cc_obs" class="campo" placeholder="Descreva o problema (se tiver)"><button class="acao" onclick="checkSaidaCarro(this)">Sair com o carro</button></div>` : "")
     + (ger ? checkHist(d, l => l[3] === "carro_saida" || l[3] === "carro_volta") : "");
 }
