@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h40</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h44</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 16h40";
+const VERSAO_PAINEL = "16/11 16h44";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -8928,7 +8928,10 @@ async function leitEnviarLocHid(btn) {
   } else sspDestravar(btn);
 }
 // ---------- Leitura projetada: Sinval repetiu a leitura do sistema; informa a leitura real para corrigir depois de exportar (16/11) ----------
-Object.assign(TELAS, { leitProjetada: () => { setTimeout(leitMinhasProjetadas, 0); return `<h2>Leitura projetada · leitura real</h2>
+Object.assign(TELAS, { leitProjetada: () => { setTimeout(leitMinhasProjetadas, 0); setTimeout(ultCarregarTela, 0); return `<h2>Leitura projetada · leitura real</h2>
+  <div class="card" style="margin-bottom:12px;border-left:6px solid #0b5394"><b>🔎 Consultar a última leitura</b>
+    <input id="ult_q" class="campo" inputmode="numeric" placeholder="Digite a matrícula" oninput="document.getElementById('ult_res').innerHTML=ultHtml(this.value)">
+    <div id="ult_res"></div><button class="acao" style="background:#0b5394" onclick="ultUsar()">Usar esta matrícula no formulário abaixo</button></div>
   <div class="aviso" style="background:#fff7ed;border-left-color:#b45309">Use quando a conta ia ficar retida por leitura anterior errada e você <b>liberou repetindo a leitura do sistema</b>. Informe aqui a leitura <b>real</b> do hidrômetro: o escritório corrige no SCI depois de exportar, para a conta do mês seguinte sair certa.</div>
   <label>Grupo<select id="lp_grupo" class="campo">${Object.keys(LEIT_GRUPOS).map(g => `<option value="${g}">${g} · ${LEIT_GRUPOS[g].loc}</option>`).join("")}</select></label>
   <input id="lp_mat" class="campo" inputmode="numeric" placeholder="Matrícula">
@@ -8939,6 +8942,34 @@ Object.assign(TELAS, { leitProjetada: () => { setTimeout(leitMinhasProjetadas, 0
   <input id="lp_obs" class="campo" placeholder="Observação (opcional)">
   <button class="acao" style="background:#b45309" onclick="leitEnviarProjetada(this)">Enviar ao escritório</button>
   <h3>Minhas leituras informadas</h3><div id="lp_lista">Carregando...</div>`; } });
+
+// ===== Consulta da última leitura por matrícula (funciona sem internet: guarda a lista no celular) – 16/11 =====
+const ULT_CHAVE = "ultLeit";
+function ultCache() { try { return JSON.parse(localStorage.getItem(ULT_CHAVE) || "null"); } catch (e) { return null; } }
+const ultNorm = v => String(v == null ? "" : v).toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/^0+(?=\d)/, "");
+async function ultBaixar(listar) {
+  if (navigator.onLine === false) return ultCache();
+  try { const d = await listar("UltimaLeitura"); if (!d || !d.length) return ultCache();
+    const c = { em: new Date().toISOString(), dados: d.slice(1).filter(l => l[0] !== "" && l[0] != null) };
+    try { localStorage.setItem(ULT_CHAVE, JSON.stringify(c)); } catch (e) {} return c; } catch (e) { return ultCache(); }
+}
+function ultDataTxt(v) { if (!v) return ""; const s = String(v); const m = s.match(/^(\d{4})-(\d\d)-(\d\d)/); if (m) { const d = new Date(s); if (!isNaN(d)) return d.toLocaleDateString("pt-BR"); return m[3] + "/" + m[2] + "/" + m[1]; } return s; }
+function ultBuscar(q) {
+  const c = ultCache(), n = ultNorm(q); if (!c || !n) return [];
+  return c.dados.filter(l => ultNorm(l[0]) === n || (n.length >= 4 && ultNorm(l[5]).includes(n))).slice(0, 10);
+}
+function ultHtml(q) {
+  const c = ultCache(), esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, x => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[x]));
+  if (!c || !c.dados.length) return `<div style="color:#b45309">A lista de leituras ainda não foi carregada neste celular. Abra uma vez com internet.</div>`;
+  if (!String(q || "").trim()) return `<div style="color:#555;font-size:14px">${c.dados.length} matrículas guardadas no celular · atualizado em ${new Date(c.em).toLocaleString("pt-BR").slice(0, 17)}</div>`;
+  const r = ultBuscar(q);
+  if (!r.length) return `<div style="color:#b00020;font-weight:bold">Matrícula não encontrada na lista.</div>`;
+  return r.map(l => `<div style="padding:10px;border-radius:10px;background:#eef4fb;margin-top:6px"><div style="font-size:15px">Matrícula <b>${esc(l[0])}</b>${l[5] ? " · HD " + esc(l[5]) : ""}</div>
+    <div style="font-size:26px;font-weight:800;color:#0b5394">${esc(l[1])}</div><div style="font-size:14px">última leitura${l[2] ? " em " + esc(ultDataTxt(l[2])) : ""}${l[7] ? " · ref. " + esc(l[7]) : ""}</div>
+    <div style="font-size:13px;color:#555">${[l[3] && "grupo " + esc(l[3]), l[4] && "rota " + esc(l[4]), l[6] && esc(l[6])].filter(Boolean).join(" · ")}</div></div>`).join("");
+}
+async function ultCarregarTela() { const box = document.getElementById("ult_res"); if (!box) return; box.innerHTML = ultHtml(""); await ultBaixar(async a => { const d = await leitListar(a); return d.length ? [[]].concat(d) : d; }); const b2 = document.getElementById("ult_res"); if (b2) b2.innerHTML = ultHtml((document.getElementById("ult_q") || {}).value); }
+function ultUsar() { const r = ultBuscar((document.getElementById("ult_q") || {}).value); if (!r.length) return; const m = document.getElementById("lp_mat"), la = document.getElementById("lp_lancada"); if (m) m.value = r[0][0]; if (la && !la.value) la.value = r[0][1]; document.getElementById("lp_real").focus(); }
 async function leitEnviarProjetada(btn) {
   const g = id => (document.getElementById(id) || {}).value.trim();
   if (!g("lp_mat") && !g("lp_hd")) { alert("Informe a matrícula ou o número do hidrômetro."); return; }

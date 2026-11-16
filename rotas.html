@@ -32,13 +32,14 @@ button { font:600 15px system-ui,sans-serif; border:0; border-radius:12px; min-h
 </style>
 </head>
 <body>
-<div id="topo"><div class="t">Painel EMBASA · Rotas de leitura <small style="opacity:.6">v16/11 16h33</small> <span id="fila" style="float:right;font-weight:700"></span></div><select id="selRota" style="margin-top:4px;width:100%;min-height:40px;font:700 16px system-ui;border-radius:8px;border:0;padding:0 8px"></select></div>
+<div id="topo"><div class="t">Painel EMBASA · Rotas de leitura <small style="opacity:.6">v16/11 16h44</small> <span id="fila" style="float:right;font-weight:700"></span></div><select id="selRota" style="margin-top:4px;width:100%;min-height:40px;font:700 16px system-ui;border-radius:8px;border:0;padding:0 8px"></select></div>
 <div id="mapa"></div>
 <div id="guia"><div class="dir" id="gDir">—</div><div class="sub" id="gSub"></div><div class="barra"><div id="gBar"></div></div></div>
 <div id="aviso"></div>
 <div id="base">
   <button class="pri" id="bIr">▶ Iniciar rota</button>
   <button class="lar" id="bFora">Matrícula fora da rota</button>
+  <button class="sec" id="bUlt">🔎 Última leitura (matrícula)</button>
   <button class="sec" id="bHid">Enviar localização do hidrômetro</button>
   <button class="sec" id="bCentro">Onde estou</button>
   <button class="sec" id="bVoz">🔊 Voz: ligada</button>
@@ -47,6 +48,14 @@ button { font:600 15px system-ui,sans-serif; border:0; border-radius:12px; min-h
 </div>
 <input type="file" id="foto" accept="image/*" capture="environment" style="display:none">
 <input type="file" id="fFoto" accept="image/*" capture="environment" style="display:none">
+<div id="ult" style="position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);display:none;align-items:flex-end">
+  <div style="background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px;font:16px system-ui;max-height:92vh;overflow:auto">
+    <div style="font-weight:800;font-size:19px;margin-bottom:8px">🔎 Última leitura</div>
+    <input id="ult_q" inputmode="numeric" autocomplete="off" placeholder="Digite a matrícula" style="width:100%;box-sizing:border-box;min-height:52px;font:700 20px system-ui;border:2px solid #0b5394;border-radius:10px;padding:8px;margin-bottom:6px">
+    <div id="ult_res"></div>
+    <button id="ultFechar" style="width:100%;min-height:48px;margin-top:10px;border:0;border-radius:10px;background:#e5e7eb;font:700 16px system-ui">Fechar</button>
+  </div>
+</div>
 <div id="fora" style="position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);display:none;align-items:flex-end">
   <div style="background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px;font:16px system-ui;max-height:92vh;overflow:auto">
     <div style="font-weight:800;font-size:19px;margin-bottom:8px">Matrícula fora da rota</div>
@@ -253,6 +262,37 @@ document.getElementById("bBaixar").onclick = async () => {
   for (let i = 0; i < urls.length; i += 8) { await Promise.all(urls.slice(i, i + 8).map(u => fetch(u, { mode: "no-cors" }).catch(() => {}))); n = Math.min(urls.length, i + 8); btn.textContent = "⬇ Baixando " + Math.round(n / urls.length * 100) + "%"; }
   btn.textContent = "✔ Mapa salvo no celular"; aviso("Mapa desta rota salvo. Pode usar sem internet.");
 };
+
+// ===== Consulta da última leitura por matrícula (funciona sem internet: guarda a lista no celular) – 16/11 =====
+const ULT_CHAVE = "ultLeit";
+function ultCache() { try { return JSON.parse(localStorage.getItem(ULT_CHAVE) || "null"); } catch (e) { return null; } }
+const ultNorm = v => String(v == null ? "" : v).toUpperCase().replace(/[^0-9A-Z]/g, "").replace(/^0+(?=\d)/, "");
+async function ultBaixar(listar) {
+  if (navigator.onLine === false) return ultCache();
+  try { const d = await listar("UltimaLeitura"); if (!d || !d.length) return ultCache();
+    const c = { em: new Date().toISOString(), dados: d.slice(1).filter(l => l[0] !== "" && l[0] != null) };
+    try { localStorage.setItem(ULT_CHAVE, JSON.stringify(c)); } catch (e) {} return c; } catch (e) { return ultCache(); }
+}
+function ultDataTxt(v) { if (!v) return ""; const s = String(v); const m = s.match(/^(\d{4})-(\d\d)-(\d\d)/); if (m) { const d = new Date(s); if (!isNaN(d)) return d.toLocaleDateString("pt-BR"); return m[3] + "/" + m[2] + "/" + m[1]; } return s; }
+function ultBuscar(q) {
+  const c = ultCache(), n = ultNorm(q); if (!c || !n) return [];
+  return c.dados.filter(l => ultNorm(l[0]) === n || (n.length >= 4 && ultNorm(l[5]).includes(n))).slice(0, 10);
+}
+function ultHtml(q) {
+  const c = ultCache(), esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, x => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[x]));
+  if (!c || !c.dados.length) return `<div style="color:#b45309">A lista de leituras ainda não foi carregada neste celular. Abra uma vez com internet.</div>`;
+  if (!String(q || "").trim()) return `<div style="color:#555;font-size:14px">${c.dados.length} matrículas guardadas no celular · atualizado em ${new Date(c.em).toLocaleString("pt-BR").slice(0, 17)}</div>`;
+  const r = ultBuscar(q);
+  if (!r.length) return `<div style="color:#b00020;font-weight:bold">Matrícula não encontrada na lista.</div>`;
+  return r.map(l => `<div style="padding:10px;border-radius:10px;background:#eef4fb;margin-top:6px"><div style="font-size:15px">Matrícula <b>${esc(l[0])}</b>${l[5] ? " · HD " + esc(l[5]) : ""}</div>
+    <div style="font-size:26px;font-weight:800;color:#0b5394">${esc(l[1])}</div><div style="font-size:14px">última leitura${l[2] ? " em " + esc(ultDataTxt(l[2])) : ""}${l[7] ? " · ref. " + esc(l[7]) : ""}</div>
+    <div style="font-size:13px;color:#555">${[l[3] && "grupo " + esc(l[3]), l[4] && "rota " + esc(l[4]), l[6] && esc(l[6])].filter(Boolean).join(" · ")}</div></div>`).join("");
+}
+const ultListar = async aba => { if (!LOGIN) return null; const r = await api({ acao: "listar", usuario: LOGIN.usuario, senha: LOGIN.senha, aba }); return r.erro ? null : r.dados; };
+ultBaixar(ultListar);
+document.getElementById("bUlt").onclick = () => { document.getElementById("ult").style.display = "flex"; const q = document.getElementById("ult_q"); q.value = ""; document.getElementById("ult_res").innerHTML = ultHtml(""); setTimeout(() => q.focus(), 100); };
+document.getElementById("ult_q").oninput = e => { document.getElementById("ult_res").innerHTML = ultHtml(e.target.value); };
+document.getElementById("ultFechar").onclick = () => { document.getElementById("ult").style.display = "none"; };
 desenhar();
 </script>
 </body>
