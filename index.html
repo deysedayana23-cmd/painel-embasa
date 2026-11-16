@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 17h41</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 17h43</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3773,6 +3773,7 @@ const ABA_VEICULOS = [
   { nome: "Moto de Isaque", tanque: 16, moto: "isaque", info: "Placa PLY-3173 · Honda CG 160 · 2022" },
   { nome: "Moto da Gêneros (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SJX-3G61 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo da Gêneros)" },
   { nome: "Moto do Consórcio (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SKG-9G98 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo do Consórcio)" },
+  { nome: "Moto de Sinval", tanque: 0, moto: ["sinval", "cival"], info: "Moto do leiturista · 16/11: liberado R$ 40,00 neste abastecimento" },
   { nome: "Carro da EMBASA", tanque: 0, info: "Placa TYQ-4G63" },
   { nome: "Motobomba grande", fixo: 0 },
   { nome: "Motobomba pequeno", fixo: 0 },
@@ -3915,6 +3916,7 @@ function abaForm() {
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">7) Saldo do cartão DEPOIS de abastecer (R$)</div>
     <input class="campo" id="aba_saldo2" inputmode="decimal" placeholder="Ex.: 190,00">
     <button class="acao" onclick="abaGravar(this)">Gravar abastecimento</button></div>`;
+  const mm = typeof minhaMoto === "function" && minhaMoto(); if (mm) { document.getElementById("aba_veic").value = mm.nome; abaVeicMudou(); } // já vem a moto da pessoa
   f.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function abaVeicMudou() {
@@ -3931,7 +3933,7 @@ function abaCalcular() {
   if (v && v.fixo) txt = "Você está autorizado a abastecer <b>" + v.fixo + " litros</b>.";
   else if (v && v.tanque && temFrac) { const lib = Math.max(0, v.tanque * (1 - frac));
     txt = "Tanque de " + v.tanque + " L, está " + abaFracTxt(frac) + ". Você está autorizado a <b>completar o tanque: " + String(Number(lib.toFixed(1))).replace(".", ",") + " litros</b>."; }
-  else if (v) txt = "O limite de litros deste item ainda não foi definido pela gerente.";
+  else if (v) txt = /R\$/.test(v.info || "") ? v.info.split(" · ").filter(x => /R\$/.test(x)).join(" · ") + ". Informe abaixo quantos litros deram." : "O limite de litros deste item ainda não foi definido pela gerente.";
   box.innerHTML = txt ? `<div style="background:#e8f1fb;border-left:6px solid #0b5394;border-radius:8px;padding:10px;margin:8px 0;font-size:17px">${txt}</div>` : "";
 }
 async function abaGravar(btn) {
@@ -8609,7 +8611,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 17h41";
+const VERSAO_PAINEL = "16/11 17h43";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
