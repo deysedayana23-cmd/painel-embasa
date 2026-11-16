@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h12</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h18</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 16h12";
+const VERSAO_PAINEL = "16/11 16h18";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -8733,11 +8733,22 @@ async function leitCarregarRotina() {
   const ciclos = {};
   leitCiclos().forEach(c => { if (ciclos[c[0]]) return; const st = leitEtapas(ev, c[0], c[1]); if (leitPasso(st, c[0]) < 5 || leitDias(c[3]) >= 0) ciclos[c[0]] = c; });
   const grupos = Object.keys(ciclos).sort((a, b) => ciclos[a][3].localeCompare(ciclos[b][3])); // 16/11: grupo 161 retirado do Sinval
-  if (!grupos.includes(window.leitGrupoSel)) window.leitGrupoSel = grupos[0];
-  const sel = window.leitGrupoSel;
+  if (window.leitGrupoSel && !grupos.includes(window.leitGrupoSel)) window.leitGrupoSel = null;
+  const sel = window.leitGrupoSel; // 16/11: primeira tela = cronograma de todos os grupos; depois escolhe o grupo
   const chips = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${grupos.map(g => { const c = ciclos[g], st = c && leitEtapas(ev, g, c[1]), ps = c ? leitPasso(st, g) : 0;
     const marca = !c ? "" : ps >= 5 ? " ✔" : leitDias(c[3]) <= 1 ? " ⚠" : "";
-    return `<button onclick="window.leitGrupoSel='${g}';leitCarregarRotina()" style="min-height:48px;padding:6px 14px;border-radius:999px;font-weight:bold;font-size:16px;border:2px solid #0b5394;${g === sel ? "background:#0b5394;color:#fff" : "background:#fff;color:#0b5394"}">${g}${marca}</button>`; }).join("")}</div>`;
+    return `<button onclick="window.leitGrupoSel='${g}';leitCarregarRotina();window.scrollTo(0,0)" style="min-height:48px;padding:6px 14px;border-radius:999px;font-weight:bold;font-size:16px;border:2px solid #0b5394;${g === sel ? "background:#0b5394;color:#fff" : "background:#fff;color:#0b5394"}">${g}${marca}</button>`; }).join("")}${sel ? `<button onclick="window.leitGrupoSel=null;leitCarregarRotina()" style="min-height:48px;padding:6px 14px;border-radius:999px;font-weight:bold;font-size:15px;border:2px solid #999;background:#fff;color:#333">📅 Cronograma</button>` : ""}</div>`;
+  if (!sel) { // tabela com o cronograma do mês de cada grupo
+    const nomes = ["Iniciar", "Lendo", "Análise (escritório)", "Imprimir retidas", "Exportar (escritório)"];
+    box.innerHTML = `<div class="card" style="margin-bottom:10px"><div style="font-weight:bold;font-size:17px;margin-bottom:6px">📅 Cronograma das leituras</div><div style="overflow-x:auto"><table style="width:100%;font-size:15px;border-collapse:collapse">
+      <tr style="background:#0b5394;color:#fff"><th style="padding:8px">Grupo</th><th style="padding:8px">Início da leitura</th><th style="padding:8px">Último dia p/ exportar</th><th style="padding:8px">Situação</th></tr>
+      ${grupos.map(g => { const c = ciclos[g], st = leitEtapas(ev, g, c[1]), ps = leitPasso(st, g), f = leitDias(c[3]);
+        return `<tr onclick="window.leitGrupoSel='${g}';leitCarregarRotina();window.scrollTo(0,0)" style="border-bottom:1px solid #e3e8ef;cursor:pointer"><td style="padding:8px"><b style="font-size:18px">${g}</b><div class="nota" style="margin:0">${c[1]} · ${LEIT_GRUPOS[g].loc.split(" (")[0]}</div></td>
+          <td style="padding:8px">${leitData(LEIT_INICIO[g + "|" + c[1]] || c[2])}</td><td style="padding:8px">${leitData(c[3])}<div class="nota" style="margin:0;color:${f <= 1 && ps < 5 ? "#b00020" : "#555"}">${ps >= 5 ? "" : f < 0 ? "atrasado" : f === 0 ? "é hoje" : "faltam " + f + " dia(s)"}</div></td>
+          <td style="padding:8px">${ps >= 5 ? "✅ Exportado" : nomes[Math.floor(ps)] + (ps === 1.5 ? " · falta Barreiras" : "")}</td></tr>`; }).join("")}</table></div>
+      <div class="nota">Toque no número do grupo (acima ou na tabela) para informar a leitura daquele grupo.</div></div>`;
+    box.innerHTML = chips + box.innerHTML; return;
+  }
   const c = ciclos[sel];
   const [g, ref, rot, exp, hd1, hd2, venc] = c, st = leitEtapas(ev, g, ref), passo = leitPasso(st, g), info = LEIT_GRUPOS[g];
   const ini = LEIT_INICIO[g + "|" + ref] || rot, falta = leitDias(exp);
