@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 11h31</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 14h57</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -730,6 +730,7 @@ const TELAS = {
    PERFIS (cada um vê só o que é dele)
    ============================================================ */
 const PERFIS = {
+  "Leiturista (Cival)": [{nome:"Rotina do mês", tela:"leitRotina"}],
   "Agente de campo (exemplo: Luzenildo)": [
     {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true},
     {nome:"Solicitação no SCI", sub:[
@@ -1736,12 +1737,22 @@ function mostrarMenu(itens, titulo) {
     const outros = pool.filter(i => i.nome !== "Outros" && i.tela !== "trocarSenha").filter((i, k, a) => a.findIndex(j => j.nome === i.nome) === k);
     itens = [...principal.map(i => Object.assign({}, i, { prioridade: false, grande: false })), { nome: "Outros", sub: [...outros, { nome: "Trocar minha senha", tela: "trocarSenha" }] }];
   }
-  const gradeThiago = !pilha.length && (String(perfilAtual || "").startsWith("Atendente") || ehAgenteCampo || ehDigitador4); // 09/11: opção 4/A (grade 2×2)
+  const gradeThiago = !pilha.length && (String(perfilAtual || "").startsWith("Atendente") || ehAgenteCampo || ehDigitador4 || ehLeiturista()); // 09/11: opção 4/A (grade 2×2)
   if (gradeThiago && !ehAgenteCampo && !ehDigitador4) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.tela === "telemetria" ? 3 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
   // 10/11: ligação nova executada no campo (serviço cobrado) só o Thiago encerra no SCI
   if (!pilha.length && ["thiago", "tiago", "deyse"].some(n => identidadeAtual().includes(n)) && !itens.some(i => i.tela === "ligNovaThiago")) {
     const k = itens.findIndex(i => i.tela === "ssPendTodas"); itens = itens.slice(); itens.splice(k >= 0 ? k + 1 : 0, 0, { nome: "SS exclusivas para Thiago encerrar", tela: "ligNovaThiago" });
   }
+  // 16/11: Cival (leiturista da Gêneros) tem um painel só dele
+  const ehLeit = !pilha.length && ehLeiturista() && !(window.MODO_GERENTE && !emPrevia());
+  if (ehLeit) itens = menuLeiturista();
+  // 16/11: Deyse e Thiago: Leitura e matrículas (grupos do Cival, prefeitura, retidas, alterações de matrícula)
+  if (!pilha.length && !ehLeit && ehGerLeitura() && !itens.some(i => i.tela === "gerLeitura")) {
+    const k = itens.findIndex(i => i.nome === "Outros"); const a = { nome: "Leitura e matrículas", tela: "gerLeitura" };
+    itens = k >= 0 ? [...itens.slice(0, k), a, ...itens.slice(k)] : [...itens, a];
+  }
+  // 16/11: agentes de campo (e Ramon/Renato): Localização do hidrômetro no painel principal
+  if (ehAgenteCampo && !itens.some(i => i.tela === "locHidrometro")) { const k = itens.findIndex(i => i.nome === "Outros"); itens = [...itens.slice(0, k), { nome: "Localização do hidrômetro", tela: "locHidrometro" }, ...itens.slice(k)]; }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
   let html = "";
@@ -1762,7 +1773,7 @@ function mostrarMenu(itens, titulo) {
     if (gradeThiago) { // 09/11: opção 4 – grade 2×2 azul, todos do mesmo tamanho, ícone + número
       const nome = it.urgente ? "Demandas urgentes" : it.tela === "importarSCI" ? "Excel do SCI para atualização da IA" : it.tela === "ssPendTodas" ? "SS pendentes de digitação"
         : /^ssPend/.test(it.tela || "") ? "SS pendentes" + (it.nome.includes("–") ? " – " + it.nome.split("–").pop().trim() : "") : /^ssVenc/.test(it.tela || "") ? "SS encerradas no SCI – ir a campo"
-        : it.nome === "Solicitação no SCI" ? "Solicitações do SCI" : it.tela === "pedirSS" ? "Pedir para abrir e encerrar SS" : it.nome;
+        : it.nome === "Solicitação no SCI" ? "Solicitações do SCI" : it.tela === "pedirSS" && !ehLeiturista() ? "Pedir para abrir e encerrar SS" : it.nome;
       const sub = it.nome === "Solicitação no SCI" ? `<span style="font-size:12px;font-weight:normal">2ª via, análise de conta</span>` : "";
       const num = it.urgente ? (window.qtdUrgentes || 0) : contavel ? (window.contagemSS && window.contagemSS[contavel] !== undefined ? window.contagemSS[contavel] : "…") : "";
       html += `<button class="btn" style="${i === itens.length - 1 && itens.length % 2 ? "grid-column:1/-1;min-height:90px;" : "min-height:130px;"}background:#0C447C;color:#fff;border:none;border-radius:14px;padding:18px 8px;font-size:17px;font-weight:bold;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px" data-tela="${contavel ? it.tela : ""}" data-nome="${nome}" onclick="abrir(${i})"><span>${nome}</span>${sub}<span class="g4n" style="font-size:26px;line-height:1">${num}</span></button>`;
@@ -8132,6 +8143,7 @@ const PESSOAS = [
   ["Alan", "Operador Mozondó (Genildo)"],
   ["Juvenson", "Operador Mozondó (Genildo)"],
   ["Valdesandro", "Operador Mozondó (Genildo)"],
+  ["Cival", "Leiturista (Cival)"],
   ["Thiago", "Atendente (Thiago)"],
   ["Deyse", "Gerente (você)"]
 ];
@@ -8143,6 +8155,7 @@ const MAPA_PERFIS = {
   "operador_angico": "Operador Angico (Ramon ou Renato)",
   "operador_mozondo": "Operador Mozondó (Genildo)",
   "atendente": "Atendente (Thiago)",
+  "leiturista": "Leiturista (Cival)",
   "gerente": "Gerente (você)"
 };
 
@@ -8519,7 +8532,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 11h31";
+const VERSAO_PAINEL = "16/11 14h57";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -8588,6 +8601,229 @@ function checarVersaoSilenciosa() {
   }).catch(() => {});
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checarVersaoSilenciosa(); });
+// ===== LEITURISTA (Cival) e telas de leitura da gerência (16/11) =====================================
+// Grupos do Cival. No 137 ele lê só algumas rotas; o resto é da equipe de Barreiras (Thiago marca quando ela descarregou).
+const LEIT_GRUPOS = {
+  "137": { loc: "São Desidério", rotas: ["S1 R4", "S1 R7", "S2 R7", "S2 R12", "S2 R13", "S4 R7", "S5 R1", "S5 R3"], barreiras: true },
+  "114": { loc: "Catolândia (setores 3 a 8) · Buriti Cortado (setor 1)" },
+  "126": { loc: "Catolândia (setores 10 a 14 e 16) · Mozondó (setor 1)" },
+  "130": { loc: "Angico (setor 1)" },
+  "161": { loc: "Baianópolis (setores 1 e 3) · Catolândia (setores 1 e 2)", semCronograma: true }
+};
+// Início da leitura combinado com a gerência (quando não houver, vale a data do roteiro gerado)
+const LEIT_INICIO = { "137|DEZ/26": "2026-11-20" };
+const LEIT_CRONO = [["114","DEZ/26","2026-11-03","2026-11-05","2026-10-27","2026-11-11","2026-12-05"],["126","DEZ/26","2026-11-06","2026-11-10","2026-10-30","2026-11-16","2026-12-10"],["130","DEZ/26","2026-11-12","2026-11-16","2026-11-06","2026-11-23","2026-12-16"],["137","DEZ/26","2026-11-19","2026-11-24","2026-11-13","2026-11-30","2026-12-25"],["114","JAN/27","2026-12-02","2026-12-04","2026-11-26","2026-12-11","2027-01-05"],["126","JAN/27","2026-12-07","2026-12-10","2026-12-01","2026-12-16","2027-01-10"],["130","JAN/27","2026-12-14","2026-12-16","2026-12-07","2026-12-22","2027-01-16"],["137","JAN/27","2026-12-22","2026-12-24","2026-12-16","2026-12-31","2027-01-25"],["114","FEV/27","2026-12-31","2027-01-05","2026-12-24","2027-01-11","2027-02-05"],["126","FEV/27","2027-01-06","2027-01-08","2026-12-30","2027-01-14","2027-02-10"],["130","FEV/27","2027-01-12","2027-01-14","2027-01-06","2027-01-20","2027-02-16"],["137","FEV/27","2027-01-20","2027-01-22","2027-01-14","2027-01-28","2027-02-25"],["114","MAR/27","2027-02-01","2027-02-03","2027-01-26","2027-02-11","2027-03-05"],["126","MAR/27","2027-02-04","2027-02-07","2027-01-29","2027-02-15","2027-03-10"],["130","MAR/27","2027-02-11","2027-02-15","2027-02-03","2027-02-19","2027-03-16"],["137","MAR/27","2027-02-19","2027-02-23","2027-02-15","2027-03-01","2027-03-25"],["114","ABR/27","2027-03-02","2027-03-04","2027-02-24","2027-03-10","2027-04-05"],["126","ABR/27","2027-03-08","2027-03-10","2027-03-02","2027-03-16","2027-04-10"],["130","ABR/27","2027-03-12","2027-03-16","2027-03-08","2027-03-22","2027-04-16"],["137","ABR/27","2027-03-22","2027-03-24","2027-03-16","2027-03-31","2027-04-25"],["114","MAI/27","2027-04-01","2027-04-05","2027-03-25","2027-04-09","2027-05-05"],["126","MAI/27","2027-04-06","2027-04-08","2027-03-31","2027-04-14","2027-05-10"],["130","MAI/27","2027-04-12","2027-04-14","2027-04-06","2027-04-20","2027-05-16"],["137","MAI/27","2027-04-20","2027-04-23","2027-04-14","2027-04-29","2027-05-25"],["114","JUN/27","2027-05-03","2027-05-05","2027-04-27","2027-05-11","2027-06-05"],["126","JUN/27","2027-05-06","2027-05-10","2027-04-30","2027-05-14","2027-06-10"],["130","JUN/27","2027-05-12","2027-05-14","2027-05-06","2027-05-20","2027-06-16"],["137","JUN/27","2027-05-20","2027-05-24","2027-05-14","2027-05-31","2027-06-25"],["114","JUL/27","2027-06-02","2027-06-04","2027-05-26","2027-06-10","2027-07-05"],["126","JUL/27","2027-06-07","2027-06-09","2027-06-01","2027-06-15","2027-07-10"],["130","JUL/27","2027-06-11","2027-06-15","2027-06-07","2027-06-21","2027-07-16"],["137","JUL/27","2027-06-21","2027-06-23","2027-06-15","2027-06-30","2027-07-25"],["114","AGO/27","2027-07-01","2027-07-06","2027-06-25","2027-07-12","2027-08-05"],["126","AGO/27","2027-07-07","2027-07-09","2027-06-30","2027-07-15","2027-08-10"],["130","AGO/27","2027-07-13","2027-07-15","2027-07-07","2027-07-21","2027-08-16"],["137","AGO/27","2027-07-21","2027-07-23","2027-07-15","2027-07-29","2027-08-25"],["114","SET/27","2027-08-02","2027-08-04","2027-07-27","2027-08-10","2027-09-05"],["126","SET/27","2027-08-05","2027-08-09","2027-07-30","2027-08-13","2027-09-10"],["130","SET/27","2027-08-11","2027-08-13","2027-08-05","2027-08-19","2027-09-16"],["137","SET/27","2027-08-19","2027-08-23","2027-08-13","2027-08-27","2027-09-25"],["114","OUT/27","2027-08-31","2027-09-02","2027-08-25","2027-09-09","2027-10-05"],["126","OUT/27","2027-09-03","2027-09-08","2027-08-30","2027-09-14","2027-10-10"],["130","OUT/27","2027-09-10","2027-09-14","2027-09-03","2027-09-20","2027-10-16"],["137","OUT/27","2027-09-20","2027-09-22","2027-09-14","2027-09-28","2027-10-25"],["114","NOV/27","2027-09-30","2027-10-04","2027-09-24","2027-10-08","2027-11-05"],["126","NOV/27","2027-10-05","2027-10-07","2027-09-29","2027-10-14","2027-11-10"],["130","NOV/27","2027-10-11","2027-10-14","2027-10-05","2027-10-21","2027-11-16"],["137","NOV/27","2027-10-20","2027-10-22","2027-10-13","2027-10-28","2027-11-25"],["114","DEZ/27","2027-10-29","2027-11-03","2027-10-25","2027-11-09","2027-12-05"],["126","DEZ/27","2027-11-04","2027-11-08","2027-10-28","2027-11-12","2027-12-10"],["130","DEZ/27","2027-11-10","2027-11-12","2027-11-04","2027-11-19","2027-12-16"],["137","DEZ/27","2027-11-19","2027-11-23","2027-11-12","2027-11-29","2027-12-25"]]; // [grupo, referência, roteiro gerado, exportar (devolução inicial), proibido HD de, até, vencimento]
+const ehLeiturista = () => identidadeAtual().includes("cival") || /^Leiturista/.test(String(perfilAtual || ""));
+const ehGerLeitura = () => (window.MODO_GERENTE && !emPrevia()) || ["deyse", "thiago", "tiago"].some(n => identidadeAtual().includes(n));
+const leitSemana = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+function leitData(iso) { if (!iso) return "—"; const [y, m, d] = iso.split("-").map(Number); const w = new Date(y, m - 1, d).getDay();
+  const t = String(d).padStart(2, "0") + "/" + String(m).padStart(2, "0") + " " + leitSemana[w]; return w === 0 || w === 6 ? `<b style="color:#b00020">${t}</b>` : t; }
+function leitHoje() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function leitDias(iso) { const [y, m, d] = iso.split("-").map(Number); const a = new Date(y, m - 1, d), h = new Date(); h.setHours(0, 0, 0, 0); return Math.round((a - h) / 864e5); }
+const leitCred = () => ({ usuario: window.credenciais.usuario, senha: window.credenciais.senha });
+async function leitListar(aba) { try { const r = await chamarApi({ acao: "listar", ...leitCred(), aba }); return r.erro ? [] : (r.dados || []).slice(1); } catch (e) { return []; } }
+async function leitGravar(aba, linha, btn) {
+  if (btn) sspTravar(btn);
+  try { const r = await chamarApi({ acao: "gravarVarias", ...leitCred(), aba, linhas: [linha] }); if (r.erro) { alert(r.erro); if (btn) sspDestravar(btn); return false; } return true; }
+  catch (e) { alert("Não consegui gravar: " + e.message + ". Tente de novo com internet."); if (btn) sspDestravar(btn); return false; }
+}
+async function leitFoto(inputId, pos) { const f = (document.getElementById(inputId) || {}).files; if (!f || !f.length) return null;
+  const b64 = await carimbarFoto(f[0], pos); const r = await chamarApi({ acao: "salvarFoto", ...leitCred(), base64: b64, tipo: "image/jpeg", nome: inputId + "-" + Date.now() + ".jpg" });
+  if (r.erro) throw new Error(r.erro); return r.url; }
+// ciclos: próximos (ainda não exportados há mais de 3 dias)
+function leitCiclos() { return LEIT_CRONO.filter(c => leitDias(c[3]) >= -3).sort((a, b) => a[2].localeCompare(b[2])); }
+function leitEtapas(ev, g, ref) { const e = ev.filter(l => String(l[3]) === g && String(l[4]) === ref); const tem = et => e.find(l => l[5] === et);
+  return { e, tem, rotasFeitas: new Set(e.filter(l => l[5] === "rota_descarregada").map(l => l[6])) }; }
+const LEIT_PASSOS = [["iniciado", "Iniciar grupo"], ["leitura_descarregada", "Leitura descarregada"], ["impressao_liberada", "Roteiro de impressão liberado"], ["retidas_descarregadas", "Retidas impressas e descarregadas"], ["exportado", "Grupo exportado"]];
+function leitPasso(st, g) { // em qual passo o grupo está (0 a 5)
+  if (st.tem("exportado")) return 5; if (st.tem("retidas_descarregadas")) return 4; if (st.tem("impressao_liberada")) return 3;
+  const rotasOk = !LEIT_GRUPOS[g].rotas || LEIT_GRUPOS[g].rotas.every(r => st.rotasFeitas.has(r));
+  const barrOk = !LEIT_GRUPOS[g].barreiras || st.tem("barreiras_descarregou");
+  if (st.tem("leitura_descarregada") || (LEIT_GRUPOS[g].rotas && rotasOk && st.tem("iniciado"))) return barrOk ? 2 : 1.5;
+  return st.tem("iniciado") ? 1 : 0;
+}
+// ---------- Cival: Rotina do mês ----------
+Object.assign(TELAS, { leitRotina: () => { setTimeout(leitCarregarRotina, 0); return `<h2>Rotina do mês</h2><div class="nota">Leia cada grupo nas datas combinadas. Exporte só na data de exportação, nem antes nem depois.</div><div id="leit_box">Carregando...</div>`; } });
+async function leitCarregarRotina() {
+  const box = document.getElementById("leit_box"); if (!box) return;
+  const ev = await leitListar("LeituraEventos");
+  const ger = ehGerLeitura() && !ehLeiturista();
+  const html = leitCiclos().slice(0, 6).map(c => {
+    const [g, ref, rot, exp, hd1, hd2, venc] = c, st = leitEtapas(ev, g, ref), passo = leitPasso(st, g), info = LEIT_GRUPOS[g];
+    const ini = LEIT_INICIO[g + "|" + ref] || rot, falta = leitDias(exp);
+    const cor = passo >= 5 ? "#15803d" : falta <= 1 ? "#b00020" : "#0b5394";
+    const k = g + "|" + ref;
+    let acoes = "";
+    if (passo < 5) {
+      if (!ger && passo === 0) acoes += `<button class="acao" onclick="leitEvento('${k}','iniciado','',this)">▶ Iniciar grupo ${g}</button>`;
+      if (!ger && passo >= 1 && passo < 2 && info.rotas) acoes += `<div style="margin-top:8px;font-weight:bold">Suas rotas (marque assim que digitar e descarregar):</div>` + info.rotas.map(r => st.rotasFeitas.has(r)
+        ? `<div style="padding:8px 0;border-bottom:1px solid #eee">✅ ${r} · descarregada</div>`
+        : `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #eee"><b>${r}</b><button class="acao" style="width:auto;margin:0;padding:10px" onclick="leitEvento('${k}','rota_descarregada','${r}',this)">Digitada e descarregada</button></div>`).join("");
+      if (!ger && passo >= 1 && passo < 2 && !info.rotas) acoes += `<button class="acao" onclick="leitEvento('${k}','leitura_descarregada','',this)">Leitura descarregada</button>`;
+      if (info.barreiras && passo < 2) acoes += `<div class="nota" style="margin-top:8px">Equipe de Barreiras (demais rotas): ${st.tem("barreiras_descarregou") ? "✅ descarregou" : "⏳ aguardando o Thiago marcar"}</div>`
+        + (ger && !st.tem("barreiras_descarregou") ? `<button class="acao" onclick="leitEvento('${k}','barreiras_descarregou','',this)">Barreiras descarregou todas as contas</button>` : "");
+      if (ger && passo >= 2 && passo < 3) acoes += `<button class="acao" onclick="leitEvento('${k}','impressao_liberada','',this)">Liberar roteiro de impressão (retidas analisadas)</button>`;
+      if (ger && passo < 2) acoes += `<div class="nota">Liberar o roteiro de impressão acende quando todas as rotas estiverem descarregadas.</div>`;
+      if (!ger && passo >= 3 && passo < 4) acoes += `<div class="aviso" style="background:#fff7ed;border-left-color:#b45309"><b>Roteiro de impressão do grupo ${g} disponível.</b> Carregue, imprima as retidas e descarregue.</div><button class="acao" onclick="leitEvento('${k}','retidas_descarregadas','',this)">Retidas impressas e descarregadas</button>`;
+      if (ger && passo >= 4) acoes += falta > 0 ? `<button class="acao" disabled style="background:#ccc">Exportar só em ${leitData(exp)}</button>` : `<button class="acao" onclick="leitEvento('${k}','exportado','',this)">Grupo exportado</button>`;
+      if (!ger && passo >= 4) acoes += `<div class="nota">✅ Pronto. A gerência exporta em ${leitData(exp)}.</div>`;
+    }
+    const passos = LEIT_PASSOS.map((p, i) => `<div style="flex:1;height:8px;border-radius:4px;background:${passo > i ? "#15803d" : passo === i || (i === 1 && passo === 1.5) ? "#b45309" : "#dfe6f0"}" title="${p[1]}"></div>`).join("");
+    return `<div class="card" style="margin-bottom:12px;border-left:6px solid ${cor}">
+      <div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-size:20px;font-weight:bold">Grupo ${g} · ${ref}</div><div class="nota" style="margin:0">${info.loc}</div></div>
+      <div style="text-align:center;background:${passo >= 5 ? "#e7f6ec" : "#fdecea"};border-radius:10px;padding:6px 10px"><div style="font-size:24px;font-weight:bold;color:${cor}">${passo >= 5 ? "✔" : Math.max(0, falta)}</div><div style="font-size:12px">${passo >= 5 ? "exportado" : "dias p/ exportar"}</div></div></div>
+      <div style="display:flex;gap:4px;margin:10px 0 4px">${passos}</div><div class="nota" style="margin:0 0 8px">${passo >= 5 ? "Concluído" : (LEIT_PASSOS[Math.floor(passo)] || ["", ""])[1] + (passo === 1.5 ? " (falta Barreiras)" : "")}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:14px">
+        <div>Iniciar a leitura<br><b>${leitData(ini)}</b></div><div>Exportar<br><b style="color:#b00020">${leitData(exp)}</b></div>
+        <div>Proibido trocar HD<br><b>${leitData(hd1)} a ${leitData(hd2)}</b></div><div>Vencimento<br><b>${leitData(venc)}</b></div></div>
+      ${acoes}</div>`;
+  }).join("");
+  box.innerHTML = html + `<div class="card"><b>Grupo 161</b> – ${LEIT_GRUPOS["161"].loc}<div class="nota">Datas ainda não definidas no cronograma.</div></div>`;
+}
+async function leitEvento(k, etapa, rota, btn) {
+  const [g, ref] = k.split("|");
+  const nomes = { iniciado: "Iniciar o grupo " + g + "?", leitura_descarregada: "Confirmar que a leitura do grupo " + g + " foi descarregada?", rota_descarregada: "Confirmar que a rota " + rota + " foi digitada e descarregada?",
+    barreiras_descarregou: "Confirmar que a equipe de Barreiras descarregou todas as contas do grupo " + g + "?", impressao_liberada: "Liberar o roteiro de impressão do grupo " + g + "? O Cival será avisado.",
+    retidas_descarregadas: "Confirmar que as retidas do grupo " + g + " foram impressas e descarregadas?", exportado: "Confirmar que o grupo " + g + " foi exportado?" };
+  if (!confirm(nomes[etapa] || "Confirmar?")) return;
+  if (await leitGravar("LeituraEventos", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "'" + g, ref, etapa, rota || "", ""], btn)) leitCarregarRotina();
+}
+// ---------- Datas das leituras ----------
+Object.assign(TELAS, { leitDatas: () => `<h2>Datas das leituras</h2><div class="nota">Datas em vermelho caem no sábado ou domingo.</div>` + Object.keys(LEIT_GRUPOS).filter(g => !LEIT_GRUPOS[g].semCronograma).map(g => `<details class="card" style="margin-bottom:8px" ${g === "137" ? "open" : ""}><summary style="font-weight:bold;font-size:17px">Grupo ${g} · ${LEIT_GRUPOS[g].loc}</summary>
+  <div style="overflow-x:auto"><table style="font-size:14px;margin-top:6px"><tr><th>Ref.</th><th>Iniciar</th><th>Exportar</th><th>Sem trocar HD</th><th>Venc.</th></tr>${LEIT_CRONO.filter(c => c[0] === g && leitDias(c[3]) >= -3).map(c => `<tr><td>${c[1]}</td><td>${leitData(LEIT_INICIO[g + "|" + c[1]] || c[2])}</td><td>${leitData(c[3])}</td><td>${leitData(c[4])} a ${leitData(c[5])}</td><td>${leitData(c[6])}</td></tr>`).join("")}</table></div></details>`).join("")
+  + `<div class="card"><b>Grupo 161</b><div class="nota">Datas ainda não definidas.</div></div>` });
+// ---------- Rotas de leitura (mapa) ----------
+Object.assign(TELAS, { leitRotas: () => { setTimeout(() => { location.href = "rotas.html"; }, 50); return `<h2>Rotas de leitura</h2><div class="nota">Abrindo o mapa...</div>`; } });
+// ---------- Contas retidas a entregar ----------
+Object.assign(TELAS, { leitEntregas: () => { setTimeout(leitCarregarEntregas, 0); return `<h2>Contas retidas a entregar</h2><div id="ent_box">Carregando...</div>`; } });
+async function leitCarregarEntregas() {
+  const box = document.getElementById("ent_box"); if (!box) return;
+  const d = await leitListar("EntregaRetidas");
+  const prog = d.filter(l => l[3] === "programada"), feitos = d.filter(l => l[3] === "entregue");
+  const ger = ehGerLeitura() && !ehLeiturista();
+  const card = l => { const f = feitos.filter(x => x[4] === l[4]).pop();
+    return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${f ? (f[9] === "tudo" ? "#15803d" : "#b45309") : "#0b5394"}"><div style="font-size:13px;font-weight:bold;color:#0b5394">${sspEsc(l[7])}</div>
+      <div style="font-size:19px;font-weight:bold">${sspEsc(l[5])}</div><div>${sspEsc(l[6])}</div><div class="nota" style="margin:2px 0">Com ajuda: <b>${sspEsc(l[8] || "—")}</b></div>
+      ${f ? `<div style="font-weight:bold;color:${f[9] === "tudo" ? "#15803d" : "#b45309"}">${f[9] === "tudo" ? "✅ Entregou tudo" : "⚠ Entregou parte · faltaram " + sspEsc(f[10]) + (f[11] ? " · " + sspEsc(f[11]) : "")} · ${formatarQuando(f[0])} · ${sspEsc(sspNome(f[1]))}</div>`
+        : ger ? `<div class="nota">⏳ Aguardando o Cival</div>` : `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="acao" style="background:#15803d;margin:0" onclick="leitEntregar('${l[4]}','tudo',this)">Entreguei tudo</button><button class="acao" style="background:#555;margin:0" onclick="leitEntregar('${l[4]}','parte',this)">Entreguei parte</button></div>`}</div>`; };
+  box.innerHTML = (prog.length ? prog.map(card).join("") : `<div class="nota">Nenhuma entrega programada.</div>`)
+    + (ger ? `<details class="card"><summary><b>Programar nova entrega</b></summary><input id="ent_loc" class="campo" placeholder="Local (ex.: Mozondó)"><input id="ent_desc" class="campo" placeholder="O que entregar"><input id="ent_dia" class="campo" placeholder="Quando (ex.: 20/11 sex · manhã)"><input id="ent_aj" class="campo" placeholder="Quem ajuda"><button class="acao" onclick="leitProgramar(this)">Programar</button></details>` : "");
+}
+async function leitEntregar(id, res, btn) {
+  let faltaram = "", obs = "";
+  if (res === "parte") { faltaram = prompt("Quantas contas faltaram entregar?") || ""; if (!faltaram) return; obs = prompt("Por quê? (ex.: casa fechada, endereço não encontrado)") || ""; }
+  else if (!confirm("Confirmar que entregou TODAS?")) return;
+  if (await leitGravar("EntregaRetidas", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "entregue", id, "", "", "", "", res, faltaram, obs], btn)) leitCarregarEntregas();
+}
+async function leitProgramar(btn) {
+  const g = id => (document.getElementById(id) || {}).value.trim(); if (!g("ent_loc") || !g("ent_dia")) { alert("Preencha o local e quando."); return; }
+  if (await leitGravar("EntregaRetidas", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "programada", "e" + Date.now().toString(36), g("ent_loc"), g("ent_desc"), g("ent_dia"), g("ent_aj"), "", "", ""], btn)) leitCarregarEntregas();
+}
+// ---------- Contas da prefeitura (até o dia 5) ----------
+function prefRef() { const h = new Date(); const d = new Date(h.getFullYear(), h.getMonth() + (h.getDate() > 5 ? 1 : 0), 5);
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1);
+  const ref = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"][d.getMonth()] + "/" + String(d.getFullYear()).slice(2);
+  return { ref, prazo: d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") }; }
+Object.assign(TELAS, { leitPrefeitura: () => { setTimeout(leitCarregarPref, 0); return `<h2>Contas da prefeitura</h2><div id="pref_box">Carregando...</div>`; } });
+async function leitCarregarPref() {
+  const box = document.getElementById("pref_box"); if (!box) return;
+  const d = await leitListar("PrefeituraContas"), { ref, prazo } = prefRef(), ger = ehGerLeitura() && !ehLeiturista();
+  const loc = l => { const e = d.filter(x => x[3] === ref && x[4] === l), balcao = e.find(x => x[5] === "no_balcao"), ent = e.find(x => x[5] === "entregue"), id = l === "São Desidério" ? "sd" : "cat";
+    return `<div class="card" style="margin-bottom:10px;border-left:6px solid ${ent ? "#15803d" : balcao ? "#b45309" : "#999"}"><div style="font-size:19px;font-weight:bold">${l}</div>
+      ${ent ? `<div style="color:#15803d;font-weight:bold">✅ Entregue em ${formatarQuando(ent[0])} · recebido por ${sspEsc(ent[6])}</div>${ent[7] ? `<a href="${sspEsc(ent[7])}" target="_blank">Ver foto do protocolo</a>` : ""}`
+      : balcao ? `<div style="color:#14532d">Talões e protocolo no balcão de São Desidério · ${formatarQuando(balcao[0])}</div>` + (ger ? `<div class="nota">⏳ Aguardando o Cival entregar.</div>` : `<label>Nome de quem recebeu na prefeitura<input id="pref_nome_${id}" class="campo"></label><label>Foto do protocolo assinado<input type="file" id="pref_foto_${id}" accept="image/*" capture="environment" class="campo"></label><button class="acao" style="background:#15803d" onclick="leitPrefEntregue('${l}','${id}',this)">Contas entregues</button>`)
+      : ger ? `<button class="acao" onclick="leitPrefBalcao('${l}',this)">Talões e protocolo no balcão de São Desidério</button>` : `<div class="nota">⏳ Aguardando o Thiago imprimir os talões e o protocolo.</div>`}</div>`; };
+  box.innerHTML = `<div class="aviso" style="background:#fdecea;border-left-color:#b00020"><b>Referência ${ref} · entregar até ${leitData(prazo)}</b><br>Sempre até o dia 5 (se cair no fim de semana, no dia útil antes).</div>` + loc("São Desidério") + loc("Catolândia")
+    + `<details class="card"><summary><b>Entregas anteriores</b></summary>${d.filter(x => x[5] === "entregue").reverse().map(x => `<div style="padding:6px 0;border-bottom:1px solid #eee">${sspEsc(x[3])} · ${sspEsc(x[4])} · ${sspEsc(x[6])} · ${formatarQuando(x[0])} ${x[7] ? `<a href="${sspEsc(x[7])}" target="_blank">foto</a>` : ""}</div>`).join("") || "Nenhuma ainda."}</details>`;
+}
+async function leitPrefBalcao(l, btn) { if (!confirm("Talões de " + l + " e protocolo já estão no balcão?")) return;
+  if (await leitGravar("PrefeituraContas", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), prefRef().ref, l, "no_balcao", "", ""], btn)) leitCarregarPref(); }
+async function leitPrefEntregue(l, id, btn) {
+  const nome = (document.getElementById("pref_nome_" + id) || {}).value.trim(); if (!nome) { alert("Escreva o nome de quem recebeu."); return; }
+  if (!((document.getElementById("pref_foto_" + id) || {}).files || []).length) { alert("Tire a foto do protocolo assinado."); return; }
+  sspTravar(btn); let url = ""; try { url = await leitFoto("pref_foto_" + id, null); } catch (e) { alert("Não consegui enviar a foto: " + e.message); sspDestravar(btn); return; }
+  if (await leitGravar("PrefeituraContas", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), prefRef().ref, l, "entregue", nome, url], null)) leitCarregarPref(); else sspDestravar(btn);
+}
+// ---------- Mudança de rota e localização do hidrômetro (foto + GPS) ----------
+Object.assign(TELAS, { leitMudanca: () => { setTimeout(leitMinhasAlteracoes, 0); return `<h2>Solicitar mudança de rota</h2><div class="nota">Matrícula na rota, setor ou localidade errada.</div>
+  <label><b>Foto do número do hidrômetro (obrigatória)</b><input type="file" id="mr_foto" accept="image/*" capture="environment" class="campo"></label>
+  <div style="font-weight:bold;margin-top:8px">Onde está hoje</div><div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px"><input id="mr_l1" class="campo" placeholder="Localidade"><input id="mr_s1" class="campo" placeholder="Setor" inputmode="numeric"><input id="mr_r1" class="campo" placeholder="Rota" inputmode="numeric"></div>
+  <div style="font-weight:bold;color:#b45309">Onde deveria estar</div><div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:6px"><input id="mr_l2" class="campo" placeholder="Localidade"><input id="mr_s2" class="campo" placeholder="Setor" inputmode="numeric"><input id="mr_r2" class="campo" placeholder="Rota" inputmode="numeric"></div>
+  <input id="mr_obs" class="campo" placeholder="Observação (opcional)">
+  <button class="acao" style="background:#b45309" onclick="leitEnviarMudanca(this)">📍 Pegar localização e solicitar alteração</button>
+  <h3>Minhas solicitações</h3><div id="mr_lista">Carregando...</div>`; } });
+async function leitEnviarMudanca(btn) {
+  const g = id => (document.getElementById(id) || {}).value.trim();
+  if (!((document.getElementById("mr_foto") || {}).files || []).length) { alert("Tire a foto do número do hidrômetro."); return; }
+  if (!g("mr_r2")) { alert("Informe onde a matrícula deveria estar (pelo menos a rota)."); return; }
+  sspTravar(btn); btn.textContent = "Procurando o GPS... (até 35s)";
+  const pos = await obterPosicao();
+  if (!pos && !confirm("Sem localização (GPS). Enviar mesmo assim?")) { sspDestravar(btn); btn.textContent = "📍 Pegar localização e solicitar alteração"; return; }
+  let url = ""; try { url = await leitFoto("mr_foto", pos); } catch (e) { alert("Não consegui enviar a foto: " + e.message); sspDestravar(btn); return; }
+  const id = "m" + Date.now().toString(36);
+  if (await leitGravar("AlteracaoMatricula", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "mudanca_rota", id, url, pos ? pos.lat.toFixed(7) : "", pos ? pos.lon.toFixed(7) : "",
+    [g("mr_l1"), g("mr_s1") && "setor " + g("mr_s1"), g("mr_r1") && "rota " + g("mr_r1")].filter(Boolean).join(" · "), [g("mr_l2"), g("mr_s2") && "setor " + g("mr_s2"), g("mr_r2") && "rota " + g("mr_r2")].filter(Boolean).join(" · "), g("mr_obs"), ""], null)) {
+    alert("Solicitação enviada para Deyse e Thiago."); abrirTela("leitMudanca");
+  } else sspDestravar(btn);
+}
+function leitAltPedidos(d) { const resp = {}; d.filter(l => l[3] === "resposta").forEach(l => { resp[l[4]] = l; }); return d.filter(l => l[3] !== "resposta").map(l => ({ l, r: resp[l[4]] })); }
+async function leitMinhasAlteracoes() { const box = document.getElementById("mr_lista"); if (!box) return; const eu = normalizarNome(window.credenciais.usuario);
+  const p = leitAltPedidos(await leitListar("AlteracaoMatricula")).filter(x => normalizarNome(x.l[1]) === eu).reverse();
+  box.innerHTML = p.length ? p.map(({ l, r }) => `<div class="card" style="margin-bottom:6px"><b>${l[3] === "fora_da_rota" ? "Fora da rota" : "Mudança de rota"}</b> · ${formatarQuando(l[0])}<br>${sspEsc(l[8])} → <b>${sspEsc(l[9] || "?")}</b><br>${r ? (r[11] === "alterado" ? "✅ Arrumado no SCI" : "❌ Não procede: " + sspEsc(String(r[11]).replace(/^nao_procede:?\s*/, ""))) : "⏳ Aguardando o escritório"}</div>`).join("") : "Nenhuma ainda."; }
+Object.assign(TELAS, { locHidrometro: () => `<h2>Localização do hidrômetro</h2><div class="aviso" style="background:#e8f1fb;border-left-color:#0b5394">Ajude a montar o mapa das matrículas: fique em frente ao imóvel, tire uma foto <b>nítida</b> do número do hidrômetro e envie. Não precisa digitar nada.</div>
+  <label><b>Foto do número do hidrômetro</b><input type="file" id="lh_foto" accept="image/*" capture="environment" class="campo"></label>
+  <button class="acao" onclick="leitEnviarLocHid(this)">📍 Enviar foto e localização</button><div id="lh_res" class="nota"></div>` });
+async function leitEnviarLocHid(btn) {
+  if (!((document.getElementById("lh_foto") || {}).files || []).length) { alert("Tire a foto do número do hidrômetro."); return; }
+  sspTravar(btn); btn.textContent = "Procurando o GPS... (até 35s)";
+  const pos = await obterPosicao();
+  if (!pos) { alert("Sem localização não dá para cadastrar no mapa. Fique em frente ao imóvel, com o GPS ligado, e tente de novo."); sspDestravar(btn); btn.textContent = "📍 Enviar foto e localização"; return; }
+  let url = ""; try { url = await leitFoto("lh_foto", pos); } catch (e) { alert("Não consegui enviar a foto: " + e.message); sspDestravar(btn); return; }
+  if (await leitGravar("LocalizacaoHidrometro", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), url, pos.lat.toFixed(7), pos.lon.toFixed(7), "", "painel", "", ""], null)) {
+    document.getElementById("lh_foto").value = ""; sspDestravar(btn); btn.textContent = "📍 Enviar foto e localização";
+    const res = await leitListar("LocalizacaoHidrometro"); const eu = normalizarNome(window.credenciais.usuario);
+    document.getElementById("lh_res").innerHTML = `✅ Enviado. Você já cadastrou <b>${res.filter(l => normalizarNome(l[1]) === eu).length}</b> hidrômetro(s) no mapa. Pode enviar o próximo.`;
+  } else sspDestravar(btn);
+}
+// ---------- Gerência: Leitura e matrículas ----------
+Object.assign(TELAS, { gerLeitura: () => { setTimeout(gerCarregarAlteracoes, 0); return `<h2>Leitura e matrículas</h2>
+  <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <button class="btn" onclick="abrirTela('leitRotina')">Leitura dos grupos (Cival)</button>
+    <button class="btn" onclick="abrirTela('leitPrefeitura')">Contas da prefeitura</button>
+    <button class="btn" onclick="abrirTela('leitEntregas')">Retidas a entregar</button>
+    <button class="btn" onclick="abrirTela('leitDatas')">Datas das leituras</button></div>
+  <h3>Alterações de matrícula</h3><div id="ga_lista">Carregando...</div><h3>Localizações de hidrômetro recebidas</h3><div id="ga_loc">Carregando...</div>`; } });
+function abrirTela(tela) { const app = document.getElementById("app");
+  app.innerHTML = `<button class="voltar" onclick="${tela === "gerLeitura" ? "renderAtual()" : "abrirTela('gerLeitura')"}">← Voltar</button>` + (TELAS[tela] ? TELAS[tela]() : ""); window.scrollTo(0, 0); }
+async function gerCarregarAlteracoes() {
+  const box = document.getElementById("ga_lista"); if (!box) return;
+  const p = leitAltPedidos(await leitListar("AlteracaoMatricula")).reverse();
+  const pend = p.filter(x => !x.r), res = p.filter(x => x.r).slice(0, 15);
+  const mapa = l => l[6] ? `<a href="https://www.google.com/maps?q=${l[6]},${l[7]}" target="_blank">Ver no mapa</a>` : "sem GPS";
+  box.innerHTML = (pend.length ? pend.map(({ l }) => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394"><b>${l[3] === "fora_da_rota" ? "Matrícula fora da rota" : "Mudança de rota"}</b> · ${sspEsc(sspNome(l[1]))} · ${formatarQuando(l[0])}
+    <div>Está: ${sspEsc(l[8] || "?")}<br>Deveria: <b>${sspEsc(l[9] || "(ver foto e mapa)")}</b>${l[10] ? "<br>" + sspEsc(l[10]) : ""}</div>
+    <div style="margin:6px 0">${l[5] ? `<a href="${sspEsc(l[5])}" target="_blank">Ver foto do HD</a> · ` : ""}${mapa(l)}</div>
+    <button class="acao" style="background:#15803d" onclick="gerResponderAlt('${l[4]}','alterado',this)">Alterado no SCI · avisar</button>
+    <button class="acao" style="background:#777" onclick="gerResponderAlt('${l[4]}','nao',this)">Não procede (dizer o motivo)</button></div>`).join("") : `<div class="nota">Nenhuma pendente.</div>`)
+    + (res.length ? `<details class="card"><summary>Resolvidas (${res.length})</summary>${res.map(({ l, r }) => `<div style="padding:6px 0;border-bottom:1px solid #eee">${sspEsc(l[8])} → ${sspEsc(l[9])} · ${r[11] === "alterado" ? "✅ alterado" : "❌ não procede"} · ${sspEsc(sspNome(r[1]))}</div>`).join("")}</details>` : "");
+  const loc = await leitListar("LocalizacaoHidrometro"), lb = document.getElementById("ga_loc");
+  if (lb) { const por = {}; loc.forEach(l => { por[sspNome(l[1])] = (por[sspNome(l[1])] || 0) + 1; });
+    lb.innerHTML = `<div class="card"><b>${loc.length}</b> localização(ões) recebida(s). ${Object.keys(por).map(k => sspEsc(k) + ": " + por[k]).join(" · ")}
+      <details><summary>Últimas</summary>${loc.slice(-20).reverse().map(l => `<div style="padding:4px 0;border-bottom:1px solid #eee">${sspEsc(sspNome(l[1]))} · ${formatarQuando(l[0])} · <a href="${sspEsc(l[3])}" target="_blank">foto</a> · <a href="https://www.google.com/maps?q=${l[4]},${l[5]}" target="_blank">mapa</a></div>`).join("")}</details></div>`; }
+}
+async function gerResponderAlt(id, tipo, btn) {
+  let resp = "alterado";
+  if (tipo === "nao") { const m = prompt("Motivo (o funcionário vai ver):"); if (!m) return; resp = "nao_procede: " + m; } else if (!confirm("Confirmar que foi alterado no SCI?")) return;
+  if (await leitGravar("AlteracaoMatricula", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "resposta", id, "", "", "", "", "", "", resp], btn)) gerCarregarAlteracoes();
+}
+// ---------- menu do Cival ----------
+function menuLeiturista() {
+  return [{ nome: "Rotina do mês", tela: "leitRotina", prioridade: true }, { nome: "Rotas de leitura (mapa)", tela: "leitRotas" }, { nome: "Datas das leituras", tela: "leitDatas" },
+    { nome: "Contas retidas a entregar", tela: "leitEntregas" }, { nome: "Contas da prefeitura", tela: "leitPrefeitura" }, { nome: "Solicitar mudança de rota", tela: "leitMudanca" },
+    { nome: "Localização do hidrômetro", tela: "locHidrometro" }, { nome: "Informar vazamento", tela: "pedirSS" }, { nome: "Abastecimento", tela: "abastecimento" },
+    { nome: "Outros", sub: [{ nome: "Trocar minha senha", tela: "trocarSenha" }] }];
+}
+
 // ===== AVISOS NO CELULAR (OneSignal): SS nova, serviço urgente e pedidos chegam como notificação =====
 // O celular fica ligado ao usuário do painel (external_id = usuário em minúsculas). Quem envia é o Codigo.gs (a cada 5 min).
 const ONESIGNAL_APP_ID = "ffb50baa-3d6c-47b3-9d6a-b3ac84d50ba1";
