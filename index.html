@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h44</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 16h49</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -8609,7 +8609,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 16h44";
+const VERSAO_PAINEL = "16/11 16h49";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -8992,7 +8992,8 @@ Object.assign(TELAS, { gerLeitura: () => { setTimeout(gerCarregarAlteracoes, 0);
     <button class="btn" onclick="abrirTela('leitRotina')">Leitura dos grupos (Sinval)</button>
     <button class="btn" onclick="abrirTela('leitPrefeitura')">Contas da prefeitura</button>
     <button class="btn" onclick="abrirTela('leitEntregas')">Retidas a entregar</button>
-    <button class="btn" onclick="abrirTela('leitDatas')">Datas das leituras</button></div>
+    <button class="btn" onclick="abrirTela('leitDatas')">Datas das leituras</button>
+    <button class="btn" onclick="abrirTela('bobinas')">Bobinas</button></div>
   <h3>Alterações de matrícula</h3><div id="ga_lista">Carregando...</div><h3>Localizações de hidrômetro recebidas</h3><div id="ga_loc">Carregando...</div>`; } });
 function abrirTela(tela) { const app = document.getElementById("app");
   app.innerHTML = `<button class="voltar" onclick="${tela === "gerLeitura" ? "renderAtual()" : "abrirTela('gerLeitura')"}">← Voltar</button>` + (TELAS[tela] ? TELAS[tela]() : ""); window.scrollTo(0, 0); }
@@ -9017,11 +9018,51 @@ async function gerResponderAlt(id, tipo, btn) {
   if (tipo === "nao") { const m = prompt("Motivo (o funcionário vai ver):"); if (!m) return; resp = "nao_procede: " + m; } else if (!confirm("Confirmar que foi alterado no SCI?")) return;
   if (await leitGravar("AlteracaoMatricula", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "resposta", id, "", "", "", "", "", "", resp], btn)) gerCarregarAlteracoes();
 }
+// ---------- Bobinas da leitura (estoque mínimo 10) – 16/11 ----------
+// Aba Bobinas: data_hora | usuario | nome | tipo (entrada/retirada/contagem) | quantidade | saldo_depois | obs
+const BOB_MIN = 10;
+function bobSaldo(d) { let s = 0; d.forEach(l => { const q = Number(l[4]) || 0; if (l[3] === "entrada") s += q; else if (l[3] === "retirada") s -= q; else if (l[3] === "contagem") s = q; }); return s; }
+Object.assign(TELAS, { bobinas: () => { setTimeout(bobCarregar, 0); return `<h2>Bobinas</h2><div id="bob_box">Carregando...</div>`; } });
+async function bobCarregar() {
+  const box = document.getElementById("bob_box"); if (!box) return;
+  const d = await leitListar("Bobinas"), saldo = bobSaldo(d), baixo = saldo <= BOB_MIN, ger = ehGerLeitura() && !ehLeiturista();
+  box.innerHTML = `<div class="card" style="text-align:center;border-left:6px solid ${baixo ? "#b00020" : "#15803d"}"><div class="nota" style="margin:0">Saldo de bobinas</div>
+      <div style="font-size:44px;font-weight:800;color:${baixo ? "#b00020" : "#15803d"}">${saldo}</div><div class="nota" style="margin:0">Mínimo: ${BOB_MIN}</div>
+      ${baixo ? `<div class="aviso" style="margin-top:8px;text-align:left"><b>⚠ Chegou no mínimo.</b> ${ger ? "Solicitar mais bobinas à Gêneros." : "A gerência já foi avisada para pedir mais à Gêneros."}</div>` : ""}</div>
+    <div class="card"><b>Retirada</b><input id="bob_qr" class="campo" inputmode="numeric" value="1" placeholder="Quantas bobinas"><input id="bob_or" class="campo" placeholder="Para quê / qual grupo (opcional)">
+      <button class="acao" onclick="bobLancar('retirada',this)">Registrar retirada</button></div>
+    <div class="card"><b>Adicionar (chegaram bobinas)</b><input id="bob_qe" class="campo" inputmode="numeric" placeholder="Quantas chegaram"><input id="bob_oe" class="campo" placeholder="De onde (ex.: Gêneros)">
+      <button class="acao" style="background:#15803d" onclick="bobLancar('entrada',this)">Adicionar ao saldo</button></div>
+    ${ger ? `<details class="card"><summary><b>Corrigir o saldo (contagem)</b></summary><input id="bob_qc" class="campo" inputmode="numeric" placeholder="Quantas tem de verdade agora"><button class="acao" style="background:#555" onclick="bobLancar('contagem',this)">Salvar contagem</button></details>` : ""}
+    <details class="card"><summary><b>Histórico</b></summary>${d.slice(-40).reverse().map(l => `<div style="padding:6px 0;border-bottom:1px solid #eee"><b>${l[3] === "entrada" ? "➕ " + sspEsc(l[4]) + " adicionada(s)" : l[3] === "retirada" ? "➖ " + sspEsc(l[4]) + " retirada(s)" : "📋 Contagem: " + sspEsc(l[4])}</b> · saldo ${sspEsc(l[5])}<div class="nota" style="margin:0">${sspEsc(sspNome(l[1]))} · ${formatarQuando(l[0])}${l[6] ? " · " + sspEsc(l[6]) : ""}</div></div>`).join("") || "Nenhum lançamento ainda."}</details>`;
+}
+async function bobLancar(tipo, btn) {
+  const k = { retirada: "r", entrada: "e", contagem: "c" }[tipo], q = parseInt((document.getElementById("bob_q" + k) || {}).value, 10), obs = ((document.getElementById("bob_o" + k) || {}).value || "").trim();
+  if (!(q >= 0) || (tipo !== "contagem" && !q)) { alert("Informe a quantidade."); return; }
+  const d = await leitListar("Bobinas"), atual = bobSaldo(d);
+  if (tipo === "retirada" && q > atual && !confirm("O saldo é " + atual + ". Retirar " + q + " mesmo assim?")) return;
+  const novo = tipo === "entrada" ? atual + q : tipo === "retirada" ? atual - q : q;
+  if (await leitGravar("Bobinas", [new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), tipo, q, novo, obs], btn)) {
+    if (novo <= BOB_MIN && tipo === "retirada") alert("Saldo agora: " + novo + ". Chegou no mínimo (" + BOB_MIN + "): a gerência vai ver o aviso para pedir mais bobinas à Gêneros.");
+    bobCarregar();
+  }
+}
+// aviso para Deyse/Thiago no menu principal quando chegar no mínimo
+async function bobAlertaMenu() {
+  if (!(ehGerLeitura() && !ehLeiturista()) || document.getElementById("bob_alerta")) return;
+  const d = await leitListar("Bobinas"); if (!d.length) return; const s = bobSaldo(d); if (s > BOB_MIN) return;
+  const app = document.getElementById("app"); if (!app || document.getElementById("bob_alerta") || pilha.length) return;
+  app.insertAdjacentHTML("afterbegin", `<div id="bob_alerta" class="aviso" style="cursor:pointer;margin-bottom:10px" onclick="abrirTela('bobinas')"><b>⚠ Bobinas no mínimo: ${s}</b> (mínimo ${BOB_MIN}). Solicitar mais bobinas à Gêneros. <u>Abrir</u></div>`);
+  try { const hoje = new Date().toDateString(); if (window.Notification && Notification.permission === "granted" && localStorage.getItem("bobAvisado") !== hoje) {
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); const t = "Bobinas no mínimo: " + s, o = { body: "Solicitar mais bobinas à Gêneros.", tag: "bobinas" };
+    if (reg) reg.showNotification(t, o); else new Notification(t, o); localStorage.setItem("bobAvisado", hoje); } } catch (e) {}
+}
+{ const _mm = mostrarMenu; mostrarMenu = function (...a) { const r = _mm.apply(this, a); if (!pilha.length) setTimeout(bobAlertaMenu, 300); return r; }; }
 // ---------- menu do Sinval ----------
 function menuLeiturista() {
   return [{ nome: "Rotina do mês", tela: "leitRotina", prioridade: true }, { nome: "Rotas de leitura (mapa)", tela: "leitRotas" }, { nome: "Datas das leituras", tela: "leitDatas" },
     { nome: "Contas retidas a entregar", tela: "leitEntregas" }, { nome: "Contas da prefeitura", tela: "leitPrefeitura" }, { nome: "Leitura projetada · leitura real", tela: "leitProjetada" }, { nome: "Solicitar mudança de rota", tela: "leitMudanca" },
-    { nome: "Localização do hidrômetro", tela: "locHidrometro" }, { nome: "Informar vazamento", tela: "pedirSS" }, { nome: "Abastecimento", tela: "abastecimento" },
+    { nome: "Localização do hidrômetro", tela: "locHidrometro" }, { nome: "Bobinas", tela: "bobinas" }, { nome: "Informar vazamento", tela: "pedirSS" }, { nome: "Abastecimento", tela: "abastecimento" },
     { nome: "Outros", sub: [{ nome: "Trocar minha senha", tela: "trocarSenha" }] }];
 }
 
