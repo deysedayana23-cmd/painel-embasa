@@ -13,7 +13,7 @@ self.addEventListener("fetch", e => {
     return;
   }
   if (e.request.mode === "navigate" && /\/rotas\.html/.test(u)) {
-    e.respondWith(fetch(e.request).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put("rotas.html", cp)); return resp; })
+    e.respondWith(fetch(e.request.url, { cache: "no-store" }).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put("rotas.html", cp)); return resp; })
       .catch(() => caches.open(CACHE_ROTAS).then(c => c.match("rotas.html")).then(r => r || new Response("Abra as rotas uma vez com internet.", { headers: { "Content-Type": "text/plain; charset=utf-8" } }))));
     return;
   }
