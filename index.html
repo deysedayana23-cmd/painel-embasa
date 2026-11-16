@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 11h18</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 11h25</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3792,7 +3792,7 @@ async function carregarAbastecimento() {
       <b>${sspEsc(l[3] === "Outros" ? l[4] : l[3])}</b> · ${String(abaLitros(l[6])).replace(".", ",")} L abastecidos
       <div class="nota">${formatarQuando(l[0])} · por ${sspEsc(sspNome(l[1]))}</div>
       <div class="nota">Saldo do cartão: ${abaMoeda(l[7])} → <b>${abaMoeda(l[8])}</b>${l[9] ? " · autorizado: " + sspEsc(l[9]) + " L" : ""}</div>
-      <div class="nota">Tanque: ${l[5] ? sspEsc(l[5]) + " L" : "?"} antes → ${l[11] ? sspEsc(l[11]) + " L" : "?"} depois</div></div>`;
+      <div class="nota">Tanque: ${l[5] ? sspEsc(l[5]) : "?"} antes → ${l[11] ? sspEsc(l[11]) : "?"} depois${l[12] ? " · KM " + sspEsc(l[12]) : ""}</div></div>`;
   const hist = soDeyse ? `<h3 style="margin-top:14px">Movimentações (só você vê)</h3>` + ABA_CARTOES.map(c => {
     const d = dados.filter(l => String(l[2] || "") === c).reverse();
     return `<details class="card" style="margin-bottom:8px"><summary style="font-weight:bold;font-size:16px">${sspEsc(c)} (${d.length})</summary>${
@@ -3813,6 +3813,8 @@ function abaForm() {
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">3) O que vai abastecer</div>
     <select class="campo" id="aba_veic" onchange="abaVeicMudou()"><option value="">Escolha…</option>${ABA_VEICULOS.map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
     <div id="aba_outro_box" style="display:none"><input class="campo" id="aba_outro" placeholder="Escreva o que vai abastecer"></div>
+    <div id="aba_km_box" style="display:none"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">KM que está marcando agora no painel</div>
+      <input class="campo" id="aba_km" inputmode="numeric" placeholder="Ex.: 38450"></div>
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">4) Como está o tanque agora</div>
     <select class="campo" id="aba_nivel" onchange="abaCalcular()"><option value="">Escolha…</option>${ABA_NIVEIS.map(n => `<option value="${n[0]}">${n[1]}</option>`).join("")}</select>
     <div id="aba_aut"></div>
@@ -3828,6 +3830,7 @@ function abaForm() {
 function abaVeicMudou() {
   const v = abaVeic(document.getElementById("aba_veic").value);
   document.getElementById("aba_outro_box").style.display = v && v.outro ? "block" : "none";
+  document.getElementById("aba_km_box").style.display = v && !v.fixo ? "block" : "none"; // motobomba não tem KM
   abaCalcular();
 }
 function abaCalcular() {
@@ -3844,12 +3847,13 @@ function abaCalcular() {
 async function abaGravar(btn) {
   const g = id => (document.getElementById(id) || {}).value || "";
   const cartao = g("aba_cartao"), veic = g("aba_veic"), outro = g("aba_outro").trim();
-  const s1 = g("aba_saldo1"), nivel = g("aba_nivel"), litros = g("aba_litros"), nivel2 = g("aba_nivel2"), s2 = g("aba_saldo2");
+  const s1 = g("aba_saldo1"), nivel = g("aba_nivel"), litros = g("aba_litros"), nivel2 = g("aba_nivel2"), s2 = g("aba_saldo2"), km = g("aba_km").trim();
   if (!cartao) { alert("Escolha o cartão ou o posto."); return; }
   if (!s1) { alert("Informe o saldo do cartão ANTES de abastecer."); return; }
   if (!veic) { alert("Escolha o que vai abastecer."); return; }
   const v = abaVeic(veic);
   if (v && v.outro && !outro) { alert("Escreva o que vai abastecer."); return; }
+  if (v && !v.fixo && !km) { alert("Informe o KM que está marcando agora no painel."); return; }
   if (!nivel) { alert("Escolha como está o tanque agora."); return; }
   if (!litros) { alert("Informe quantos litros foram abastecidos."); return; }
   if (!nivel2) { alert("Escolha como ficou o tanque depois de abastecer."); return; }
@@ -3859,7 +3863,7 @@ async function abaGravar(btn) {
   sspTravar(btn);
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Abastecimento",
-      linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, outro, abaFracTxt(nivel), litros, s1, s2, String(lib ? Number(lib.toFixed(1)) : ""), nomesDoUsuario(), abaFracTxt(nivel2)]] });
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, outro, abaFracTxt(nivel), litros, s1, s2, String(lib ? Number(lib.toFixed(1)) : ""), nomesDoUsuario(), abaFracTxt(nivel2), km]] });
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
     window.abaOk = true; // a mensagem aparece no topo da tela depois de recarregar
     await carregarAbastecimento();
@@ -8513,7 +8517,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 11h18";
+const VERSAO_PAINEL = "16/11 11h25";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
