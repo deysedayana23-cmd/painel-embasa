@@ -65,6 +65,8 @@
     <div class="step">2 · Localização (GPS)</div>
     <div id="locMsg" class="msg">Ligando o GPS…</div>
     <div class="btns" style="margin-top:10px">
+      <a id="bChrome" class="filebtn pri" hidden style="text-decoration:none"
+         href="intent://deysedayana23-cmd.github.io/painel-embasa/foto-gps.html#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=https%3A%2F%2Fdeysedayana23-cmd.github.io%2Fpainel-embasa%2Ffoto-gps.html;end">🌐 Abrir no Chrome</a>
       <button id="bGps" type="button">🛰️ Atualizar GPS</button>
     </div>
     <details style="margin-top:12px">
@@ -269,7 +271,10 @@
       setMsg($('locMsg'), `✅ GPS ativo: ${live.lat.toFixed(6)}, ${live.lng.toFixed(6)} (precisão ~${Math.round(acc)} m)` + (acc > 80 ? ' — aguarde uns segundos ao ar livre para melhorar.' : ''), q);
       aplicarLive();
     }, err => {
-      if (err.code === 1) setMsg($('locMsg'), '⚠️ Localização bloqueada para este site. Toque no cadeado ao lado do endereço → Permissões → Localização → Permitir, e depois em “Atualizar GPS”.', 'err');
+      if (err.code === 1){
+        $('bChrome').hidden = false;
+        setMsg($('locMsg'), '⚠️ Este aplicativo não libera o GPS. Toque em “Abrir no Chrome” — lá o celular vai perguntar se pode usar a localização: toque em Permitir.', 'err');
+      }
       else setMsg($('locMsg'), '⚠️ Não consegui sinal de GPS. Verifique se a localização do celular está ligada e toque em “Atualizar GPS”.', 'warn');
     }, {enableHighAccuracy:true, maximumAge:5000, timeout:30000});
   }
