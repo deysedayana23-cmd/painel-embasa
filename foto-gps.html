@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foto com GPS – EMBASA</title>
+<style>
+  :root{
+    --bg:#f4f6f8; --card:#fff; --ink:#14212b; --muted:#5b6b78; --line:#dde3e8;
+    --pri:#0067a5; --pri-ink:#fff; --ok:#1d7a46; --warn:#a15c00; --err:#b3261e;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0f1418; --card:#182027; --ink:#e7edf2; --muted:#9aa9b5; --line:#2a353e;
+      --pri:#3a9ad9; --pri-ink:#04121c; --ok:#4cc37f; --warn:#e3a54a; --err:#f08a82; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  main{max-width:640px;margin:0 auto;padding:16px 14px 40px}
+  h1{font-size:1.25rem;margin:4px 0 2px}
+  .sub{color:var(--muted);margin:0 0 14px;font-size:.92rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  .step{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .btns{display:flex;gap:8px;flex-wrap:wrap}
+  button,.filebtn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--ink);
+    border-radius:10px;padding:11px 14px;font:inherit;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  button.pri,.filebtn.pri{background:var(--pri);color:var(--pri-ink);border-color:var(--pri)}
+  button:disabled{opacity:.45;cursor:default}
+  .filebtn input{display:none}
+  label.f{display:block;font-size:.85rem;color:var(--muted);margin:10px 0 4px}
+  input[type=text]{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;
+    background:var(--bg);color:var(--ink);font:inherit}
+  .row{display:flex;gap:8px}.row>*{flex:1}
+  .msg{font-size:.88rem;margin-top:8px;color:var(--muted)}
+  .msg.ok{color:var(--ok)}.msg.warn{color:var(--warn)}.msg.err{color:var(--err)}
+  .opts{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.9rem}
+  .opts label{display:flex;align-items:center;gap:6px}
+  canvas{width:100%;height:auto;border-radius:10px;display:block;background:#000}
+  .empty{border:2px dashed var(--line);border-radius:10px;padding:28px 10px;text-align:center;color:var(--muted)}
+  details{font-size:.88rem;color:var(--muted)} details summary{cursor:pointer;font-weight:600}
+  details li{margin:4px 0}
+  .coordbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.9rem;background:var(--bg);
+    border-radius:8px;padding:8px 10px;margin-top:8px;word-break:break-all}
+</style>
+</head>
+<body>
+<main>
+  <h1>📍 Foto com GPS</h1>
+  <p class="sub">Tire a foto: o GPS do celular é lido sozinho e as coordenadas ficam gravadas na imagem.</p>
+
+  <section class="card">
+    <div class="step">1 · Foto</div>
+    <div class="btns">
+      <label class="filebtn pri">📷 Tirar foto
+        <input id="fCam" type="file" accept="image/*" capture="environment">
+      </label>
+      <label class="filebtn">🖼️ Da galeria
+        <input id="fGal" type="file" accept="image/*">
+      </label>
+    </div>
+    <div id="fotoMsg" class="msg"></div>
+  </section>
+
+  <section class="card">
+    <div class="step">2 · Localização (GPS)</div>
+    <div id="locMsg" class="msg">Ligando o GPS…</div>
+    <div class="btns" style="margin-top:10px">
+      <button id="bGps" type="button">🛰️ Atualizar GPS</button>
+    </div>
+    <details style="margin-top:12px">
+      <summary>Corrigir coordenadas à mão (só se precisar)</summary>
+      <div class="row">
+        <div><label class="f" for="lat">Latitude</label><input id="lat" type="text" inputmode="decimal" placeholder="-12.3602"></div>
+        <div><label class="f" for="lng">Longitude</label><input id="lng" type="text" inputmode="decimal" placeholder="-44.9734"></div>
+      </div>
+      <label class="f" for="cola">Ou cole as coordenadas</label>
+      <input id="cola" type="text" placeholder="-12.3602, -44.9734">
+      <p>Se o GPS não ligar: permita a localização para este site quando o celular perguntar (ou no cadeado ao lado do endereço → Permissões → Localização) e deixe a localização do celular ativada.</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="step">3 · Informações na foto</div>
+    <label class="f" for="obs">Descrição (opcional)</label>
+    <input id="obs" type="text" maxlength="90" placeholder="Ex.: Vazamento – Rua X, Baianópolis">
+    <label class="f" for="dt">Data e hora</label>
+    <input id="dt" type="text" placeholder="dd/mm/aaaa hh:mm">
+    <div class="opts">
+      <label><input id="oDms" type="checkbox" checked> Mostrar também em graus (° ′ ″)</label>
+      <label><input id="oTop" type="checkbox"> Faixa no topo</label>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="step">4 · Resultado</div>
+    <div id="vazio" class="empty">A prévia aparece aqui depois de escolher a foto.</div>
+    <canvas id="cv" hidden></canvas>
+    <div id="coordTxt" class="coordbox" hidden></div>
+    <div class="btns" style="margin-top:12px">
+      <button id="bShare" class="pri" type="button" disabled hidden>📤 Enviar (WhatsApp…)</button>
+      <button id="bSave" type="button" disabled>⬇️ Baixar foto</button>
+      <button id="bCopy" type="button" disabled>📋 Copiar coordenadas</button>
+    </div>
+    <div id="saveMsg" class="msg"></div>
+  </section>
+</main>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const cv = $('cv'), ctx = cv.getContext('2d');
+  let img = null, fileName = 'foto';
+  let live = null;          // última posição do GPS {lat,lng,acc,t}
+  let coordSrc = '';        // 'gps' | 'foto' | 'manual'
+  const podeCompartilhar = !!(navigator.canShare && navigator.share);
+
+  // ---------- helpers ----------
+  const pad = n => String(n).padStart(2,'0');
+  function fmtDate(d){ return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+  function setMsg(el, txt, cls){ el.textContent = txt; el.className = 'msg' + (cls ? ' '+cls : ''); }
+  function parseNum(s){ if (s == null) return NaN; s = String(s).trim().replace(',', '.'); return s === '' ? NaN : Number(s); }
+  function getCoords(){
+    const la = parseNum($('lat').value), lo = parseNum($('lng').value);
+    if (isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180) return {lat:la, lng:lo};
+    return null;
+  }
+  function dms(v, pos, neg){
+    const h = v < 0 ? neg : pos; v = Math.abs(v);
+    const d = Math.floor(v), mf = (v - d) * 60, m = Math.floor(mf), s = (mf - m) * 60;
+    return `${d}°${pad(m)}′${s.toFixed(1).padStart(4,'0')}″${h}`;
+  }
+
+  // ---------- EXIF (JPEG) reader: GPS + DateTimeOriginal ----------
+  function readExif(buf){
+    const v = new DataView(buf);
+    if (v.byteLength < 4 || v.getUint16(0) !== 0xFFD8) return null;
+    let off = 2;
+    while (off + 4 < v.byteLength){
+      const marker = v.getUint16(off);
+      if ((marker & 0xFF00) !== 0xFF00) break;
+      const len = v.getUint16(off+2);
+      if (marker === 0xFFE1 && v.getUint32(off+4) === 0x45786966){ // "Exif"
+        return parseTiff(v, off + 10);
+      }
+      if (marker === 0xFFDA) break;
+      off += 2 + len;
+    }
+    return null;
+  }
+  function parseTiff(v, t){
+    const le = v.getUint16(t) === 0x4949;
+    const u16 = o => v.getUint16(o, le), u32 = o => v.getUint32(o, le);
+    if (u16(t+2) !== 42) return null;
+    const out = {};
+    function ifd(o){
+      const tags = {}; if (o + 2 > v.byteLength) return tags;
+      const n = u16(o);
+      for (let i=0;i<n;i++){
+        const e = o + 2 + i*12; if (e + 12 > v.byteLength) break;
+        tags[u16(e)] = {type:u16(e+2), count:u32(e+4), valOff:e+8};
+      }
+      return tags;
+    }
+    function rationals(tag){
+      const p = t + u32(tag.valOff), r = [];
+      for (let i=0;i<tag.count;i++){ const a=u32(p+i*8), b=u32(p+i*8+4); r.push(b ? a/b : 0); }
+      return r;
+    }
+    function ascii(tag){
+      const p = tag.count > 4 ? t + u32(tag.valOff) : tag.valOff; let s='';
+      for (let i=0;i<tag.count;i++){ const c=v.getUint8(p+i); if(!c) break; s+=String.fromCharCode(c); }
+      return s;
+    }
+    const ifd0 = ifd(t + u32(t+4));
+    if (ifd0[0x8769]){ // Exif IFD
+      const ex = ifd(t + u32(ifd0[0x8769].valOff));
+      const dt = ex[0x9003] || ex[0x9004];
+      if (dt) out.date = ascii(dt);
+    }
+    if (!out.date && ifd0[0x0132]) out.date = ascii(ifd0[0x0132]);
+    if (ifd0[0x8825]){ // GPS IFD
+      const g = ifd(t + u32(ifd0[0x8825].valOff));
+      if (g[2] && g[4]){
+        const la = rationals(g[2]), lo = rationals(g[4]);
+        let lat = la[0] + la[1]/60 + la[2]/3600, lng = lo[0] + lo[1]/60 + lo[2]/3600;
+        const latRef = g[1] ? String.fromCharCode(v.getUint8(g[1].valOff)) : 'N';
+        const lngRef = g[3] ? String.fromCharCode(v.getUint8(g[3].valOff)) : 'E';
+        if (latRef === 'S') lat = -lat; if (lngRef === 'W') lng = -lng;
+        if (lat || lng) out.gps = {lat, lng};
+      }
+    }
+    return out;
+  }
+  function exifDateToBR(s){ // "2026:11:17 09:58:12"
+    const m = /^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2})/.exec(s||'');
+    return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}` : null;
+  }
+
+  // ---------- photo loading ----------
+  async function onFile(e){
+    const f = e.target.files && e.target.files[0];
+    const srcId = e.target.id;
+    e.target.value = '';
+    if (!f) return;
+    fileName = (f.name || 'foto').replace(/\.[^.]+$/, '');
+    setMsg($('fotoMsg'), 'Carregando foto…');
+    let exif = null;
+    try { exif = readExif(await f.arrayBuffer()); } catch(err){}
+    const url = URL.createObjectURL(f);
+    const im = new Image();
+    im.onload = () => {
+      img = im;
+      const daGaleria = srcId === 'fGal';
+      if (daGaleria && exif && exif.gps){
+        $('lat').value = exif.gps.lat.toFixed(6);
+        $('lng').value = exif.gps.lng.toFixed(6);
+        coordSrc = 'foto';
+        setMsg($('fotoMsg'), '✅ Foto carregada — usando a localização gravada na própria foto.', 'ok');
+      } else {
+        if (coordSrc === 'foto') coordSrc = '';
+        if (live){ aplicarLive(); setMsg($('fotoMsg'), `✅ Foto carregada — coordenadas do GPS (precisão ~${Math.round(live.acc)} m).`, 'ok'); }
+        else setMsg($('fotoMsg'), 'Foto carregada. Aguardando o GPS… as coordenadas entram sozinhas assim que ele responder.', 'warn');
+      }
+      const d = daGaleria && exif && exifDateToBR(exif.date);
+      $('dt').value = d || fmtDate(new Date());
+      draw();
+    };
+    im.onerror = () => setMsg($('fotoMsg'), 'Não consegui abrir essa imagem. Tente outra foto (JPG ou PNG).', 'err');
+    im.src = url;
+  }
+  $('fGal').addEventListener('change', onFile);
+  $('fCam').addEventListener('change', onFile);
+
+  // ---------- paste coords / maps link ----------
+  $('cola').addEventListener('input', () => {
+    const s = $('cola').value;
+    const m = /(-?\d{1,2}[.,]\d+)\s*[,;\s]\s*(-?\d{1,3}[.,]\d+)/.exec(s.replace(/%2C/gi, ','));
+    if (m){
+      $('lat').value = m[1].replace(',', '.');
+      $('lng').value = m[2].replace(',', '.');
+      if (getCoords()){ setMsg($('locMsg'), '✅ Coordenadas reconhecidas.', 'ok'); draw(); }
+    } else if (s.trim()){
+      setMsg($('locMsg'), 'Não reconheci coordenadas nesse texto. Formato esperado: -12.3602, -44.9734', 'warn');
+    }
+  });
+  ['lat','lng','obs','dt'].forEach(id => $(id).addEventListener('input', draw));
+  ['oDms','oTop'].forEach(id => $(id).addEventListener('change', draw));
+
+  // ---------- GPS do aparelho (automático) ----------
+  let watchId = null;
+  function aplicarLive(){
+    if (!live) return;
+    if (coordSrc === 'foto' || coordSrc === 'manual') return;
+    $('lat').value = live.lat.toFixed(6);
+    $('lng').value = live.lng.toFixed(6);
+    coordSrc = 'gps';
+    draw();
+  }
+  function iniciarGps(){
+    if (!navigator.geolocation){ setMsg($('locMsg'), 'Este navegador não tem GPS. Abra pelo Chrome.', 'err'); return; }
+    if (!window.isSecureContext){ setMsg($('locMsg'), 'Abra pelo endereço https:// para o GPS funcionar.', 'err'); return; }
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    setMsg($('locMsg'), 'Ligando o GPS… (se o celular perguntar, toque em Permitir)');
+    watchId = navigator.geolocation.watchPosition(p => {
+      const acc = p.coords.accuracy;
+      if (live && live.acc < acc && (Date.now() - live.t) < 20000) return; // mantém a leitura mais precisa recente
+      live = {lat:p.coords.latitude, lng:p.coords.longitude, acc, t:Date.now()};
+      const q = acc <= 25 ? 'ok' : (acc <= 80 ? 'warn' : 'warn');
+      setMsg($('locMsg'), `✅ GPS ativo: ${live.lat.toFixed(6)}, ${live.lng.toFixed(6)} (precisão ~${Math.round(acc)} m)` + (acc > 80 ? ' — aguarde uns segundos ao ar livre para melhorar.' : ''), q);
+      aplicarLive();
+    }, err => {
+      if (err.code === 1) setMsg($('locMsg'), '⚠️ Localização bloqueada para este site. Toque no cadeado ao lado do endereço → Permissões → Localização → Permitir, e depois em “Atualizar GPS”.', 'err');
+      else setMsg($('locMsg'), '⚠️ Não consegui sinal de GPS. Verifique se a localização do celular está ligada e toque em “Atualizar GPS”.', 'warn');
+    }, {enableHighAccuracy:true, maximumAge:5000, timeout:30000});
+  }
+  $('bGps').addEventListener('click', () => { if (coordSrc === 'manual') coordSrc = ''; live = null; iniciarGps(); });
+  ['lat','lng'].forEach(id => $(id).addEventListener('input', () => { coordSrc = 'manual'; }));
+  iniciarGps();
+
+  // ---------- drawing ----------
+  function wrap(text, maxW){
+    const words = text.split(/\s+/), lines = []; let cur = '';
+    for (const w of words){
+      const t = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(t).width > maxW && cur){ lines.push(cur); cur = w; } else cur = t;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  function draw(){
+    if (!img) return;
+    const MAX = 4000;
+    let w = img.naturalWidth, h = img.naturalHeight;
+    const k = Math.min(1, MAX / Math.max(w, h));
+    w = Math.round(w*k); h = Math.round(h*k);
+    cv.width = w; cv.height = h;
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const c = getCoords();
+    const lines = [];
+    const big = Math.max(16, Math.round(Math.min(w, h) * 0.042));
+    const small = Math.round(big * 0.78);
+    const padX = Math.round(big * 0.8), padY = Math.round(big * 0.6), gap = Math.round(big * 0.35);
+
+    if (c){
+      lines.push({t:`📍 ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`, s:big, b:true});
+      if ($('oDms').checked) lines.push({t:`${dms(c.lat,'N','S')}  ${dms(c.lng,'E','W')}`, s:small});
+    } else {
+      lines.push({t:'📍 Coordenadas não informadas', s:big, b:true});
+    }
+    const obs = $('obs').value.trim();
+    const dtv = $('dt').value.trim();
+    const meta = [dtv, obs].filter(Boolean).join('  •  ');
+
+    // wrap meta
+    ctx.font = `${small}px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif`;
+    const metaLines = meta ? wrap(meta, w - padX*2) : [];
+    metaLines.forEach(t => lines.push({t, s:small}));
+
+    const boxH = padY*2 + lines.reduce((a,l)=>a + l.s, 0) + gap*(lines.length-1);
+    const top = $('oTop').checked;
+    const y0 = top ? 0 : h - boxH;
+
+    const grad = ctx.createLinearGradient(0, y0, 0, y0 + boxH);
+    grad.addColorStop(0, top ? 'rgba(0,0,0,.72)' : 'rgba(0,0,0,.55)');
+    grad.addColorStop(1, top ? 'rgba(0,0,0,.55)' : 'rgba(0,0,0,.72)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, y0, w, boxH);
+
+    let y = y0 + padY;
+    ctx.textBaseline = 'top';
+    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = Math.round(big*0.15);
+    for (const l of lines){
+      ctx.font = `${l.b ? '700 ' : ''}${l.s}px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif`;
+      ctx.fillStyle = l.b ? '#ffffff' : 'rgba(255,255,255,.92)';
+      ctx.fillText(l.t, padX, y);
+      y += l.s + gap;
+    }
+    ctx.shadowBlur = 0;
+
+    $('vazio').hidden = true; cv.hidden = false;
+    const ct = $('coordTxt');
+    if (c){ ct.hidden = false; ct.textContent = `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}  —  https://maps.google.com/?q=${c.lat.toFixed(6)},${c.lng.toFixed(6)}`; }
+    else ct.hidden = true;
+    updateButtons();
+  }
+  function updateButtons(){
+    $('bSave').disabled = !img;
+    $('bShare').hidden = !podeCompartilhar;
+    $('bShare').disabled = !img;
+    $('bCopy').disabled = !getCoords();
+  }
+
+  // ---------- salvar / enviar ----------
+  function gerarArquivo(){
+    return new Promise(res => cv.toBlob(b => res(b ? new File([b], `${fileName}_coordenadas.jpg`, {type:'image/jpeg'}) : null), 'image/jpeg', 0.92));
+  }
+  function textoCoord(){
+    const c = getCoords(); if (!c) return '';
+    const obs = $('obs').value.trim();
+    return (obs ? obs + '\n' : '') + `📍 ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}\nhttps://maps.google.com/?q=${c.lat.toFixed(6)},${c.lng.toFixed(6)}`;
+  }
+  $('bSave').addEventListener('click', async () => {
+    const f = await gerarArquivo();
+    if (!f){ setMsg($('saveMsg'), 'Não consegui gerar a imagem.', 'err'); return; }
+    const url = URL.createObjectURL(f);
+    const a = document.createElement('a'); a.href = url; a.download = f.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    setMsg($('saveMsg'), '✅ Foto salva em Downloads.', 'ok');
+  });
+  $('bShare').addEventListener('click', async () => {
+    const f = await gerarArquivo();
+    if (!f) return;
+    const dados = {files:[f], text:textoCoord()};
+    try{
+      if (navigator.canShare(dados)) await navigator.share(dados);
+      else await navigator.share({files:[f]});
+    }catch(err){
+      if (err && err.name !== 'AbortError') setMsg($('saveMsg'), 'Não deu para enviar direto. Use “Baixar foto”.', 'warn');
+    }
+  });
+
+  $('bCopy').addEventListener('click', async () => {
+    const c = getCoords(); if (!c) return;
+    const txt = `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}\nhttps://maps.google.com/?q=${c.lat.toFixed(6)},${c.lng.toFixed(6)}`;
+    try{ await navigator.clipboard.writeText(txt); setMsg($('saveMsg'), '✅ Coordenadas copiadas.', 'ok'); }
+    catch(e){ setMsg($('saveMsg'), 'Não consegui copiar. Selecione o texto abaixo da imagem.', 'warn'); }
+  });
+})();
+</script>
+</body>
+</html>
