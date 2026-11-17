@@ -85,8 +85,7 @@
     <div class="step">3 · Informações na foto</div>
     <label class="f" for="obs">Descrição (opcional)</label>
     <input id="obs" type="text" maxlength="90" placeholder="Ex.: Vazamento – Rua X, Baianópolis">
-    <label class="f" for="dt">Data e hora</label>
-    <input id="dt" type="text" placeholder="dd/mm/aaaa hh:mm">
+    <input id="dt" type="hidden" value="">
     <div class="opts">
       <label><input id="oDms" type="checkbox" checked> Mostrar também em graus (° ′ ″)</label>
       <label><input id="oTop" type="checkbox"> Faixa no topo</label>
@@ -223,8 +222,6 @@
         if (live){ aplicarLive(); setMsg($('fotoMsg'), `✅ Foto carregada — coordenadas do GPS (precisão ~${Math.round(live.acc)} m).`, 'ok'); }
         else setMsg($('fotoMsg'), 'Foto carregada. Aguardando o GPS… as coordenadas entram sozinhas assim que ele responder.', 'warn');
       }
-      const d = daGaleria && exif && exifDateToBR(exif.date);
-      $('dt').value = d || fmtDate(new Date());
       draw();
     };
     im.onerror = () => setMsg($('fotoMsg'), 'Não consegui abrir essa imagem. Tente outra foto (JPG ou PNG).', 'err');
