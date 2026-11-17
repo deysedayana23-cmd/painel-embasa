@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 16/11 17h43</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 09h33</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3774,6 +3774,8 @@ const ABA_VEICULOS = [
   { nome: "Moto da Gêneros (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SJX-3G61 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo da Gêneros)" },
   { nome: "Moto do Consórcio (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SKG-9G98 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo do Consórcio)" },
   { nome: "Moto de Sinval", tanque: 0, moto: ["sinval", "cival"], info: "Moto do leiturista · 16/11: liberado R$ 40,00 neste abastecimento" },
+  { nome: "Moto de Igor", simples: true, cartao: "Cartão de São Desidério (Consórcio)" },
+  { nome: "Moto de Oséias", simples: true, cartao: "Cartão de São Desidério (Consórcio)" },
   { nome: "Carro da EMBASA", tanque: 0, info: "Placa TYQ-4G63" },
   { nome: "Motobomba grande", fixo: 0 },
   { nome: "Motobomba pequeno", fixo: 0 },
@@ -3906,23 +3908,29 @@ function abaForm() {
     <div id="aba_outro_box" style="display:none"><input class="campo" id="aba_outro" placeholder="Escreva o que vai abastecer"></div>
     <div id="aba_km_box" style="display:none"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">KM que está marcando agora no painel</div>
       <input class="campo" id="aba_km" inputmode="numeric" placeholder="Ex.: 38450"></div>
-    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">4) Como está o tanque agora</div>
-    <select class="campo" id="aba_nivel" onchange="abaCalcular()"><option value="">Escolha…</option>${ABA_NIVEIS.map(n => `<option value="${n[0]}">${n[1]}</option>`).join("")}</select>
+    <div id="aba_b_nivel"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">4) Como está o tanque agora</div>
+    <select class="campo" id="aba_nivel" onchange="abaCalcular()"><option value="">Escolha…</option>${ABA_NIVEIS.map(n => `<option value="${n[0]}">${n[1]}</option>`).join("")}</select></div>
     <div id="aba_aut"></div>
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">5) Quantos litros foram abastecidos</div>
     <input class="campo" id="aba_litros" inputmode="decimal" placeholder="Ex.: 10">
-    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">6) Como ficou o tanque DEPOIS de abastecer</div>
-    <select class="campo" id="aba_nivel2"><option value="">Escolha…</option>${ABA_NIVEIS.map(n => `<option value="${n[0]}">${n[1]}</option>`).join("")}</select>
-    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">7) Saldo do cartão DEPOIS de abastecer (R$)</div>
-    <input class="campo" id="aba_saldo2" inputmode="decimal" placeholder="Ex.: 190,00">
+    <div id="aba_b_valor" style="display:none"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">Valor abastecido (R$)</div>
+    <input class="campo" id="aba_valor" inputmode="decimal" placeholder="Ex.: 40,00"></div>
+    <div id="aba_b_nivel2"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">6) Como ficou o tanque DEPOIS de abastecer</div>
+    <select class="campo" id="aba_nivel2"><option value="">Escolha…</option>${ABA_NIVEIS.map(n => `<option value="${n[0]}">${n[1]}</option>`).join("")}</select></div>
+    <div id="aba_b_s2"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">7) Saldo do cartão DEPOIS de abastecer (R$)</div>
+    <input class="campo" id="aba_saldo2" inputmode="decimal" placeholder="Ex.: 190,00"></div>
     <button class="acao" onclick="abaGravar(this)">Gravar abastecimento</button></div>`;
-  const mm = typeof minhaMoto === "function" && minhaMoto(); if (mm) { document.getElementById("aba_veic").value = mm.nome; abaVeicMudou(); } // já vem a moto da pessoa
+  const mm = (typeof minhaMoto === "function" && minhaMoto()) || ABA_VEICULOS.find(v => v.simples && identidadeAtual().includes(normalizarNome(v.nome.replace("Moto de ", "")))); if (mm) { document.getElementById("aba_veic").value = mm.nome; abaVeicMudou(); } // já vem a moto da pessoa
   f.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function abaVeicMudou() {
   const v = abaVeic(document.getElementById("aba_veic").value);
   document.getElementById("aba_outro_box").style.display = v && v.outro ? "block" : "none";
-  document.getElementById("aba_km_box").style.display = v && !v.fixo ? "block" : "none"; // motobomba não tem KM
+  document.getElementById("aba_km_box").style.display = v && !v.fixo && !v.simples ? "block" : "none"; // motobomba não tem KM
+  // 17/11: motos de Igor e Oséias = só saldo do cartão (Consórcio de São Desidério), litros e valor
+  const simp = !!(v && v.simples), mostra = (id, sim) => { const e = document.getElementById(id); if (e) e.style.display = sim ? "block" : "none"; };
+  mostra("aba_b_nivel", !simp); mostra("aba_b_nivel2", !simp); mostra("aba_b_s2", !simp); mostra("aba_b_valor", simp);
+  if (simp && v.cartao) document.getElementById("aba_cartao").value = v.cartao;
   abaCalcular();
 }
 function abaCalcular() {
@@ -3930,7 +3938,8 @@ function abaCalcular() {
   const v = abaVeic(document.getElementById("aba_veic").value), frac = Number(document.getElementById("aba_nivel").value || 0);
   const temFrac = document.getElementById("aba_nivel").value !== "";
   let txt = "";
-  if (v && v.fixo) txt = "Você está autorizado a abastecer <b>" + v.fixo + " litros</b>.";
+  if (v && v.simples) txt = "Pague no <b>" + v.cartao + "</b>. Informe o saldo do cartão antes, quantos litros e o valor abastecido.";
+  else if (v && v.fixo) txt = "Você está autorizado a abastecer <b>" + v.fixo + " litros</b>.";
   else if (v && v.tanque && temFrac) { const lib = Math.max(0, v.tanque * (1 - frac));
     txt = "Tanque de " + v.tanque + " L, está " + abaFracTxt(frac) + ". Você está autorizado a <b>completar o tanque: " + String(Number(lib.toFixed(1))).replace(".", ",") + " litros</b>."; }
   else if (v) txt = /R\$/.test(v.info || "") ? v.info.split(" · ").filter(x => /R\$/.test(x)).join(" · ") + ". Informe abaixo quantos litros deram." : "O limite de litros deste item ainda não foi definido pela gerente.";
@@ -3945,6 +3954,20 @@ async function abaGravar(btn) {
   if (!veic) { alert("Escolha o que vai abastecer."); return; }
   const v = abaVeic(veic);
   if (v && v.outro && !outro) { alert("Escreva o que vai abastecer."); return; }
+  if (v && v.simples) { // moto de Igor / Oséias
+    const valor = g("aba_valor");
+    if (!litros) { alert("Informe quantos litros foram abastecidos."); return; }
+    if (!valor) { alert("Informe o valor abastecido (R$)."); return; }
+    const depois = Math.round((abaLitros(s1) - abaLitros(valor)) * 100) / 100;
+    sspTravar(btn);
+    try {
+      const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Abastecimento",
+        linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, "Valor " + abaMoeda(valor), "", litros, s1, String(depois), "", nomesDoUsuario(), "", ""]] });
+      if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+      window.abaOk = true; await carregarAbastecimento();
+    } catch (e) { alert("Não consegui gravar. Verifique a internet."); sspDestravar(btn); }
+    return;
+  }
   if (v && !v.fixo && !km) { alert("Informe o KM que está marcando agora no painel."); return; }
   if (!nivel) { alert("Escolha como está o tanque agora."); return; }
   if (!litros) { alert("Informe quantos litros foram abastecidos."); return; }
@@ -8611,7 +8634,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "16/11 17h43";
+const VERSAO_PAINEL = "17/11 09h33";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
