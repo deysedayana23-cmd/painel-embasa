@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 18/11 00h24</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 18/11 00h35</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4844,10 +4844,11 @@ function urgItens(dados) {
   const novoPara = {}; linhas.forEach(({ l }) => { if (l[2] !== "__controle__") return; const m = String(l[3] || "").match(/^para:(\d+):(.+)$/); if (!m) return;
     const k = Number(m[1]); if (!novoPara[k] || String(l[0]) > novoPara[k].q) novoPara[k] = { q: String(l[0]), para: m[2] }; });
   // 18/11: SS em Demandas urgentes que o funcionário NÃO executou (vai ao Thiago analisar) e a análise do Thiago
-  const naoExecU = {}, analisadoU = {}, encSCI = {}; linhas.forEach(({ l }) => { if (l[2] !== "__controle__") return; const t = String(l[3] || "");
+  const naoExecU = {}, analisadoU = {}, encSCI = {}, semThiago = {}; linhas.forEach(({ l }) => { if (l[2] !== "__controle__") return; const t = String(l[3] || "");
     let m = t.match(/^naoexec:(\d+):([\s\S]*)$/); if (m) naoExecU[Number(m[1])] = { quando: String(l[0]), por: l[1], obs: m[2] };
     m = t.match(/^analisado:(\d+)(?::([\s\S]*))?$/); if (m) analisadoU[Number(m[1])] = { quando: String(l[0]), por: l[1], obs: m[2] || "" };
-    m = t.match(/^encerradosci:(\d+)$/); if (m) encSCI[Number(m[1])] = { quando: String(l[0]), por: l[1] }; });
+    m = t.match(/^encerradosci:(\d+)$/); if (m) encSCI[Number(m[1])] = { quando: String(l[0]), por: l[1] };
+    m = t.match(/^semthiago:(\d+)$/); if (m) semThiago[Number(m[1])] = true; }); // 18/11: a gerência tirou a SS da lista do Thiago
   return linhas.filter(({ l, linha }) => l[2] !== "__controle__" && l[3] && !excluidas.has(linha)).map(({ l, linha }) => {
     const x = { linha, quando: l[0], quem: l[1], para: novoPara[linha] ? novoPara[linha].para : l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "", dataFeito: String(l[6] || "") };
     const c = ctrl[linha];
@@ -4855,7 +4856,7 @@ function urgItens(dados) {
     else x.estado = "pendente";
     x.ctrl = c;
     if (naoExecU[linha] && x.situacao !== "feito") { x.estado = "naoexec"; x.naoExec = naoExecU[linha]; x.analisado = analisadoU[linha] || null; }
-    x.encSCI = encSCI[linha] || null; x.ehSS = /^SS \d{6,}/.test(String(x.desc));
+    x.encSCI = encSCI[linha] || null; x.semThiago = !!semThiago[linha]; x.ehSS = /^SS \d{6,}/.test(String(x.desc));
     return x;
   });
 }
@@ -5040,7 +5041,7 @@ async function urgNaoExecLista() {
 async function urgEncerrarLista() {
   const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
   if (!r || r.erro) return [];
-  return urgItens(r.dados).filter(x => x.ehSS && !x.encSCI && !normalizarNome(x.para).includes("thiago"));
+  return urgItens(r.dados).filter(x => x.ehSS && !x.encSCI && !x.semThiago && !normalizarNome(x.para).includes("thiago"));
 }
 // 18/11: SS mandadas pela gerência direto para o Thiago encerrar no SCI (SSDirecionadas, destino "exclThiago")
 async function dirExclThiagoLista() {
@@ -9024,7 +9025,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "18/11 00h24";
+const VERSAO_PAINEL = "18/11 00h35";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
