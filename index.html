@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h29</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h31</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -6718,7 +6718,7 @@ async function carregarSSPend(chave) {
     const verde = "#0b5394", vermelho = "#0b5394", laranja = "#4a90d9", vinho = "#0b5394";
     const eu = normalizarNome(window.credenciais.usuario);
     const selecionaveis = p.digitador ? visiveis.filter(it => it.ss && !it.digitada) : [];
-    const ehGerDeyse = window.MODO_GERENTE && !emPrevia() && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse");
+    const ehGerDeyse = podeExcluirSSDig(); // 18/11: Deyse, Thiago, Igor e Oséias podem excluir SS do painel
     const selGer = ehGerDeyse ? visiveis.filter(it => it.ss) : [];
     const podeLoteCampo = it => (p.campo || (window.MODO_GERENTE && !emPrevia())) && !p.digitador && it.tipoPedido !== "digiteam" && !it.executada && !it.escritorioEncerrar
       && !(it.subst && !it.subst.liberado) && !(!SSP_CORTE_NO_CAMPO.includes(it._chave || chave) && ehCorteSS(it.tipoCurto || it.tipo)) && !sspCorteComLeitura(it, it._chave || chave) && !sspFotoExigida(it.tipo);
@@ -6808,7 +6808,7 @@ async function carregarSSPend(chave) {
           <div style="font-size:13px;font-weight:bold;color:#4a90d9;margin-bottom:4px">Só a gerente (SS vencida ou vencendo)</div>
           <button class="acao" style="background:#0b5394" onclick="gerVencida('${id}', 'nova', this)">Encerrar como não executada e abrir outra igual</button>
           <button class="acao" style="background:#4a90d9" onclick="gerVencida('${id}', 'exec', this)">Enviar aos digitadores para encerrar como executada</button></div>` : "";
-      const exclGer = window.MODO_GERENTE && it.ss && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse") ? `<button onclick="gerExcluirSS('${id}', this)" style="display:block;margin:8px 0 0 auto;padding:6px 12px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">🗑 Excluir SS do painel</button>` : "";
+      const exclGer = it.ss && podeExcluirSSDig() ? `<button onclick="gerExcluirSS('${id}', this)" style="display:block;margin:8px 0 0 auto;padding:6px 12px;border-radius:8px;border:1px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">🗑 Excluir SS do painel</button>` : "";
       const tituloFoto = it._soFoto && (n === 0 || !visiveis[n - 1]._soFoto) ? `<div style="background:#4a90d9;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin:14px 0 8px">📷 Digitadas – falta só anexar o documento (${visiveis.filter(x => x._soFoto).length})</div>` : "";
       return tituloFoto + `<div class="card" style="margin-bottom:10px;border-left:6px solid ${it.prazo && it.prazo.vencida ? vermelho : it.parada ? vinho : it.tipoPedido === "digiteam" ? laranja : "#0b5394"}">
         ${filtro === "campo" ? `<span style="float:right;font-weight:bold;color:#0b5394">${n + 1}º</span>` : ""}
@@ -6942,14 +6942,16 @@ async function sspReligadaCampo(id, btn) {
 // Decisões da gerente para SS vencida: "nova" = encerrar como não executada e abrir outra igual (vai aos digitadores);
 // "exec" = digitadores encerram como executada e o campo recebe em "SS encerradas no SCI, mas não em campo"
 // 10/11: só a Deyse – tira a SS do painel (de todas as telas: digitador e campo)
+// 18/11: quem pode excluir SS do painel: Deyse (gerente) e os digitadores Thiago, Igor e Oséias
+const podeExcluirSSDig = () => !!((window.MODO_GERENTE && !emPrevia() && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse")) || ["thiago", "tiago", "igor", "oseias"].some(n => identidadeAtual().includes(n)));
 async function gerExcluirSS(id, btn) {
-  const it = (window.sspCache || {})[id]; if (!it || !window.MODO_GERENTE || !normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse")) return;
+  const it = (window.sspCache || {})[id]; if (!it || !podeExcluirSSDig()) return;
   if (!it.ss) { alert("Este pedido ainda não tem número de SS."); return; }
   if (!confirm("Excluir a SS " + it.ss + " do painel? Ela some da tela dos digitadores e dos agentes de campo (no SCI nada muda).")) return;
   sspTravar(btn);
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
   try {
-    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo", linhas: [[new Date().toISOString(), "'" + it.ss, it.tipoCurto || it.tipo || "", it.loc || "", nomesDoUsuario(), "excluida (gerente)", cred.usuario]] });
+    const res = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo", linhas: [[new Date().toISOString(), "'" + it.ss, it.tipoCurto || it.tipo || "", it.loc || "", nomesDoUsuario(), "excluida (gerente)", cred.usuario]] }); // quem excluiu fica na coluna usuário
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
     carregarSSPend(window.sspChave);
   } catch (e) { alert("Não consegui excluir. Tente de novo."); sspDestravar(btn); }
@@ -8905,7 +8907,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "17/11 23h29";
+const VERSAO_PAINEL = "17/11 23h31";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
