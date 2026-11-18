@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h23</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h29</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3572,13 +3572,14 @@ async function carregarImportarSCI() {
     </div>`; })();
   // 09/11: tela enxuta. Primeiro a localidade, depois o tipo de envio.
   const pdfs = await debitosCorteLista().catch(() => []);
-  const locs = [...SCI_GRUPOS_BOTAO, "Todas (Inativas)", "Localização das matrículas"];
+  const locs = [...SCI_GRUPOS_BOTAO, "Todas (Inativas)", "Localização das matrículas", "Mandar Excel p/ um funcionário"];
   const loc = window.sciLoc || "";
   const corDe = g => { const s = porG[g], p = proc[g]; return p ? "#4a90d9" : !s || /^erro/.test(s.res) ? "#0b5394" : "#0b5394"; };
   const bt = (rot, ativo, onclick, cor) => `<button onclick="${onclick}" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor || "#0b5394"};background:${ativo ? (cor || "#0b5394") : "#fff"};color:${ativo ? "#fff" : (cor || "#0b5394")}">${rot}</button>`;
   let html = `<h3 style="margin:6px 0">1. Localidade</h3><div style="display:flex;flex-wrap:wrap">${locs.map(l => bt(l, l === loc, `window.sciLoc='${l}';window.sciTipo='';carregarImportarSCI()`)).join("")}</div>`;
   if (loc === "Todas (Inativas)") html += cards["Inativas"];
   else if (loc === "Localização das matrículas") html += lmCardHTML();
+  else if (loc === "Mandar Excel p/ um funcionário") html += dirCardHTML();
   else if (loc) {
     const tipos = [["Pendências", loc], ["Vencidas (encerrar no campo)", "Vencidas " + loc], ["Escritório encerrar", "Escritório " + loc], ["Mandar SS vencida p/ escritório encerrar", "mandarVenc"], ["PDF débitos dos cortes", "pdf"]];
     const tipo = window.sciTipo || "";
@@ -3590,6 +3591,55 @@ async function carregarImportarSCI() {
   box.innerHTML = html;
   clearTimeout(window.sciTimer);
   if (Object.keys(proc).length) window.sciTimer = setTimeout(() => { if (document.getElementById("sci_status")) carregarImportarSCI(); }, 15000);
+}
+// ===== 18/11: Excel de SS para um funcionário específico (a gerência escolhe a pessoa e o botão) =====
+// Aba SSDirecionadas: data_hora | por | para | destino (campo/venc/escr) | ss | tipo | localidade | cliente | endereco | bairro | hidrometro | obs | matricula | abertura | vencimento | arquivo
+const DIR_PESSOAS = [
+  ["luzenildo", "Luzenildo", "campo", ["luzenildo"]], ["joaquim", "Joaquim", "campo", ["joaquim"]], ["carlito", "Carlito", "campo", ["carlito"]], ["francisco", "Francisco", "campo", ["francisco"]],
+  ["isaque", "Isaque", "campo", ["isaque", "isaac"]], ["ivo", "Ivo Carlos", "campo", ["ivo"]], ["janio", "Jânio Gualberto", "campo", ["janiogualberto"]], ["ramon", "Ramon", "campo", ["ramon"]], ["renato", "Renato", "campo", ["renato"]],
+  ["thiago", "Thiago", "dig", ["thiago", "tiago"]], ["igor", "Igor", "dig", ["igor"]], ["oseias", "Oséias", "dig", ["oseias"]], ["deyse", "Deyse", "dig", ["deyse"]]
+];
+const DIR_DESTINOS = { campo: [["campo", "SS pendentes · Falta ir a campo"], ["venc", "⚠ ATENÇÃO: SS encerrada no sistema por vencimento (executar com urgência)"]], dig: [["escr", "SS pendentes · Escritório encerrar no SCI"]] };
+const dirPessoa = k => DIR_PESSOAS.find(p => p[0] === k);
+const dirSouEu = k => { const p = dirPessoa(k); return !!p && p[3].some(n => identidadeAtual().includes(n)); };
+const dirChaveAgente = k => { const p = dirPessoa(k); return p ? Object.keys(SSP_EQUIPE).find(c => SSP_EQUIPE[c].some(n => p[3].some(m => n.includes(m) || m.includes(n)))) || "sd" : "sd"; };
+function dirCardHTML() {
+  const p = window.dirPara || "", tp = p ? dirPessoa(p)[2] : "", dest = window.dirDest || "";
+  const opt = (v, t, sel) => `<option value="${v}" ${v === sel ? "selected" : ""}>${t}</option>`;
+  return `<div class="card" style="margin-bottom:10px;border-left:6px solid #7c3aed">
+    <div style="font-size:18px;font-weight:bold">Mandar Excel de SS para um funcionário</div>
+    <div style="font-size:13px;color:#555">O Excel precisa ter a coluna <b>SS</b> (o Excel de Pendências do SCI serve). As SS vão só para a pessoa escolhida, no botão escolhido. Os digitadores acompanham as SS de campo para digitar depois.</div>
+    <div style="font-weight:bold;margin-top:8px">1. Para quem</div>
+    <select class="campo" onchange="window.dirPara=this.value;window.dirDest='';carregarImportarSCI()"><option value="">Escolha o funcionário…</option>
+      <optgroup label="Agentes de campo">${DIR_PESSOAS.filter(x => x[2] === "campo").map(x => opt(x[0], x[1], p)).join("")}</optgroup>
+      <optgroup label="Digitadores">${DIR_PESSOAS.filter(x => x[2] === "dig").map(x => opt(x[0], x[1], p)).join("")}</optgroup></select>
+    ${p ? `<div style="font-weight:bold;margin-top:8px">2. Em qual botão</div><select class="campo" onchange="window.dirDest=this.value;carregarImportarSCI()"><option value="">Escolha o botão…</option>${DIR_DESTINOS[tp].map(([v, t]) => opt(v, t, dest)).join("")}</select>` : ""}
+    ${p && dest ? `<button class="acao" style="background:#7c3aed" onclick="document.getElementById('dir_arq').click()">3. Escolher o Excel e enviar para ${sspEsc(dirPessoa(p)[1])}</button>
+      <input type="file" id="dir_arq" accept=".xls,.xlsx,.csv,.txt,.htm,.html" style="display:none" onchange="dirEnviarExcel(this)">` : ""}
+    <div id="dir_status" class="nota"></div></div>`;
+}
+async function dirEnviarExcel(input) {
+  const arq = input.files && input.files[0]; input.value = ""; if (!arq) return;
+  const p = dirPessoa(window.dirPara), dest = window.dirDest, st = document.getElementById("dir_status");
+  if (!p || !dest) return;
+  try {
+    if (st) st.textContent = "Lendo o Excel…";
+    const texto = await sciTextoDoArquivo(arq);
+    const r = lerExcelSCI(texto, SCI_COLUNAS, ["SS"]);
+    if (!r || !r.linhas.length) { alert("Não achei SS no arquivo (precisa da coluna SS com o número)."); if (st) st.textContent = ""; return; }
+    const vistos = new Set(), agora = new Date().toISOString(), quem = window.credenciais.usuario;
+    const linhas = r.linhas.filter(l => !vistos.has(l[0]) && vistos.add(l[0])).map(l => [agora, quem, p[0], dest, "'" + l[0], l[1], String(l[5] || "").replace(/^\d+\s*-\s*/, ""), l[9], l[7], l[6], l[12], l[13], l[4] ? "'" + l[4] : "", l[10], l[11], arq.name]);
+    const nomeDest = DIR_DESTINOS[p[2]].find(x => x[0] === dest)[1];
+    if (!confirm("Mandar " + linhas.length + " SS para " + p[1] + "?\n\nBotão: " + nomeDest)) { if (st) st.textContent = ""; return; }
+    const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+    for (let i = 0; i < linhas.length; i += 300) {
+      if (st) st.textContent = "Enviando… " + Math.min(i + 300, linhas.length) + " de " + linhas.length;
+      const g = await chamarApi({ acao: "gravarVarias", ...cred, aba: "SSDirecionadas", linhas: linhas.slice(i, i + 300) });
+      if (g.erro) { alert(g.erro); return; }
+    }
+    alert(linhas.length + " SS enviadas para " + p[1] + ".");
+    if (st) st.textContent = "✔ " + linhas.length + " SS enviadas para " + p[1] + " em " + formatarQuando(agora) + ".";
+  } catch (e) { alert("Não consegui ler ou enviar: " + (e && e.message ? e.message : "erro")); if (st) st.textContent = ""; }
 }
 // ===== 18/11: Zerar SS do app (só a Deyse) – escolhe a localidade e o botão/lista e exclui tudo do painel (no SCI nada muda) =====
 const ehDeyseGer = () => !!(window.MODO_GERENTE && !emPrevia() && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse"));
@@ -6201,13 +6251,14 @@ function telaSSPend(chave, vencidas) {
 }
 async function sspDados() {
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
-  const [ex, pe, sa, enc, ist, pin] = await Promise.all([
+  const [ex, pe, sa, enc, ist, pin, dir] = await Promise.all([
     chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" }),
     chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" }),
     chamarApi({ acao: "listar", ...cred, aba: "SSAbertas" }).catch(() => ({ dados: [] })),
     chamarApi({ acao: "listar", ...cred, aba: "EncerrarSS" }).catch(() => ({ dados: [] })),
     chamarApi({ acao: "listar", ...cred, aba: "ImportSCIStatus" }).catch(() => ({ dados: [] })),
-    chamarApi({ acao: "listar", ...cred, aba: "PedidoInativa" }).catch(() => ({ dados: [] }))
+    chamarApi({ acao: "listar", ...cred, aba: "PedidoInativa" }).catch(() => ({ dados: [] })),
+    chamarApi({ acao: "listar", ...cred, aba: "SSDirecionadas" }).catch(() => ({ dados: [] }))
   ]);
   const religPedida = new Set(((pin && pin.dados) || []).slice(1).filter(l => l[3] === "religacao_ss" && l[11]).map(l => sspLimpo(l[11])));
   const imp = {}; ((ist && ist.dados) || []).slice(1).forEach(l => { if (l[0]) imp[String(l[0]).trim()] = String(l[1] || ""); });
@@ -6216,7 +6267,7 @@ async function sspDados() {
   // 10/11: SS excluídas do painel pela gerente (linha na ExecucaoCampo com situação "excluida (gerente)")
   const excl = new Set(ex.dados.slice(1).filter(l => String(l[5] || "") === "excluida (gerente)").map(l => sspLimpo(l[1])));
   // 10/11: "SS gerada em lote no SCI" só registra que a SS foi aberta – não conta como encerrada (as 28 religações de Baianópolis iam para "ir a campo" em vez de "SS abertas")
-  return { encRaw: (enc && enc.dados) || [], istRaw: (ist && ist.dados) || [], peRaw: pe.dados || [], excl, cab: ex.dados[0] || [], ex: ex.dados.slice(1).filter(l => String(l[5] || "") !== "excluida (gerente)" && !(/gerada em lote/i.test(String(l[2] || "")) && String(l[5] || "") === "digitada")), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
+  return { dir: ((dir && !dir.erro && dir.dados) || []).slice(1), encRaw: (enc && enc.dados) || [], istRaw: (ist && ist.dados) || [], peRaw: pe.dados || [], excl, cab: ex.dados[0] || [], ex: ex.dados.slice(1).filter(l => String(l[5] || "") !== "excluida (gerente)" && !(/gerada em lote/i.test(String(l[2] || "")) && String(l[5] || "") === "digitada")), pe: pe.dados.slice(1), sa: (sa && !sa.erro && sa.dados ? sa.dados.slice(1) : []), imp, religPedida,
     // 12/11: "não executado" informado antes de zerar a memória não segura mais a SS – ela volta para o campo
     naoExec: new Set(((enc && enc.dados) || []).slice(1).filter(l => /\[NÃO EXECUTADO\]|\[NOVA SS\]/.test(String(l[5])) && sspMemoriaValida(l[0])).map(l => sspLimpo(l[2]))) };
 }
@@ -6333,6 +6384,24 @@ function sspMontarBase(d, chave) {
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
   });
+  // 4) 18/11: SS mandadas pela gerência para um funcionário específico (aba SSDirecionadas; vale a última linha de cada SS)
+  { const ult = {}; (d.dir || []).forEach(l => { const k = sspLimpo(l[4]); if (k) ult[k] = l; });
+    const dig = sspPapel(chave).digitador;
+    Object.values(ult).forEach(l => {
+      const ss = sspLimpo(l[4]), para = String(l[2] || ""), destino = String(l[3] || "campo"), pes = dirPessoa(para); if (!pes) return;
+      const souEu = dirSouEu(para);
+      const chaveIt = destino === "escr" ? (SSP_GRUPO_CHAVE[unidadeDaLoc(sspLimpo(l[6]))] || "sd") : dirChaveAgente(para);
+      if (chaveIt !== chave) return;
+      if (!(souEu || (destino === "escr" ? ehDeyseGer() : dig))) return;
+      let it = porSS[ss];
+      if (!it) { it = { id: ss, ss, tipo: sspLimpo(l[5]), tipoCurto: sspLimpo(l[5]), loc: sspLimpo(l[6]) || loc, quando: l[0], abertura: sspTxtData(l[13]) || sspTxtData(l[0]), venc: sspLimpo(l[14]), tipoPedido: "ss",
+        campos: [["Cliente", l[7]], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Obs.", l[11]], ["Matrícula", l[12]]], mat: sspLimpo(l[12]), fotosPedido: [] };
+        itens.push(it); porSS[ss] = it; }
+      it.direcionada = destino; it.campos = [["📌 Enviada pela gerência para", pes[1]], ...(it.campos || []).filter(c => c[0] !== "📌 Enviada pela gerência para")];
+      if (destino === "venc") { it.vencidaCampo = true; it.escritorioEncerrar = false; }
+      else if (destino === "escr") { it.escritorioEncerrar = true; it.vencidaCampo = false; }
+      else { it.vencidaCampo = false; it.escritorioEncerrar = false; }
+    }); }
   // junta as confirmações (pela SS e pelo número do pedido) e decide o que ainda aparece
   return itens.map(it => {
     const cs = [conf[it.id], it.ss ? conf[it.ss] : null].filter(Boolean);
@@ -6348,6 +6417,12 @@ function sspMontarBase(d, chave) {
     return it;
   }).filter(it => {
     if (it.finalizada) return false;
+    if (it.direcionada) { // 18/11: mandada para um funcionário específico – não passa pela divisão das equipes
+      if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false;
+      if (it.escritorioEncerrar) return !it.digitada;
+      if (it.digitada && !it.executada) { it.vencidaCampo = true; return true; }
+      return !(it.executada && it.digitada && (!it.fotos.length || it.fotoAnexada));
+    }
     if (!sspFiltroEquipeSD([it], chave).length) return false; // divisão operacional x comercial em São Desidério
     if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
     if (it.ss && d.religPedida && d.religPedida.has(it.ss)) return false; // 09/11: revisão de corte já religada em campo – o digitador gera a religação
@@ -8830,7 +8905,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "17/11 23h23";
+const VERSAO_PAINEL = "17/11 23h29";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
