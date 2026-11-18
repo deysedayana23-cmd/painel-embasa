@@ -60,6 +60,8 @@ input.tx, select.tx, textarea.tx { width:100%; font:16px system-ui; padding:9px;
 const URL_API = "https://script.google.com/macros/s/AKfycbxyePlBgyfdn3Fh8Eiz1nDGGlVAwPKVgwS9TY2R0A-m7FZ3Vp76ghK5xbzKSaxYuGsR/exec";
 let LOGIN = null; try { LOGIN = JSON.parse(localStorage.getItem("painelLogin") || "null"); } catch (e) {}
 const $ = id => document.getElementById(id);
+// 18/11: só o Joaquim (e a gerente) faz as visitas e as alterações; o resto da equipe de São Desidério só consulta
+const PODE_EDITAR = !!LOGIN && ["joaquim", "deyse"].some(n => String(LOGIN.usuario || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(n));
 function aviso(t, ms) { const a = $("aviso"); a.textContent = t; a.style.display = "block"; clearTimeout(aviso.t); aviso.t = setTimeout(() => a.style.display = "none", ms || 4000); }
 async function api(corpo) { const r = await fetch(URL_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corpo) }); return r.json(); }
 const cred = () => ({ usuario: LOGIN.usuario, senha: LOGIN.senha });
@@ -166,8 +168,9 @@ function abrirLote(lo) {
   if (!mats.length) h += `<div class="nota">Nenhuma matrícula cadastrada neste lote.</div>`;
   mats.forEach(b => { const ok = feitos.includes(b.m) || filaK.includes(b.m);
     h += `<div class="mat ${ok ? "feito" : ""}"><div class="nm">${ok ? "✅ " : ""}Matrícula ${b.m}</div><div class="d">${b.nome || ""}<br>${b.end || ""} ${b.porta ? "nº " + b.porta : ""}<br>Hidrômetro: ${b.hd || "—"} · Água: ${b.agua || "—"}</div>
-      <button class="${ok ? "sec" : "pri"}" style="width:100%;margin-top:8px" onclick="formulario('${b.m}')">${ok ? "Conferir de novo" : "Conferir esta matrícula"}</button></div>`; });
-  h += `<div class="linha2"><button class="ok" onclick="formulario('')">+ Matrícula nova / de outro lote</button><button class="sec" onclick="fechar()">Fechar</button></div>`;
+      ${PODE_EDITAR ? `<button class="${ok ? "sec" : "pri"}" style="width:100%;margin-top:8px" onclick="formulario('${b.m}')">${ok ? "Conferir de novo" : "Conferir esta matrícula"}</button>` : ""}</div>`; });
+  h += PODE_EDITAR ? `<div class="linha2"><button class="ok" onclick="formulario('')">+ Matrícula nova / de outro lote</button><button class="sec" onclick="fechar()">Fechar</button></div>`
+    : `<div class="nota">Somente consulta. As visitas e alterações do cadastro são feitas pelo Joaquim.</div><button class="sec" style="width:100%" onclick="fechar()">Fechar</button>`;
   $("painel").innerHTML = h; $("painel").style.display = "block"; $("painel").scrollTop = 0;
 }
 let F = {};
@@ -208,6 +211,7 @@ function reduzir(arq) { return new Promise((ok, no) => { const u = URL.createObj
 $("foto").onchange = async e => { const a = e.target.files[0]; if (!a) return; try { F[tipoFoto] = await reduzir(a); $(tipoFoto === "fotoHd" ? "bFH" : "bFF").textContent = "✅ Foto " + (tipoFoto === "fotoHd" ? "do hidrômetro" : "da fachada"); } catch (er) { aviso("Não consegui ler a foto."); } };
 function pegarGps() { return new Promise(ok => { if (!navigator.geolocation || !confirm("Você está na frente deste imóvel agora?")) return ok(null); navigator.geolocation.getCurrentPosition(p => ok([p.coords.latitude, p.coords.longitude]), () => ok(null), { enableHighAccuracy: true, timeout: 15000 }); }); }
 async function salvarForm() {
+  if (!PODE_EDITAR) return aviso("Somente consulta.");
   const m = $("fM").value.replace(/\D/g, "");
   if (!m && F.conf !== "Não encontrada") return aviso("Informe o número da matrícula.");
   if (!F.conf) return aviso("Escolha a conferência (confirmada, mudou, nova…).");
