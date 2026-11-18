@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h42</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h56</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4843,9 +4843,10 @@ function urgItens(dados) {
   const novoPara = {}; linhas.forEach(({ l }) => { if (l[2] !== "__controle__") return; const m = String(l[3] || "").match(/^para:(\d+):(.+)$/); if (!m) return;
     const k = Number(m[1]); if (!novoPara[k] || String(l[0]) > novoPara[k].q) novoPara[k] = { q: String(l[0]), para: m[2] }; });
   // 18/11: SS em Demandas urgentes que o funcionário NÃO executou (vai ao Thiago analisar) e a análise do Thiago
-  const naoExecU = {}, analisadoU = {}; linhas.forEach(({ l }) => { if (l[2] !== "__controle__") return; const t = String(l[3] || "");
+  const naoExecU = {}, analisadoU = {}, encSCI = {}; linhas.forEach(({ l }) => { if (l[2] !== "__controle__") return; const t = String(l[3] || "");
     let m = t.match(/^naoexec:(\d+):([\s\S]*)$/); if (m) naoExecU[Number(m[1])] = { quando: String(l[0]), por: l[1], obs: m[2] };
-    m = t.match(/^analisado:(\d+)(?::([\s\S]*))?$/); if (m) analisadoU[Number(m[1])] = { quando: String(l[0]), por: l[1], obs: m[2] || "" }; });
+    m = t.match(/^analisado:(\d+)(?::([\s\S]*))?$/); if (m) analisadoU[Number(m[1])] = { quando: String(l[0]), por: l[1], obs: m[2] || "" };
+    m = t.match(/^encerradosci:(\d+)$/); if (m) encSCI[Number(m[1])] = { quando: String(l[0]), por: l[1] }; });
   return linhas.filter(({ l, linha }) => l[2] !== "__controle__" && l[3] && !excluidas.has(linha)).map(({ l, linha }) => {
     const x = { linha, quando: l[0], quem: l[1], para: novoPara[linha] ? novoPara[linha].para : l[2], desc: l[3], situacao: l[4] || "pendente", feito: l[5] || "", dataFeito: String(l[6] || "") };
     const c = ctrl[linha];
@@ -4853,6 +4854,7 @@ function urgItens(dados) {
     else x.estado = "pendente";
     x.ctrl = c;
     if (naoExecU[linha] && x.situacao !== "feito") { x.estado = "naoexec"; x.naoExec = naoExecU[linha]; x.analisado = analisadoU[linha] || null; }
+    x.encSCI = encSCI[linha] || null; x.ehSS = /^SS \d{6,}/.test(String(x.desc));
     return x;
   });
 }
@@ -4926,7 +4928,7 @@ async function carregarServicosUrgentes() {
       <b>${sspEsc(x.desc)}</b><br><span style="font-size:14px">Para: ${sspEsc(x.para)} · enviado por ${sspEsc(x.quem)} em ${formatarQuando(x.quando)}</span>
       ${x.situacao === "feito" ? `<br><span style="font-size:14px">Executado por ${sspEsc(x.feito)}${x.dataFeito ? " em " + formatarQuando(x.dataFeito) : ""}</span>` : ""}
       ${x.estado === "devolvido" && x.ctrl.obs ? `<div style="background:#e8f1fb;border-radius:8px;padding:6px 10px;margin-top:6px">Motivo: ${sspEsc(x.ctrl.obs)}</div>` : ""}
-      ${(() => { const m = String(x.desc).match(/Matr[íi]cula\s+(\d+)/i), c = lmCache(), l = m && c && c.m[lmNorm(m[1])]; return l ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d" href="${sspEsc(lmLink(l[1]))}" target="_blank" rel="noopener">📍 Abrir a matrícula no Google Maps</a>` : ""; })()}
+      ${(() => { const g = String(x.desc).match(/Local:\s*(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/), m = String(x.desc).match(/Matr[íi]cula\s+(\d+)/i), c = lmCache(), l = g ? ["", g[1] + "," + g[2]] : m && c && c.m[lmNorm(m[1])]; return l ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d" href="${sspEsc(lmLink(l[1]))}" target="_blank" rel="noopener">📍 Abrir a matrícula no Google Maps</a>` : ""; })()}
       ${x.estado === "naoexec" ? `<div style="background:#fff7ed;border-radius:8px;padding:6px 10px;margin-top:6px">Não executada · ${sspEsc(sspNome(x.naoExec.por))} em ${formatarQuando(x.naoExec.quando)}: ${sspEsc(x.naoExec.obs)}${x.analisado ? "<br>✔ Analisada pelo Thiago" : ""}</div>` : ""}
       ${!ger && urgAberta(x) && servicoParaMim(x.para) && /^SS \d/.test(String(x.desc)) ? `<button class="acao" style="background:#b45309" onclick="urgNaoExecutei(${x.linha}, this)">✖ Não executei (escrever o motivo)</button>` : ""}
       ${!ger && urgAberta(x) && servicoParaMim(x.para) ? `<button class="acao" onclick="concluirServicoUrgente(${x.linha})">Informar que foi executado</button>` : ""}
@@ -5026,6 +5028,21 @@ async function urgNaoExecLista() {
   const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
   if (!r || r.erro) return [];
   return urgItens(r.dados).filter(x => x.estado === "naoexec" && !x.analisado);
+}
+// 18/11: SS mandadas em Demandas urgentes – o Thiago encerra no SCI como executada (o campo executa)
+async function urgEncerrarLista() {
+  const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes" });
+  if (!r || r.erro) return [];
+  return urgItens(r.dados).filter(x => x.ehSS && !x.encSCI && !normalizarNome(x.para).includes("thiago"));
+}
+async function urgEncerreiSCI(linha, btn) {
+  sspTravar(btn);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ServicosUrgentes",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, "__controle__", "encerradosci:" + linha, "", "", ""]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    btn.closest(".card").remove();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); sspDestravar(btn); }
 }
 async function urgAnalisado(linha, btn) {
   const obs = (prompt("Observação da análise (opcional):") || "").trim();
@@ -6347,6 +6364,11 @@ async function carregarLigNovaThiago() {
   const box = document.getElementById("lnt_lista"); if (!box) return;
   try {
     const ne = await urgNaoExecLista().catch(() => []); // 18/11: SS não executadas em campo (Demandas urgentes) para o Thiago analisar
+    const ue = (await urgEncerrarLista().catch(() => [])).sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+    const stU = x => x.estado === "naoexec" ? "✖ Não executada em campo" : x.situacao === "feito" ? "✔ Executada em campo por " + sspEsc(x.feito) : "⏳ Em campo com " + sspEsc(x.para);
+    const ueHTML = ue.length ? `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS das demandas urgentes – encerrar no SCI como executada (${ue.length})</div>` + ue.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
+      <div style="font-size:15px"><b>${sspEsc(x.desc)}</b></div><div style="font-size:14px;margin:4px 0">${stU(x)}</div>
+      <button class="acao" style="background:#0b5394" onclick="urgEncerreiSCI(${x.linha}, this)">Encerrei no SCI como executada</button></div>`).join("") : "";
     const neHTML = ne.length ? `<div style="background:#b45309;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS não executadas em campo – analisar (${ne.length})</div>` + ne.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #b45309">
       <div style="font-size:15px"><b>${sspEsc(x.desc)}</b></div>
       <div style="background:#fff7ed;border-radius:8px;padding:6px 10px;margin:6px 0"><b>${sspEsc(sspNome(x.naoExec.por))}</b> em ${formatarQuando(x.naoExec.quando)}: ${sspEsc(x.naoExec.obs)}</div>
@@ -6355,7 +6377,7 @@ async function carregarLigNovaThiago() {
     const lista = sspMontarTodas(d).filter(ligNovaPronta);
     window.lntCache = {}; lista.forEach(it => { window.lntCache[it.ss] = it; });
     const campo = (it, n) => sspLimpo(((it.campos || []).find(c => c[0] === n) || [])[1]);
-    box.innerHTML = neHTML + (lista.length ? `<div class="nota">${lista.length} ligação(ões) nova(s) executada(s) para encerrar no SCI</div>` + lista.map(it => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
+    box.innerHTML = neHTML + ueHTML + (lista.length ? `<div class="nota">${lista.length} ligação(ões) nova(s) executada(s) para encerrar no SCI</div>` + lista.map(it => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
       <div style="font-size:20px;font-weight:bold;color:#0b5394">SS ${sspEsc(it.ss)}</div>
       <div style="font-weight:600">${sspEsc(it.tipo)}</div>
       <div style="font-size:14px;margin:4px 0">${it.executada ? "✔ Executada no campo" : "✔ " + sspEsc(it.estadoSCI)}</div>
@@ -6533,7 +6555,7 @@ async function sspContagens() {
     });
     out.sspTodas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador).reduce((t, k) => t + (out[SSP_CONTA[k]] || 0), 0);
     if (dig) out.sspTodas += sspTramitar(d).length; // SS para tramitar entram no total
-    if (dig && ehThiagoOuDeyse()) out.ligThiago = sspMontarTodas(d).filter(ligNovaPronta).length + (await urgNaoExecLista().catch(() => [])).length;
+    if (dig && ehThiagoOuDeyse()) out.ligThiago = sspMontarTodas(d).filter(ligNovaPronta).length + (await urgNaoExecLista().catch(() => [])).length + (await urgEncerrarLista().catch(() => [])).length;
   } catch (e) {}
   return out;
 }
@@ -8973,7 +8995,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "17/11 23h42";
+const VERSAO_PAINEL = "17/11 23h56";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
