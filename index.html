@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 09h33</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h23</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1753,9 +1753,11 @@ function mostrarMenu(itens, titulo) {
   }
   // 16/11: agentes de campo (e Ramon/Renato): Localização do hidrômetro no painel principal
   if (ehAgenteCampo && !itens.some(i => i.tela === "locHidrometro")) { const k = itens.findIndex(i => i.nome === "Outros"); itens = [...itens.slice(0, k), { nome: "Localização do hidrômetro", tela: "locHidrometro" }, ...itens.slice(k)]; }
+  // 18/11: consulta da localização da matrícula (Excel da gerência) – só agentes de campo
+  if (ehAgenteCampo && !itens.some(i => i.tela === "locMatricula")) { const k = itens.findIndex(i => i.tela === "locHidrometro"); itens = [...itens.slice(0, k), { nome: "Localização da matrícula", tela: "locMatricula" }, ...itens.slice(k)]; }
   // 16/11: checklist da moto (quem tem moto) no painel principal; Uso do carro em Outros para todos; gerência vê os checklists em Outros
   if (!pilha.length && !ehLeit && minhaMoto() && !itens.some(i => i.tela === "checklistMoto")) { const k = itens.findIndex(i => i.nome === "Outros"); const c = { nome: "Checklist da moto", tela: "checklistMoto" }; itens = k >= 0 ? [...itens.slice(0, k), c, ...itens.slice(k)] : [...itens, c]; }
-  if (!pilha.length) { const out = itens.find(i => i.nome === "Outros" && i.sub); const extra = [{ nome: "Uso do carro", tela: "usoCarro" }, ...(ehGerLeitura() ? [{ nome: "Checklist das motos", tela: "checklistMoto" }] : [])];
+  if (!pilha.length) { const out = itens.find(i => i.nome === "Outros" && i.sub); const extra = [...(ehDeyseGer() ? [{ nome: "Zerar SS do app", tela: "zerarSS" }] : []), { nome: "Uso do carro", tela: "usoCarro" }, ...(ehGerLeitura() ? [{ nome: "Checklist das motos", tela: "checklistMoto" }] : [])];
     if (out) out.sub = [...extra.filter(e => !out.sub.some(j => j.tela === e.tela && j.nome === e.nome)), ...out.sub]; }
   window.menuNaTela = itens; // a lista exatamente como aparece na tela (abrir(i) usa esta lista)
   const app = document.getElementById("app");
@@ -3570,22 +3572,214 @@ async function carregarImportarSCI() {
     </div>`; })();
   // 09/11: tela enxuta. Primeiro a localidade, depois o tipo de envio.
   const pdfs = await debitosCorteLista().catch(() => []);
-  const locs = [...SCI_GRUPOS_BOTAO, "Todas (Inativas)"];
+  const locs = [...SCI_GRUPOS_BOTAO, "Todas (Inativas)", "Localização das matrículas"];
   const loc = window.sciLoc || "";
   const corDe = g => { const s = porG[g], p = proc[g]; return p ? "#4a90d9" : !s || /^erro/.test(s.res) ? "#0b5394" : "#0b5394"; };
   const bt = (rot, ativo, onclick, cor) => `<button onclick="${onclick}" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor || "#0b5394"};background:${ativo ? (cor || "#0b5394") : "#fff"};color:${ativo ? "#fff" : (cor || "#0b5394")}">${rot}</button>`;
   let html = `<h3 style="margin:6px 0">1. Localidade</h3><div style="display:flex;flex-wrap:wrap">${locs.map(l => bt(l, l === loc, `window.sciLoc='${l}';window.sciTipo='';carregarImportarSCI()`)).join("")}</div>`;
   if (loc === "Todas (Inativas)") html += cards["Inativas"];
+  else if (loc === "Localização das matrículas") html += lmCardHTML();
   else if (loc) {
-    const tipos = [["Pendências", loc], ["Vencidas (encerrar no campo)", "Vencidas " + loc], ["Escritório encerrar", "Escritório " + loc], ["PDF débitos dos cortes", "pdf"]];
+    const tipos = [["Pendências", loc], ["Vencidas (encerrar no campo)", "Vencidas " + loc], ["Escritório encerrar", "Escritório " + loc], ["Mandar SS vencida p/ escritório encerrar", "mandarVenc"], ["PDF débitos dos cortes", "pdf"]];
     const tipo = window.sciTipo || "";
     html += `<h3 style="margin:10px 0 6px">2. O que você está mandando de ${loc}?</h3><div style="display:flex;flex-wrap:wrap">${tipos.map(([rot, g]) => bt(rot, g === tipo, `window.sciTipo='${g}';carregarImportarSCI()`, g === "pdf" ? "#4a90d9" : corDe(g))).join("")}</div>`;
     if (tipo === "pdf") html += debitosCorteCardHTML(loc, pdfs);
+    else if (tipo === "mandarVenc") { html += `<div id="mv_box">Carregando as SS de ${loc}...</div>`; setTimeout(() => mvCarregar(loc), 0); }
     else if (tipo && cards[tipo]) html += cards[tipo];
   }
   box.innerHTML = html;
   clearTimeout(window.sciTimer);
   if (Object.keys(proc).length) window.sciTimer = setTimeout(() => { if (document.getElementById("sci_status")) carregarImportarSCI(); }, 15000);
+}
+// ===== 18/11: Zerar SS do app (só a Deyse) – escolhe a localidade e o botão/lista e exclui tudo do painel (no SCI nada muda) =====
+const ehDeyseGer = () => !!(window.MODO_GERENTE && !emPrevia() && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse"));
+const ZR_LISTAS = [
+  ["campo", "Falta ir a campo (SS em aberto dos agentes)", it => sspFaltaCampo(it)],
+  ["venc", "ATENÇÃO: encerradas no sistema por vencimento (campo)", it => it.vencidaCampo && !it.executada],
+  ["dig", "Pendência de digitação", it => sspFaltaDig(it)],
+  ["foto", "Pendência de documentos (fotos)", it => sspFaltaFoto(it)],
+  ["escr", "Escritório encerrar", it => sspEscritorio(it)],
+  ["digi", "Pedidos ao Digiteam / pedidos de SS sem número", it => it.tipoPedido === "digiteam" || !it.ss],
+  ["tudo", "TUDO (qualquer tipo)", () => true]
+];
+Object.assign(TELAS, { zerarSS: () => { setTimeout(zrCarregar, 0); return `<h2>Zerar SS do app</h2>
+  <div class="aviso">Só você vê esta opção. As SS escolhidas saem do painel de todos (digitadores e agentes de campo). <b>No SCI nada muda.</b></div><div id="zr_box">Carregando...</div>`; } });
+async function zrCarregar() {
+  const box = document.getElementById("zr_box"); if (!box) return;
+  if (!ehDeyseGer()) { box.textContent = "Somente a Deyse."; return; }
+  let d; try { d = await sspDados(); } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
+  if (!document.getElementById("zr_box")) return;
+  const vistos = new Set(), todas = [];
+  Object.keys(SSP_LOCAIS).forEach(k => sspMontar(d, k).forEach(it => { if (vistos.has(it.id)) return; vistos.add(it.id); it._chave = k; todas.push(it); }));
+  window.zrTodas = todas;
+  const loc = window.zrLoc || "todas", lst = window.zrLista || "";
+  const daLoc = todas.filter(it => loc === "todas" || it._chave === loc);
+  const bt = (rot, ativo, onclick, n) => `<button onclick="${onclick}" style="flex:1 1 45%;margin:3px;padding:12px 8px;border-radius:10px;font-size:15px;font-weight:bold;border:2px solid #b00020;background:${ativo ? "#b00020" : "#fff"};color:${ativo ? "#fff" : "#b00020"}">${rot}${n != null ? " (" + n + ")" : ""}</button>`;
+  let html = `<h3 style="margin:8px 0 4px">1. Localidade</h3><div style="display:flex;flex-wrap:wrap">${[["todas", "Todas"], ...Object.entries(SSP_LOCAIS)].map(([k, n]) => bt(n, k === loc, `window.zrLoc='${k}';window.zrLista='';zrCarregar()`, (k === "todas" ? todas : todas.filter(it => it._chave === k)).length)).join("")}</div>
+    <h3 style="margin:10px 0 4px">2. Qual botão / lista</h3><div style="display:flex;flex-wrap:wrap">${ZR_LISTAS.map(([k, n, f]) => bt(n, k === lst, `window.zrLista='${k}';zrCarregar()`, daLoc.filter(f).length)).join("")}</div>`;
+  if (lst) {
+    const f = ZR_LISTAS.find(x => x[0] === lst)[2], sel = daLoc.filter(f); window.zrSel = sel;
+    html += `<div class="card" style="margin-top:10px;border-left:6px solid #b00020"><b>${sel.length} SS</b> serão excluídas do painel.
+      <details style="margin:6px 0"><summary>Ver a lista</summary>${sel.slice(0, 300).map(it => `<div style="font-size:14px;padding:3px 0;border-bottom:1px solid #eee">${it.ss ? "SS " + sspEsc(it.ss) : "Pedido sem número"} · ${sspEsc(it.tipoCurto || it.tipo || "")} · ${sspEsc(it.loc || "")}</div>`).join("")}${sel.length > 300 ? `<div class="nota">… e mais ${sel.length - 300}</div>` : ""}</details>
+      ${sel.length ? `<button class="acao" style="background:#b00020" onclick="zrExcluir(this)">🗑 Excluir ${sel.length} SS do painel</button>` : ""}</div>`;
+  }
+  box.innerHTML = html;
+}
+async function zrExcluir(btn) {
+  const sel = window.zrSel || []; if (!sel.length || !ehDeyseGer()) return;
+  const t = prompt("Isto tira " + sel.length + " SS do painel de todos. Para confirmar, digite ZERAR");
+  if (String(t || "").trim().toUpperCase() !== "ZERAR") return;
+  sspTravar(btn);
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha }, agora = new Date().toISOString(), quem = nomesDoUsuario();
+  const linhas = sel.map(it => it.ss ? [agora, "'" + it.ss, it.tipoCurto || it.tipo || "", it.loc || "", quem, "excluida (gerente)", cred.usuario]
+    : [agora, it.id, it.tipoCurto || it.tipo || "", it.loc || "", quem, "finalizada (gerente zerou)", cred.usuario]);
+  try {
+    for (let i = 0; i < linhas.length; i += 300) {
+      btn.textContent = "Excluindo… " + Math.min(i + 300, linhas.length) + " de " + linhas.length;
+      const r = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo", linhas: linhas.slice(i, i + 300) });
+      if (r.erro) { alert(r.erro); sspDestravar(btn); return; }
+    }
+    alert(linhas.length + " SS excluídas do painel.");
+    window.zrLista = ""; zrCarregar();
+  } catch (e) { alert("Não consegui excluir. Verifique a internet."); sspDestravar(btn); }
+}
+// ===== 18/11: Localização da matrícula (Excel com matrícula + localização do Google) =====
+// A gerência manda o Excel em "Exportação Excel Pendências para IA" › "Localização das matrículas"; o agente de campo consulta
+// no botão "Localização da matrícula" e abre no Google Maps. A lista fica guardada no celular (funciona sem internet).
+const LM_CHAVE = "locMat";
+const lmNorm = v => String(v == null ? "" : v).replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+function lmCache() { try { return JSON.parse(localStorage.getItem(LM_CHAVE) || "null"); } catch (e) { return null; } }
+function lmLink(v) {
+  const t = String(v || "").trim(); if (!t) return "";
+  if (/^https?:\/\//i.test(t)) return t;
+  const m = t.replace(/\s+/g, " ").match(/(-?\d{1,2}[.,]\d{3,})\s*[,; ]\s*(-?\d{1,3}[.,]\d{3,})/);
+  if (m) return "https://www.google.com/maps/search/?api=1&query=" + m[1].replace(",", ".") + "," + m[2].replace(",", ".");
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(t);
+}
+async function lmBaixar() {
+  if (navigator.onLine === false) return lmCache();
+  try {
+    const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula" });
+    if (!r || r.erro || !r.dados) return lmCache();
+    const mapa = {}; r.dados.slice(1).forEach(l => { const k = lmNorm(l[0]); if (k && l[1]) mapa[k] = [String(l[0]), String(l[1]), String(l[2] || "")]; }); // a última linha da matrícula vale
+    const c = { em: new Date().toISOString(), m: mapa };
+    try { localStorage.setItem(LM_CHAVE, JSON.stringify(c)); } catch (e) {}
+    return c;
+  } catch (e) { return lmCache(); }
+}
+Object.assign(TELAS, { locMatricula: () => { setTimeout(lmCarregar, 0); return `<h2>Localização da matrícula</h2>
+  <div class="nota">Digite a matrícula e toque em "Abrir no Google Maps" para chegar na residência.</div>
+  <input id="lm_q" class="campo" inputmode="numeric" placeholder="Digite a matrícula" oninput="lmMostrar()" style="font-size:20px">
+  <div id="lm_res">Carregando...</div>`; } });
+async function lmCarregar() { const b = document.getElementById("lm_res"); if (!b) return; if (lmCache()) lmMostrar(); await lmBaixar(); lmMostrar(); }
+function lmMostrar() {
+  const box = document.getElementById("lm_res"); if (!box) return;
+  const c = lmCache(), q = lmNorm((document.getElementById("lm_q") || {}).value);
+  if (!c || !Object.keys(c.m).length) { box.innerHTML = `<div class="nota" style="color:#b45309">A lista de localizações ainda não foi enviada pelo escritório${navigator.onLine === false ? " (ou o celular está sem internet)" : ""}.</div>`; return; }
+  if (!q) { box.innerHTML = `<div class="nota">${Object.keys(c.m).length} matrículas com localização guardadas no celular · atualizado em ${formatarQuando(c.em)}</div>`; return; }
+  const l = c.m[q];
+  if (!l) { box.innerHTML = q.length < 4 ? "" : `<div class="nota" style="color:#b00020;font-weight:bold">Matrícula ${sspEsc(q)} sem localização na lista.</div>`; return; }
+  box.innerHTML = `<div class="card" style="border-left:6px solid #15803d"><div style="font-size:18px">Matrícula <b>${sspEsc(l[0])}</b></div>
+    <a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d;font-size:19px;padding:16px;margin-top:8px" href="${sspEsc(lmLink(l[1]))}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a></div>`;
+}
+// envio do Excel (gerência / digitadores)
+function lmCardHTML() {
+  const c = lmCache();
+  return `<div class="card" style="margin-bottom:10px;border-left:6px solid #15803d">
+    <div style="font-size:18px;font-weight:bold">Excel Localização das matrículas</div>
+    <div style="font-size:13px;color:#555">Vai para: botão "Localização da matrícula" dos agentes de campo. Colunas: <b>Matrícula</b> e <b>Localização</b> (link do Google Maps ou coordenadas). Pode mandar só as novas: a matrícula que já existir fica com a localização mais recente.</div>
+    <div id="lm_env_status" style="font-size:15px;margin:6px 0">${c ? Object.keys(c.m).length + " matrículas com localização no painel (conferido em " + formatarQuando(c.em) + ")." : ""}</div>
+    <button class="acao" style="background:#15803d" onclick="document.getElementById('lm_arq').click()">Enviar Excel de localização das matrículas</button>
+    <input type="file" id="lm_arq" accept=".xls,.xlsx,.csv,.txt,.htm,.html" style="display:none" onchange="lmEnviarExcel(this)"></div>`;
+}
+async function lmEnviarExcel(input) {
+  const arq = input.files && input.files[0]; input.value = ""; if (!arq) return;
+  const st = document.getElementById("lm_env_status"); if (st) st.textContent = "Lendo o arquivo…";
+  try {
+    const buf = await arq.arrayBuffer(), b = new Uint8Array(buf, 0, 4); let rows;
+    if ((b[0] === 0x50 && b[1] === 0x4B) || (b[0] === 0xD0 && b[1] === 0xCF)) {
+      if (!window.XLSX) await new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; sc.onload = ok; sc.onerror = no; document.head.appendChild(sc); });
+      const wb = XLSX.read(buf, { type: "array" }); rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
+    } else {
+      let t = new TextDecoder("utf-8").decode(buf); if (/�/.test(t)) t = new TextDecoder("latin1").decode(buf);
+      if (/<table/i.test(t)) { const doc = new DOMParser().parseFromString(t, "text/html"); rows = [...doc.querySelectorAll("tr")].map(tr => [...tr.children].map(td => td.textContent.trim())); }
+      else rows = t.split(/\r?\n/).map(l => l.split(/\t|;/).length > 1 ? l.split(/\t|;/) : l.split(","));
+    }
+    const h = rows.findIndex(r => r.some(c => /matr/i.test(String(c))));
+    if (h < 0) { alert("Não achei a coluna Matrícula no Excel."); if (st) st.textContent = ""; return; }
+    const cab = rows[h].map(c => normalizarNome(String(c)));
+    const iM = cab.findIndex(c => /^matr/.test(c));
+    let iL = cab.findIndex(c => /local|link|maps|google|coorden|gps|endereco/.test(c) && !/^matr/.test(c));
+    const iLat = cab.findIndex(c => /^lat/.test(c)), iLon = cab.findIndex(c => /^(lon|lng)/.test(c));
+    if (iL < 0 && (iLat < 0 || iLon < 0)) { alert("Não achei a coluna da localização (Localização, Link, Coordenadas, ou Latitude e Longitude)."); if (st) st.textContent = ""; return; }
+    const agora = new Date().toISOString(), quem = window.credenciais.usuario;
+    const linhas = rows.slice(h + 1).map(r => { const m = String(r[iM] || "").trim(); const loc = iL >= 0 && String(r[iL] || "").trim() ? String(r[iL]).trim() : (iLat >= 0 && String(r[iLat] || "").trim() ? String(r[iLat]).trim() + "," + String(r[iLon] || "").trim() : "");
+      return lmNorm(m) && loc ? ["'" + m, loc, agora, quem, arq.name] : null; }).filter(Boolean);
+    if (!linhas.length) { alert("Nenhuma linha com matrícula e localização."); if (st) st.textContent = ""; return; }
+    if (!confirm("Enviar " + linhas.length + " matrículas com localização para o painel dos agentes de campo?")) { if (st) st.textContent = ""; return; }
+    const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+    for (let i = 0; i < linhas.length; i += 400) {
+      if (st) st.textContent = "Enviando… " + Math.min(i + 400, linhas.length) + " de " + linhas.length;
+      const r = await chamarApi({ acao: "gravarVarias", ...cred, aba: "LocalizacaoMatricula", linhas: linhas.slice(i, i + 400) });
+      if (r.erro) { alert(r.erro); return; }
+    }
+    await lmBaixar();
+    alert(linhas.length + " localizações enviadas. Os agentes de campo já podem consultar no botão \"Localização da matrícula\".");
+    carregarImportarSCI();
+  } catch (e) { alert("Não consegui ler ou enviar o arquivo: " + (e && e.message ? e.message : "erro")); if (st) st.textContent = ""; }
+}
+// 18/11: a gerência escolhe SS vencidas para o escritório encerrar no SCI; o campo recebe com o aviso
+// "ATENÇÃO: SS encerrada no sistema devido estar vencida, executar com urgência em campo" (mesmo depois de a SS sair do Excel)
+async function mvCarregar(loc) {
+  const box = document.getElementById("mv_box"); if (!box) return;
+  const chave = SSP_GRUPO_CHAVE[loc];
+  let lista = [];
+  try { const d = await sspDados(); lista = sspMontar(d, chave); } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
+  if (!document.getElementById("mv_box")) return;
+  window.mvCache = {}; lista.forEach(it => { if (it.ss) window.mvCache[it.ss] = it; });
+  const livres = lista.filter(it => it.ss && it.tipoPedido !== "digiteam" && !it.executada && !it.gerExec && !it.vencidaCampo && !it.escritorioEncerrar);
+  const venc = livres.filter(it => it.prazo && it.prazo.vencida).sort((a, b) => a.prazo.fim - b.prazo.fim);
+  const ja = lista.filter(it => it.gerExec && !it.executada);
+  const cmp = (it, n) => ((it.campos || []).find(c => c[0] === n) || [])[1];
+  const linha = it => `<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eee"><input type="checkbox" class="mv_sel" value="${sspEsc(it.ss)}" style="width:24px;height:24px;flex-shrink:0" onchange="mvContar()">
+    <div><b>SS ${sspEsc(it.ss)}</b> · ${sspEsc(it.tipoCurto || it.tipo)}<div class="nota" style="margin:0">${sspEsc(it.loc || "")} · ${[cmp(it, "Endereço"), cmp(it, "Bairro")].filter(Boolean).map(sspEsc).join(" – ")}</div>
+    ${it.prazo ? `<div style="color:#b00020;font-weight:bold;font-size:14px">Vencida há ${faltaTexto(Date.now() - it.prazo.fim)}</div>` : ""}</div></label>`;
+  box.innerHTML = `<div class="card" style="border-left:6px solid #b00020">
+      <div style="font-size:18px;font-weight:bold">Mandar SS vencida para o escritório encerrar · ${loc}</div>
+      <div style="font-size:13px;color:#555;margin:4px 0 8px">Vai para os digitadores encerrarem no SCI e para o campo (${sspEsc(SCI_DESTINO[loc] || loc)}) com o aviso <b>"ATENÇÃO: SS encerrada no sistema devido estar vencida, executar com urgência em campo"</b>. Sai do campo quando ele informar que executou.</div>
+      <div style="display:flex;gap:6px"><input id="mv_num" class="campo" inputmode="numeric" placeholder="Número da SS (se não estiver na lista)" style="margin:0"><button class="acao" style="width:auto;margin:0;padding:10px 14px" onclick="mvMarcarNumero()">Marcar</button></div>
+      <div style="font-weight:bold;margin-top:10px">SS vencidas de ${loc} (${venc.length})</div>
+      ${venc.length ? `<button onclick="document.querySelectorAll('.mv_sel').forEach(c=>c.checked=true);mvContar()" style="margin:6px 0;padding:8px 12px;border-radius:8px;border:2px solid #0b5394;background:#fff;color:#0b5394;font-weight:bold">Marcar todas</button>` + venc.map(linha).join("") : `<div class="nota">Nenhuma SS vencida em aberto agora.</div>`}
+      <div id="mv_extra"></div>
+      <button id="mv_btn" class="acao" style="background:#b00020;margin-top:10px" onclick="mvEnviar(this)">Mandar selecionadas para o escritório encerrar (0)</button></div>
+    ${ja.length ? `<details class="card"><summary><b>Já mandadas ao escritório, aguardando o campo executar (${ja.length})</b></summary>${ja.map(it => `<div style="padding:6px 0;border-bottom:1px solid #eee"><b>SS ${sspEsc(it.ss)}</b> · ${sspEsc(it.tipoCurto || it.tipo)} · mandada em ${formatarQuando(it.gerExec.quando)} por ${sspEsc(sspNome(it.gerExec.quem))}${it.digitada ? " · ✅ encerrada no SCI" : " · ⏳ escritório ainda vai encerrar"}</div>`).join("")}</details>` : ""}`;
+  window.mvLoc = loc;
+}
+function mvContar() { const b = document.getElementById("mv_btn"); if (b) b.textContent = "Mandar selecionadas para o escritório encerrar (" + document.querySelectorAll(".mv_sel:checked").length + ")"; }
+function mvMarcarNumero() {
+  const n = String((document.getElementById("mv_num") || {}).value || "").replace(/\D/g, ""); if (!n) return;
+  const c = [...document.querySelectorAll(".mv_sel")].find(x => x.value === n);
+  if (c) { c.checked = true; c.scrollIntoView({ block: "center" }); mvContar(); document.getElementById("mv_num").value = ""; return; }
+  const it = (window.mvCache || {})[n];
+  if (!it) { alert("A SS " + n + " não está em aberto no painel de " + window.mvLoc + ". Confira o número ou envie antes o Excel de Pendências."); return; }
+  if (it.gerExec) { alert("A SS " + n + " já foi mandada ao escritório."); return; }
+  if (it.executada) { alert("A SS " + n + " já foi executada em campo."); return; }
+  document.getElementById("mv_extra").insertAdjacentHTML("beforeend", `<label style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid #eee"><input type="checkbox" class="mv_sel" value="${sspEsc(n)}" checked style="width:24px;height:24px" onchange="mvContar()"><div><b>SS ${sspEsc(n)}</b> · ${sspEsc(it.tipoCurto || it.tipo)}</div></label>`);
+  document.getElementById("mv_num").value = ""; mvContar();
+}
+async function mvEnviar(btn) {
+  const ss = [...new Set([...document.querySelectorAll(".mv_sel:checked")].map(c => c.value))];
+  if (!ss.length) { alert("Marque as SS."); return; }
+  if (!confirm("Mandar " + ss.length + " SS para o escritório encerrar no SCI?\n\nElas vão para os digitadores e para o campo com o aviso \"ATENÇÃO: SS encerrada no sistema devido estar vencida, executar com urgência em campo\".")) return;
+  sspTravar(btn);
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha }, agora = new Date().toISOString();
+  try {
+    const linhas = ss.map(n => { const it = window.mvCache[n] || {}; return [agora, "'" + n, it.tipoCurto || it.tipo || "", it.loc || window.mvLoc, nomesDoUsuario(), "encerrar como executada (gerente)", cred.usuario]; });
+    const r = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ExecucaoCampo", linhas });
+    if (r.erro) { alert(r.erro); sspDestravar(btn); return; }
+    alert(ss.length + " SS mandada(s) ao escritório. O campo já vê com o aviso de urgência.");
+    mvCarregar(window.mvLoc);
+  } catch (e) { alert("Não consegui enviar. Verifique a internet."); sspDestravar(btn); }
 }
 // Lê o Excel do SCI (é uma página HTML com a tabela) e devolve { linhas, faltam, dataFiltro, locs }
 function lerExcelSCI(texto, cols = SCI_COLUNAS, obrig = SCI_OBRIGATORIAS, chaveCol = 0) {
@@ -5945,7 +6139,7 @@ function sspBotoesDoUsuario() {
   // 09/11: digitadores (e a gerente) têm um botão só, com o total de todas as localidades
   if (Object.keys(SSP_LOCAIS).some(k => sspPapel(k).digitador)) return [{ nome: "SS pendentes", tela: "ssPendTodas", prioridade: true }]; // 12/11: tudo num lugar só (WhatsApp já vem em "Pedidos de SS")
   const vencidas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).campo && !sspPapel(k).digitador)
-    .map(k => ({ nome: "SS encerradas no SCI, mas não em campo", tela: { sd: "ssVencSD", cat: "ssVencCat", bai: "ssVencBai", ang: "ssVencAng" }[k], prioridade: true }));
+    .map(k => ({ nome: "⚠ ATENÇÃO: SS encerrada no sistema devido estar vencida, executar com urgência em campo", tela: { sd: "ssVencSD", cat: "ssVencCat", bai: "ssVencBai", ang: "ssVencAng" }[k], prioridade: true }));
   const whatsCampo = Object.keys(SSP_LOCAIS).some(k => sspPapel(k).campo) ? [{ nome: "SS solicitadas via WhatsApp", tela: "ssWhats", prioridade: true }] : [];
   return whatsCampo.concat(vencidas, Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).ve)
     .map(k => ({ nome: "SS em aberto no sistema – " + SSP_LOCAIS[k], tela: { sd: "ssPendSD", cat: "ssPendCat", bai: "ssPendBai", ang: "ssPendAng" }[k], prioridade: true })));
@@ -6001,7 +6195,7 @@ function sspTxtData(v) {
 const sspHorasDesde = v => { const d = new Date(v); return isNaN(d) ? 0 : (Date.now() - d.getTime()) / 3600e3; };
 function telaSSPend(chave, vencidas) {
   const p = sspPapel(chave);
-  return `<h2>${vencidas ? "SS encerradas no SCI, mas não em campo" : "SS em aberto no sistema – " + SSP_LOCAIS[chave]}</h2>
+  return `<h2>${vencidas ? "⚠ ATENÇÃO: SS encerrada no sistema devido estar vencida, executar com urgência em campo" : "SS em aberto no sistema – " + SSP_LOCAIS[chave]}</h2>
     <div class="nota">${p.digitador ? "Digitador: informe o número, a digitação e a foto anexada. " : ""}${p.digitador ? "A SS some quando o campo executar e o digitador digitar (e anexar a foto, se tiver)." : "Toque em \"Vou executar\" antes de sair e em \"" + (chave === "ang" ? "Serviço executado" : "Executei em campo") + "\" quando terminar (escreva o que foi feito no campo de informações). A SS sai da sua lista quando você executar. Se estiver no local do serviço, o GPS vai junto com a foto."}</div>
     <div id="ssp_lista">Carregando...</div>`;
 }
@@ -6132,7 +6326,9 @@ function sspMontarBase(d, chave) {
     { const gImp = sspLimpo(l[13]) || grupo || ""; const quando = (d.imp || {})[gImp] || (d.imp || {})[grupo] || "";
       if (!quando || quando < SSP_ZERADO_EM) return; } // listas zeradas: volta só depois de importar o Excel de novo
     // 09/11: toda SS em aberto do Excel aparece para uma das equipes (corte e programada inclusive; corte de São Desidério fica travado: só Digiteam)
-    if (!escrSS && /encerrad|cancelad|conclu|saiu|escrit/i.test(sitSS)) return;
+    // 18/11: SS que a gerência mandou o escritório encerrar (vencida) continua para o campo mesmo depois de sair do SCI
+    const mandadaEncerrar = conf[ss] && conf[ss].gerExec && !conf[ss].executada;
+    if (!escrSS && /encerrad|cancelad|conclu|saiu|escrit/i.test(sitSS) && !mandadaEncerrar) return;
     const it = { id: ss, ss, sitSCI: sitSS, estadoSCI: sspLimpo(l[16]), vencidaCampo: vencCampo, escritorioEncerrar: escrSS, tipo: [l[1], l[15]].filter(x => sspLimpo(x)).join(" · "), tipoCurto: l[1], loc: sspLimpo(l[2]) || loc, quando: l[3], abertura: sspTxtData(l[3]), venc: sspLimpo(l[4]), cesta: sspLimpo(l[20]) === "sim", subst: ehSubstituicaoHD(l[1], l[15]) ? substRegra(sspLimpo(l[2]), l[21], l[7]) : null, tipoPedido: "sci", setor: sspLimpo(l[21]),
       campos: [["Cliente", String(l[6] || "").replace(/\|.*$/, "")], ["Endereço", l[8]], ["Bairro", l[9]], ["Hidrômetro", l[10]], ["Telefone", l[11]], ["Obs.", ehCorteSS(l[1]) ? "" : l[12]], ["Solicitante", l[18]], ["Matrícula", l[7]]], mat: sspLimpo(l[7]), fotosPedido: [] };
     itens.push(it); porSS[ss] = it;
@@ -6376,10 +6572,10 @@ async function carregarSSPend(chave) {
     const btnF = (val, rot, n, cor) => `<button onclick="window.sspFiltro['${chave}']='${val}';carregarSSPend('${chave}')" style="flex:1 1 45%;margin:3px;padding:14px 8px;border-radius:10px;font-size:16px;font-weight:bold;border:2px solid ${cor};background:${filtro === val ? cor : "#fff"};color:${filtro === val ? "#fff" : cor}">${rot} (${n})</button>`;
     const barra = telaUnica ? "" : p.digitador ? `<div style="display:flex;flex-wrap:wrap;margin-bottom:8px">${btnF("campo", "Falta ir a campo", nC, "#0b5394")}${btnF("digitacao", "Pendência de digitação", nD, "#4a90d9")}${btnF("fotos", "Pendência de documentos", nF, "#4a90d9")}${nE ? btnF("escritorio", "Escritório encerrar", nE, "#0b5394") : ""}${btnF("todas", "Todas", lista.length, "#0b5394")}</div>`
       : window.sspDemandasVenc
-        ? `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS encerradas no SCI, mas não em campo (${nV})</div>`
+        ? `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">⚠ ATENÇÃO: SS encerrada no sistema devido estar vencida, executar com urgência em campo (${nV})</div>`
           + `<button class="acao" style="background:#0b5394" onclick="window.sspDemandasVenc=false;carregarSSPend('${chave}')">Ver todas as SS pendentes (${nC})</button>`
         : `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:8px">Falta ir a campo (${nC})</div>`
-          + (nV ? `<button class="acao" style="background:#0b5394" onclick="window.sspDemandasVenc=true;carregarSSPend('${chave}')">SS encerradas no SCI, mas não em campo (${nV})</button>` : "");
+          + (nV ? `<button class="acao" style="background:#b00020" onclick="window.sspDemandasVenc=true;carregarSSPend('${chave}')">⚠ ATENÇÃO: SS encerrada no sistema devido estar vencida, executar com urgência em campo (${nV})</button>` : "");
     let visiveis = filtro === "pend" ? lista.filter(sspFaltaDigitador) : (filtro === "campo" && window.sspDemandasVenc) ? lista.filter(it => it.vencidaCampo && !it.executada) : filtro === "campo" ? lista.filter(sspFaltaCampo) : filtro === "digitacao" ? lista.filter(sspFaltaDig) : filtro === "fotos" ? lista.filter(sspFaltaFoto) : filtro === "escritorio" ? lista.filter(sspEscritorio) : lista;
     // 09/11: filtros de visualização (tipo de serviço, período de abertura e cesta)
     const F = window.sspF = window.sspF || {};
@@ -8634,7 +8830,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "17/11 09h33";
+const VERSAO_PAINEL = "17/11 23h23";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
