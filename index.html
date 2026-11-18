@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h37</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3605,7 +3605,11 @@ const DIR_PESSOAS = [
   ["isaque", "Isaque", "campo", ["isaque", "isaac"]], ["ivo", "Ivo Carlos", "campo", ["ivo"]], ["janio", "Jânio Gualberto", "campo", ["janiogualberto"]], ["ramon", "Ramon", "campo", ["ramon"]], ["renato", "Renato", "campo", ["renato"]],
   ["thiago", "Thiago", "dig", ["thiago", "tiago"]], ["igor", "Igor", "dig", ["igor"]], ["oseias", "Oséias", "dig", ["oseias"]], ["deyse", "Deyse", "dig", ["deyse"]]
 ];
-const DIR_DESTINOS = { campo: [["campo", "SS pendentes · Falta ir a campo"], ["venc", "⚠ ATENÇÃO: SS encerrada no sistema por vencimento (executar com urgência)"]], dig: [["escr", "SS pendentes · Escritório encerrar no SCI"]] };
+const DIR_URG = ["urg", "⚡ Demandas urgentes · executar em campo AINDA HOJE"];
+const DIR_DESTINOS = { campo: [DIR_URG, ["campo", "SS pendentes · Falta ir a campo"], ["venc", "⚠ ATENÇÃO: SS encerrada no sistema por vencimento (executar com urgência)"]], dig: [DIR_URG, ["escr", "SS pendentes · Escritório encerrar no SCI"]] };
+// nome usado em Demandas urgentes (igual à lista PESSOAS, para a demanda aparecer para a pessoa)
+const DIR_NOME_URG = { luzenildo: "Luzenildo", joaquim: "Joaquim", carlito: "Carlito", francisco: "Francisco Teixeira de Sales", isaque: "Isaque", ivo: "Ivo Carlos de Souza", janio: "Janio Gualberto Macedo",
+  ramon: "Ramon", renato: "Renato", thiago: "Thiago", igor: "Igor", oseias: "Oseias", deyse: "Deyse" };
 const dirPessoa = k => DIR_PESSOAS.find(p => p[0] === k);
 const dirSouEu = k => { const p = dirPessoa(k); return !!p && p[3].some(n => identidadeAtual().includes(n)); };
 const dirChaveAgente = k => { const p = dirPessoa(k); return p ? Object.keys(SSP_EQUIPE).find(c => SSP_EQUIPE[c].some(n => p[3].some(m => n.includes(m) || m.includes(n)))) || "sd" : "sd"; };
@@ -3634,7 +3638,19 @@ async function dirEnviarExcel(input) {
     const r = lerExcelSCI(texto, SCI_COLUNAS, ["SS"]);
     if (!r || !r.linhas.length) { alert("Não achei SS no arquivo (precisa da coluna SS com o número)."); if (st) st.textContent = ""; return; }
     const vistos = new Set(), agora = new Date().toISOString(), quem = window.credenciais.usuario;
-    const linhas = r.linhas.filter(l => !vistos.has(l[0]) && vistos.add(l[0])).map(l => [agora, quem, p[0], dest, "'" + l[0], l[1], String(l[5] || "").replace(/^\d+\s*-\s*/, ""), l[9], l[7], l[6], l[12], l[13], l[4] ? "'" + l[4] : "", l[10], l[11], arq.name]);
+    const unicas = r.linhas.filter(l => !vistos.has(l[0]) && vistos.add(l[0]));
+    if (dest === "urg") { // 18/11: vai para Demandas urgentes da pessoa – executar em campo ainda hoje
+      const hoje = new Date().toLocaleDateString("pt-BR");
+      const desc = l => ["SS " + l[0], l[1], [l[7], l[6], String(l[5] || "").replace(/^\d+\s*-\s*/, "")].filter(Boolean).join(" – "), l[4] ? "Matrícula " + l[4] : "", l[12] ? "HD " + l[12] : "", l[9] ? "Cliente: " + l[9] : "", l[13] ? "Obs.: " + l[13] : ""].filter(Boolean).join(" · ") + " · ⚡ EXECUTAR EM CAMPO AINDA HOJE (" + hoje + ")";
+      if (!confirm("Mandar " + unicas.length + " SS para " + p[1] + " em Demandas urgentes (executar em campo ainda hoje)?")) { if (st) st.textContent = ""; return; }
+      const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+      const g = await chamarApi({ acao: "gravarVarias", ...cred, aba: "ServicosUrgentes", linhas: unicas.map(l => [agora, quem, DIR_NOME_URG[p[0]] || p[1], desc(l), "pendente", "", ""]) });
+      if (g.erro) { alert(g.erro); if (st) st.textContent = ""; return; }
+      alert(unicas.length + " SS enviadas para " + p[1] + " em Demandas urgentes.");
+      if (st) st.textContent = "✔ " + unicas.length + " SS em Demandas urgentes de " + p[1] + " (" + formatarQuando(agora) + ").";
+      return;
+    }
+    const linhas = unicas.map(l => [agora, quem, p[0], dest, "'" + l[0], l[1], String(l[5] || "").replace(/^\d+\s*-\s*/, ""), l[9], l[7], l[6], l[12], l[13], l[4] ? "'" + l[4] : "", l[10], l[11], arq.name]);
     const nomeDest = DIR_DESTINOS[p[2]].find(x => x[0] === dest)[1];
     if (!confirm("Mandar " + linhas.length + " SS para " + p[1] + "?\n\nBotão: " + nomeDest)) { if (st) st.textContent = ""; return; }
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
@@ -8914,7 +8930,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "17/11 23h37";
+const VERSAO_PAINEL = "17/11 23h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
