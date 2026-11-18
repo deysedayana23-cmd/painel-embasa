@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h36</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h37</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -6150,15 +6150,16 @@ function sspPedidoNaTelaLocal(loc, obs) {
 }
 // 09/11 16h20: listas zeradas a pedido da gerência. O que entrou antes disso sai do painel;
 // as SS do SCI voltam quando a exportação daquela unidade for importada de novo (só as que ainda estiverem abertas).
-const SSP_ZERADO_EM = "2026-11-10T23:21:00Z"; // 10/11 20h21: lista de SS pendentes zerada de novo a pedido da gerente (antes: 09/11 16h20)
-const sspDepoisDoZero = q => { const t = String(q || ""); return /T/.test(t) ? t >= SSP_ZERADO_EM : !!t && t >= "2026-11-10 20:21"; };
+const SSP_ZERADO_EM = "2026-11-18T02:37:00Z"; // 17/11 23:37: tudo zerado a pedido da gerente para começar do zero (antes: 10/11 20h21)
+const sspDepoisDoZero = q => { const t = String(q || ""); return /T/.test(t) ? t >= SSP_ZERADO_EM : !!t && t >= "2026-11-17 23:37"; };
 const SSP_INICIO = "2026-11-04T19:00:00Z";
 // datas da planilha vêm em ISO (com T, UTC) ou "AAAA-MM-DD HH:MM:SS" (hora da Bahia)
 // 12/11 17h16: memória das SS zerada a pedido da gerente – marcações antigas da equipe (executada, digitada,
 // não executado, assumida, foto) deixam de valer; a SS volta a campo conforme o Excel atual. As exclusões da gerente continuam valendo.
-const SSP_MEMORIA_SS = "2026-11-12T20:23:00Z"; // 12/11: memória das SS zerada a pedido da gerente (marcações anteriores não contam; as SS voltam para o campo)
+const SSP_MEMORIA_SS = "2026-11-18T02:37:00Z"; // 17/11: memória zerada junto com as listas (antes 12/11)
+// 12/11: memória das SS zerada a pedido da gerente (marcações anteriores não contam; as SS voltam para o campo)
 const sspMemoriaValida = q => String(q || "") >= SSP_MEMORIA_SS;
-const sspAntesDoZero = q => { const t = String(q || ""); if (!t) return true; return /T/.test(t) ? t < SSP_ZERADO_EM : t < "2026-11-10 20:21"; }; // pedidos respondidos antes disso já seguiram o fluxo antigo
+const sspAntesDoZero = q => { const t = String(q || ""); if (!t) return true; return /T/.test(t) ? t < SSP_ZERADO_EM : t < "2026-11-17 23:37"; }; // pedidos respondidos antes disso já seguiram o fluxo antigo
 Object.assign(TELAS, {
   ssPendSD: () => { window.sspDemandasVenc = false; window.sspNaTelaTodas = false; return telaSSPend("sd"); },
   ssPendCat: () => { window.sspDemandasVenc = false; return telaSSPend("cat"); },
@@ -6391,7 +6392,7 @@ function sspMontarBase(d, chave) {
     itens.push(it); porSS[ss] = it;
   });
   // 4) 18/11: SS mandadas pela gerência para um funcionário específico (aba SSDirecionadas; vale a última linha de cada SS)
-  { const ult = {}; (d.dir || []).forEach(l => { const k = sspLimpo(l[4]); if (k) ult[k] = l; });
+  { const ult = {}; (d.dir || []).forEach(l => { const k = sspLimpo(l[4]); if (k && sspDepoisDoZero(l[0])) ult[k] = l; });
     const dig = sspPapel(chave).digitador;
     Object.values(ult).forEach(l => {
       const ss = sspLimpo(l[4]), para = String(l[2] || ""), destino = String(l[3] || "campo"), pes = dirPessoa(para); if (!pes) return;
@@ -8913,7 +8914,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "17/11 23h36";
+const VERSAO_PAINEL = "17/11 23h37";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
