@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 18/11 00h12</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 18/11 00h16</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3606,7 +3606,8 @@ const DIR_PESSOAS = [
   ["thiago", "Thiago", "dig", ["thiago", "tiago"]], ["igor", "Igor", "dig", ["igor"]], ["oseias", "Oséias", "dig", ["oseias"]], ["deyse", "Deyse", "dig", ["deyse"]]
 ];
 const DIR_URG = ["urg", "⚡ Demandas urgentes · executar em campo AINDA HOJE"];
-const DIR_DESTINOS = { campo: [DIR_URG, ["campo", "SS pendentes · Falta ir a campo"], ["venc", "⚠ ATENÇÃO: SS encerrada no sistema por vencimento (executar com urgência)"]], dig: [DIR_URG, ["escr", "SS pendentes · Escritório encerrar no SCI"]] };
+const DIR_DESTINOS = { campo: [DIR_URG, ["campo", "SS pendentes · Falta ir a campo"], ["venc", "⚠ ATENÇÃO: SS encerrada no sistema por vencimento (executar com urgência)"]], dig: [DIR_URG, ["escr", "SS pendentes · Escritório encerrar no SCI"]],
+  thiago: [["exclThiago", "SS exclusivas para Thiago encerrar"], DIR_URG, ["escr", "SS pendentes · Escritório encerrar no SCI"]] };
 // nome usado em Demandas urgentes (igual à lista PESSOAS, para a demanda aparecer para a pessoa)
 const DIR_NOME_URG = { luzenildo: "Luzenildo", joaquim: "Joaquim", carlito: "Carlito", francisco: "Francisco Teixeira de Sales", isaque: "Isaque", ivo: "Ivo Carlos de Souza", janio: "Janio Gualberto Macedo",
   ramon: "Ramon", renato: "Renato", thiago: "Thiago", igor: "Igor", oseias: "Oseias", deyse: "Deyse" };
@@ -3614,7 +3615,7 @@ const dirPessoa = k => DIR_PESSOAS.find(p => p[0] === k);
 const dirSouEu = k => { const p = dirPessoa(k); return !!p && p[3].some(n => identidadeAtual().includes(n)); };
 const dirChaveAgente = k => { const p = dirPessoa(k); return p ? Object.keys(SSP_EQUIPE).find(c => SSP_EQUIPE[c].some(n => p[3].some(m => n.includes(m) || m.includes(n)))) || "sd" : "sd"; };
 function dirCardHTML() {
-  const p = window.dirPara || "", tp = p ? dirPessoa(p)[2] : "", dest = window.dirDest || "";
+  const p = window.dirPara || "", tp = p === "thiago" ? "thiago" : p ? dirPessoa(p)[2] : "", dest = window.dirDest || "";
   const opt = (v, t, sel) => `<option value="${v}" ${v === sel ? "selected" : ""}>${t}</option>`;
   return `<div class="card" style="margin-bottom:10px;border-left:6px solid #7c3aed">
     <div style="font-size:18px;font-weight:bold">Mandar Excel de SS para um funcionário</div>
@@ -3651,7 +3652,7 @@ async function dirEnviarExcel(input) {
       return;
     }
     const linhas = unicas.map(l => [agora, quem, p[0], dest, "'" + l[0], l[1], String(l[5] || "").replace(/^\d+\s*-\s*/, ""), l[9], l[7], l[6], l[12], l[13], l[4] ? "'" + l[4] : "", l[10], l[11], arq.name]);
-    const nomeDest = DIR_DESTINOS[p[2]].find(x => x[0] === dest)[1];
+    const nomeDest = DIR_DESTINOS[p[0] === "thiago" ? "thiago" : p[2]].find(x => x[0] === dest)[1];
     if (!confirm("Mandar " + linhas.length + " SS para " + p[1] + "?\n\nBotão: " + nomeDest)) { if (st) st.textContent = ""; return; }
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
     for (let i = 0; i < linhas.length; i += 300) {
@@ -5041,6 +5042,23 @@ async function urgEncerrarLista() {
   if (!r || r.erro) return [];
   return urgItens(r.dados).filter(x => x.ehSS && !x.encSCI && !normalizarNome(x.para).includes("thiago"));
 }
+// 18/11: SS mandadas pela gerência direto para o Thiago encerrar no SCI (SSDirecionadas, destino "exclThiago")
+async function dirExclThiagoLista() {
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  const [a, b] = await Promise.all([chamarApi({ acao: "listar", ...cred, aba: "SSDirecionadas" }), chamarApi({ acao: "listar", ...cred, aba: "ExecucaoCampo" })]);
+  const feitas = new Set(((b && b.dados) || []).slice(1).filter(l => /^(digitada|excluida \(gerente\))$/.test(String(l[5] || "")) && sspDepoisDoZero(l[0])).map(l => sspLimpo(l[1])));
+  const ult = {}; ((a && a.dados) || []).slice(1).forEach(l => { const k = sspLimpo(l[4]); if (k && sspDepoisDoZero(l[0])) ult[k] = l; });
+  return Object.values(ult).filter(l => String(l[3]) === "exclThiago" && !feitas.has(sspLimpo(l[4])));
+}
+async function dirExclEncerrei(ss, btn) {
+  sspTravar(btn);
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "ExecucaoCampo",
+      linhas: [[new Date().toISOString(), "'" + ss, "", "", nomesDoUsuario(), "digitada", window.credenciais.usuario]] });
+    if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    btn.closest(".card").remove();
+  } catch (e) { alert("Não consegui registrar. Verifique a internet."); sspDestravar(btn); }
+}
 async function urgEncerreiSCI(linha, btn) {
   sspTravar(btn);
   try {
@@ -6370,6 +6388,11 @@ async function carregarLigNovaThiago() {
   const box = document.getElementById("lnt_lista"); if (!box) return;
   try {
     const ne = await urgNaoExecLista().catch(() => []); // 18/11: SS não executadas em campo (Demandas urgentes) para o Thiago analisar
+    const dx = await dirExclThiagoLista().catch(() => []);
+    const dxHTML = dx.length ? `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS mandadas pela gerência para encerrar (${dx.length})</div>` + dx.map(l => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
+      <div style="font-size:20px;font-weight:bold;color:#0b5394">SS ${sspEsc(sspLimpo(l[4]))}</div>${l[5] ? `<div style="font-weight:600">${sspEsc(l[5])}</div>` : ""}
+      <div style="font-size:15px">${sspEsc(l[7] || "")}<br>${sspEsc([l[8], l[9], l[6]].filter(Boolean).join(" – "))}${l[12] ? "<br>Matrícula " + sspEsc(sspLimpo(l[12])) : ""}${l[10] ? " · HD " + sspEsc(l[10]) : ""}${l[11] ? "<br>Obs.: " + sspEsc(l[11]) : ""}</div>
+      <button class="acao" style="background:#0b5394" onclick="dirExclEncerrei('${sspEsc(sspLimpo(l[4]))}', this)">Encerrei no SCI</button></div>`).join("") : "";
     const ue = (await urgEncerrarLista().catch(() => [])).sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
     const stU = x => x.estado === "naoexec" ? "✖ Não executada em campo" : x.situacao === "feito" ? "✔ Executada em campo por " + sspEsc(x.feito) : "⏳ Em campo com " + sspEsc(x.para);
     const ueHTML = ue.length ? `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:10px 12px;font-size:17px;font-weight:bold;margin-bottom:8px">SS das demandas urgentes – encerrar no SCI como executada (${ue.length})</div>` + ue.map(x => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
@@ -6383,7 +6406,7 @@ async function carregarLigNovaThiago() {
     const lista = sspMontarTodas(d).filter(ligNovaPronta);
     window.lntCache = {}; lista.forEach(it => { window.lntCache[it.ss] = it; });
     const campo = (it, n) => sspLimpo(((it.campos || []).find(c => c[0] === n) || [])[1]);
-    box.innerHTML = neHTML + ueHTML + (lista.length ? `<div class="nota">${lista.length} ligação(ões) nova(s) executada(s) para encerrar no SCI</div>` + lista.map(it => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
+    box.innerHTML = dxHTML + neHTML + ueHTML + (lista.length ? `<div class="nota">${lista.length} ligação(ões) nova(s) executada(s) para encerrar no SCI</div>` + lista.map(it => `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394">
       <div style="font-size:20px;font-weight:bold;color:#0b5394">SS ${sspEsc(it.ss)}</div>
       <div style="font-weight:600">${sspEsc(it.tipo)}</div>
       <div style="font-size:14px;margin:4px 0">${it.executada ? "✔ Executada no campo" : "✔ " + sspEsc(it.estadoSCI)}</div>
@@ -6482,7 +6505,7 @@ function sspMontarBase(d, chave) {
   { const ult = {}; (d.dir || []).forEach(l => { const k = sspLimpo(l[4]); if (k && sspDepoisDoZero(l[0])) ult[k] = l; });
     const dig = sspPapel(chave).digitador;
     Object.values(ult).forEach(l => {
-      const ss = sspLimpo(l[4]), para = String(l[2] || ""), destino = String(l[3] || "campo"), pes = dirPessoa(para); if (!pes) return;
+      const ss = sspLimpo(l[4]), para = String(l[2] || ""), destino = String(l[3] || "campo"), pes = dirPessoa(para); if (!pes || destino === "exclThiago") return;
       const souEu = dirSouEu(para);
       const chaveIt = destino === "escr" ? (SSP_GRUPO_CHAVE[unidadeDaLoc(sspLimpo(l[6]))] || "sd") : dirChaveAgente(para);
       if (chaveIt !== chave) return;
@@ -6561,7 +6584,7 @@ async function sspContagens() {
     });
     out.sspTodas = Object.keys(SSP_LOCAIS).filter(k => sspPapel(k).digitador).reduce((t, k) => t + (out[SSP_CONTA[k]] || 0), 0);
     if (dig) out.sspTodas += sspTramitar(d).length; // SS para tramitar entram no total
-    if (dig && ehThiagoOuDeyse()) out.ligThiago = sspMontarTodas(d).filter(ligNovaPronta).length + (await urgNaoExecLista().catch(() => [])).length + (await urgEncerrarLista().catch(() => [])).length;
+    if (dig && ehThiagoOuDeyse()) out.ligThiago = sspMontarTodas(d).filter(ligNovaPronta).length + (await urgNaoExecLista().catch(() => [])).length + (await urgEncerrarLista().catch(() => [])).length + (await dirExclThiagoLista().catch(() => [])).length;
   } catch (e) {}
   return out;
 }
@@ -9001,7 +9024,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "18/11 00h12";
+const VERSAO_PAINEL = "18/11 00h16";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
