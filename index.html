@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 17/11 23h56</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 18/11 00h12</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4923,7 +4923,13 @@ async function carregarServicosUrgentes() {
       <div id="urg_para_box" style="display:none;background:#fff;border-radius:8px;padding:8px;margin-top:6px"><div class="nota">As selecionadas passam a aparecer só para:</div>
         ${PESSOAS.filter(p => p[0] !== "Deyse").map((p, _k, arr) => { const w = p[0].split(" "), dup = arr.filter(q => normalizarNome(q[0].split(" ")[0]) === normalizarNome(w[0])).length > 1; return [p[0], dup ? w.slice(0, 2).join(" ") : w[0]]; }).map(p => `<label style="display:block;font-size:16px;padding:3px 0"><input type="checkbox" class="urg_np" value="${p[1]}" style="transform:scale(1.3);margin-right:8px"> ${p[0]}</label>`).join("")}
         <button class="acao" onclick="mudarParaUrgentesLote(this)">Confirmar</button></div>` : ""}</div>` : "";
-    box.innerHTML = itens.length ? loteUrg + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${rot[x.estado][1]}">
+    // 18/11: resumo no topo – quantidade de SS por tipo de serviço (só as que ainda faltam executar)
+    const tipoSS = x => { const ps = String(x.desc).split(" · ").filter(t => !/^SS \d/.test(t) && !/^📍/.test(t)); return (ps[0] || "Outros").replace(/\s*\(.*$/, "").trim(); };
+    const abertasSS = itens.filter(x => x.ehSS && urgAberta(x)), porTipo = {};
+    abertasSS.forEach(x => { const t = tipoSS(x); porTipo[t] = (porTipo[t] || 0) + 1; });
+    const resumoTipos = abertasSS.length ? `<div class="card" style="margin-bottom:10px;border-left:6px solid #0b5394"><div style="font-weight:bold;font-size:17px;margin-bottom:6px">SS a executar: ${abertasSS.length}</div>
+      ${Object.entries(porTipo).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee;font-size:15px"><span>${sspEsc(t)}</span><b>${n}</b></div>`).join("")}</div>` : "";
+    box.innerHTML = itens.length ? resumoTipos + loteUrg + itens.map(x => `<div class="card" style="margin-bottom:8px;border-left:6px solid ${rot[x.estado][1]}">
       ${podeExcl || (ger && x.estado === "aguardando") ? `<input type="checkbox" class="urg_sel" value="${x.linha}" data-estado="${x.estado}" onchange="urgContarSel()" style="transform:scale(1.5);margin-right:8px">` : ""}<span style="display:inline-block;padding:3px 8px;border-radius:6px;font-size:13px;font-weight:bold;color:#fff;background:${rot[x.estado][1]}">${rot[x.estado][0]}</span><br>
       <b>${sspEsc(x.desc)}</b><br><span style="font-size:14px">Para: ${sspEsc(x.para)} · enviado por ${sspEsc(x.quem)} em ${formatarQuando(x.quando)}</span>
       ${x.situacao === "feito" ? `<br><span style="font-size:14px">Executado por ${sspEsc(x.feito)}${x.dataFeito ? " em " + formatarQuando(x.dataFeito) : ""}</span>` : ""}
@@ -8995,7 +9001,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "17/11 23h56";
+const VERSAO_PAINEL = "18/11 00h12";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
