@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cadastro de matrículas</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root { --azul:#0b5394; --verm:#d00000; --verde:#15803d; --fundo:#f4f7fb; --tinta:#14213d; }
+* { box-sizing:border-box; }
+html, body { margin:0; height:100%; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--tinta); background:var(--fundo); }
+#topo { position:fixed; top:0; left:0; right:0; z-index:1000; background:var(--azul); color:#fff; padding:8px 10px; }
+#topo .t { font-size:12px; opacity:.9; } #topo .n { font-size:17px; font-weight:800; }
+#busca { display:flex; gap:6px; margin-top:6px; }
+#busca input, #busca select { flex:1; min-width:0; font:15px system-ui; padding:8px; border-radius:8px; border:0; }
+#busca button { min-height:38px; }
+#mapa { position:fixed; top:104px; bottom:0; left:0; right:0; }
+button { font:600 15px system-ui,sans-serif; border:0; border-radius:10px; min-height:46px; padding:6px 10px; cursor:pointer; }
+.pri { background:var(--verm); color:#fff; } .ok { background:var(--verde); color:#fff; } .sec { background:#fff; color:var(--tinta); border:1px solid #c9d6e8; }
+#fila { position:fixed; right:10px; bottom:12px; z-index:1001; background:#b45309; color:#fff; border-radius:10px; padding:6px 10px; font-size:13px; display:none; }
+#bGps { position:fixed; left:10px; bottom:12px; z-index:1001; }
+#painel { position:fixed; left:0; right:0; bottom:0; z-index:1002; background:#fff; border-radius:16px 16px 0 0; box-shadow:0 -2px 12px rgba(0,0,0,.3); max-height:82%; overflow:auto; padding:12px 14px calc(14px + env(safe-area-inset-bottom)); display:none; }
+#painel h3 { margin:0 0 6px; font-size:18px; color:var(--azul); }
+.mat { border:1px solid #d6e0ee; border-radius:12px; padding:10px; margin:8px 0; }
+.mat .nm { font-weight:700; } .mat .d { font-size:13px; color:#3d4a63; }
+.feito { border-color:var(--verde); background:#eefaf1; }
+label.c { display:block; font-size:13px; font-weight:700; margin:10px 0 4px; }
+.ops { display:flex; flex-wrap:wrap; gap:6px; }
+.ops button { min-height:40px; font-size:14px; background:#eef3fa; color:var(--tinta); border:1px solid #c9d6e8; }
+.ops button.sel { background:var(--azul); color:#fff; border-color:var(--azul); }
+input.tx, select.tx, textarea.tx { width:100%; font:16px system-ui; padding:9px; border:1px solid #c9d6e8; border-radius:8px; }
+.linha2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+.nota { font-size:13px; color:#3d4a63; background:#eef3fa; border-radius:8px; padding:8px; margin:6px 0; }
+.lab { background:rgba(255,255,255,.85); border:0; border-radius:4px; padding:0 3px; font-size:11px; font-weight:700; box-shadow:none; }
+.lab::before { display:none; }
+#aviso { position:fixed; left:10px; right:10px; top:112px; z-index:1003; background:#14213d; color:#fff; border-radius:12px; padding:12px 14px; font-size:15px; display:none; }
+</style>
+</head>
+<body>
+<div id="topo">
+  <div class="t">Painel EMBASA · São Desidério</div>
+  <div class="n">Cadastro de matrículas</div>
+  <div id="busca">
+    <select id="selSetor"><option value="">Setor</option><option>01</option><option>02</option><option>03</option><option>04</option><option>05</option></select>
+    <input id="txtBusca" placeholder="Quadra ou matrícula" inputmode="numeric">
+    <button class="sec" id="bBusca">Ir</button>
+    <button class="sec" id="bVoltar">Sair</button>
+  </div>
+</div>
+<div id="mapa"></div>
+<button class="sec" id="bGps">📍 Onde estou</button>
+<div id="fila"></div>
+<div id="aviso"></div>
+<div id="painel"></div>
+<input type="file" id="foto" accept="image/*" capture="environment" style="display:none">
+<script>
+// 18/11: cadastro/recadastramento das matrículas de São Desidério (plantas de quadra da EMBASA + ruas e CEP dos Correios).
+// Funciona sem internet: o mapa e a base ficam guardados no celular; os envios ficam numa fila e saem quando houver internet.
+const URL_API = "https://script.google.com/macros/s/AKfycbxyePlBgyfdn3Fh8Eiz1nDGGlVAwPKVgwS9TY2R0A-m7FZ3Vp76ghK5xbzKSaxYuGsR/exec";
+let LOGIN = null; try { LOGIN = JSON.parse(localStorage.getItem("painelLogin") || "null"); } catch (e) {}
+const $ = id => document.getElementById(id);
+function aviso(t, ms) { const a = $("aviso"); a.textContent = t; a.style.display = "block"; clearTimeout(aviso.t); aviso.t = setTimeout(() => a.style.display = "none", ms || 4000); }
+async function api(corpo) { const r = await fetch(URL_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corpo) }); return r.json(); }
+const cred = () => ({ usuario: LOGIN.usuario, senha: LOGIN.senha });
+const ler = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch (e) { return d; } };
+const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { aviso("Memória do celular cheia."); return false; } };
+$("bVoltar").onclick = () => { location.href = "index.html"; };
+
+// ===== opções do formulário (mesmos textos do SCI) =====
+const OP = {
+  conf: ["Confirmada neste lote", "Mudou para este lote", "Matrícula nova", "Não encontrada"],
+  sit: ["Imóvel Habitado", "Em Construção", "Desabitado", "Construção Parada", "Demolido", "Ocupação Provisória", "Em Ruína", "Terreno", "Em Duplicidade", "Unificação"],
+  hd: ["Chão", "Mureta", "Suspenso (parede)", "Caixa/abrigo", "Não visível", "Sem hidrômetro"],
+  cat: ["Residencial", "Comercial", "Industrial", "Pública"],
+  esp: ["Não", "Autoridades", "Desembargador", "Filantrópica", "Escola", "Hospital", "Hotel", "Indústria", "Juiz", "Shopping"],
+  sn: ["Sim", "Não"],
+  rua: ["Terra", "Concreto/Cimento", "Pedra", "Asfalto", "Piso Articulado"],
+  calc: ["Terra", "Concreto/Cimento", "Pedra", "Cerâmica", "Piso Articulado", "Sem Calçada"]
+};
+
+// ===== dados =====
+let MAPA = null, BASE = [], FEITOS = {};
+async function carregarMapa() {
+  try { const r = await fetch("cadastro_mapa.json?v=" + Date.now()); MAPA = await r.json(); }
+  catch (e) { try { const c = await caches.open("rotas-v1"); const r = await c.match("cadastro_mapa.json"); if (r) MAPA = await r.json(); } catch (e2) {} }
+  if (!MAPA) { aviso("Abra esta tela uma vez com internet para guardar o mapa.", 8000); return false; }
+  return true;
+}
+async function carregarBase() {
+  BASE = ler("cadBase", []); FEITOS = ler("cadFeitos", {});
+  if (!LOGIN || navigator.onLine === false) return;
+  try {
+    const r = await api({ acao: "listar", ...cred(), aba: "CadastroBase" });
+    if (r.dados) { BASE = r.dados.slice(1).map(l => ({ s: String(l[0]).padStart(2, "0"), q: String(l[1]).padStart(4, "0"), l: Number(l[2]), m: String(l[3]).replace(/^'/, ""), nome: l[4], end: l[5], porta: l[6], hd: l[7], agua: l[8] })); gravar("cadBase", BASE); }
+  } catch (e) {}
+  try {
+    const r = await api({ acao: "listar", ...cred(), aba: "CadastroCampo" });
+    if (r.dados) { FEITOS = {}; r.dados.slice(1).forEach(l => { const k = String(l[2]).padStart(2, "0") + "|" + String(l[3]).padStart(4, "0") + "|" + Number(l[4]); (FEITOS[k] = FEITOS[k] || []).push(String(l[5]).replace(/^'/, "")); }); gravar("cadFeitos", FEITOS); }
+  } catch (e) {}
+}
+const chave = (s, q, l) => s + "|" + q + "|" + l;
+const matsDoLote = (s, q, l) => BASE.filter(b => b.s === s && b.q === q && b.l === l);
+const loteFeito = (s, q, l) => (FEITOS[chave(s, q, l)] || []).length > 0 || lerFila().some(i => i.k === chave(s, q, l));
+
+// ===== mapa =====
+const mapa = L.map("mapa", { zoomControl: false, maxZoom: 21 }).setView([-12.359, -44.975], 16);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19 }).addTo(mapa);
+let camLotes = L.layerGroup().addTo(mapa), camLabels = L.layerGroup().addTo(mapa);
+function desenharBase() {
+  MAPA.quadras.forEach(q => q.p.forEach(anel => L.polygon(anel, { color: "#ffeb3b", weight: 2, fill: false, interactive: false }).addTo(mapa)));
+  MAPA.ruas.forEach(r => L.polyline(r.c, { color: "#ffffff", weight: 1, opacity: .5, interactive: false }).addTo(mapa));
+  desenharLotes();
+}
+function desenharLotes() {
+  camLotes.clearLayers(); camLabels.clearLayers();
+  const z = mapa.getZoom(), b = mapa.getBounds().pad(0.2);
+  if (z < 17) return;
+  MAPA.lotes.forEach(lo => {
+    if (!b.contains(lo.c)) return;
+    const feito = loteFeito(lo.s, lo.q, lo.l), n = matsDoLote(lo.s, lo.q, lo.l).length;
+    const cor = feito ? "#15803d" : n ? "#d00000" : "#94a3b8";
+    L.circleMarker(lo.c, { radius: 9, color: "#fff", weight: 2, fillColor: cor, fillOpacity: .95 }).on("click", () => abrirLote(lo)).addTo(camLotes);
+    if (z >= 18) L.marker(lo.c, { icon: L.divIcon({ className: "", html: "", iconSize: [0, 0] }) }).bindTooltip(String(lo.l), { permanent: true, direction: "right", className: "lab", offset: [8, 0] }).addTo(camLabels);
+  });
+}
+mapa.on("moveend zoomend", () => MAPA && desenharLotes());
+let ultimaPos = null, marcaEu = null;
+$("bGps").onclick = () => {
+  if (!navigator.geolocation) return aviso("Este celular não tem GPS no navegador.");
+  aviso("Procurando o GPS…", 3000);
+  navigator.geolocation.getCurrentPosition(p => { ultimaPos = [p.coords.latitude, p.coords.longitude]; if (marcaEu) marcaEu.remove(); marcaEu = L.circleMarker(ultimaPos, { radius: 8, color: "#fff", weight: 3, fillColor: "#2563eb", fillOpacity: 1 }).addTo(mapa); mapa.setView(ultimaPos, 19); },
+    () => aviso("Não consegui o GPS. Confira se a localização está ligada."), { enableHighAccuracy: true, timeout: 20000 });
+};
+$("bBusca").onclick = () => {
+  const t = $("txtBusca").value.trim().replace(/\D/g, ""), s = $("selSetor").value;
+  if (!t) return;
+  if (t.length >= 6) { // matrícula
+    const b = BASE.find(x => x.m.replace(/^0+/, "") === t.replace(/^0+/, ""));
+    if (!b) return aviso("Matrícula não encontrada na base. Se ela existe em campo, toque no lote e use 'Matrícula nova'.");
+    const lo = MAPA.lotes.find(x => x.s === b.s && x.q === b.q && x.l === b.l);
+    if (!lo) return aviso("Matrícula " + b.m + ": quadra " + b.q + ", lote " + b.l + " (setor " + b.s + "), mas esse lote não está na planta.", 7000);
+    mapa.setView(lo.c, 20); abrirLote(lo); return;
+  }
+  const q = t.padStart(4, "0"); if (!s) return aviso("Escolha o setor para buscar a quadra.");
+  const qd = MAPA.quadras.find(x => x.s === s && x.q === q);
+  if (!qd) return aviso("Quadra " + q + " do setor " + s + " não está no mapa.");
+  mapa.fitBounds(L.polygon(qd.p).getBounds(), { maxZoom: 20 });
+};
+
+// ===== ruas e bairros dos Correios =====
+function dentro(pt, anel) { let d = false; for (let i = 0, j = anel.length - 1; i < anel.length; j = i++) { const a = anel[i], b = anel[j]; if ((a[0] > pt[0]) !== (b[0] > pt[0]) && pt[1] < (b[1] - a[1]) * (pt[0] - a[0]) / (b[0] - a[0]) + a[1]) d = !d; } return d; }
+const bairroDe = c => (MAPA.bairros.find(b => dentro(c, b.p)) || {}).n || "";
+function distSeg(p, a, b) { const kx = Math.cos(p[0] * Math.PI / 180) * 111320, ky = 110540; const ax = (a[1] - p[1]) * kx, ay = (a[0] - p[0]) * ky, bx = (b[1] - p[1]) * kx, by = (b[0] - p[0]) * ky; const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy; let t = L2 ? -(ax * dx + ay * dy) / L2 : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(ax + t * dx, ay + t * dy); }
+function ruasPerto(c) { const m = {}; MAPA.ruas.forEach(r => { for (let i = 0; i < r.c.length - 1; i++) { const d = distSeg(c, r.c[i], r.c[i + 1]); if (!(r.n in m) || d < m[r.n]) m[r.n] = d; } }); return Object.entries(m).sort((a, b) => a[1] - b[1]).map(x => x[0]); }
+const cepDe = (rua, bairro) => { const x = MAPA.correios.find(c => c[0] === rua && c[1] === bairro); return x ? x[2] : ""; };
+
+// ===== painel do lote =====
+let LOTE = null;
+function fechar() { $("painel").style.display = "none"; }
+function abrirLote(lo) {
+  LOTE = lo; const mats = matsDoLote(lo.s, lo.q, lo.l), feitos = FEITOS[chave(lo.s, lo.q, lo.l)] || [];
+  const filaK = lerFila().filter(i => i.k === chave(lo.s, lo.q, lo.l)).map(i => i.m);
+  let h = `<h3>Setor ${lo.s} · Quadra ${lo.q} · Lote ${lo.l}</h3>`;
+  if (lo.r) h += `<div class="nota">Rota ${lo.r} · ordem de leitura ${lo.o} (planta de rota)</div>`;
+  if (!mats.length) h += `<div class="nota">Nenhuma matrícula cadastrada neste lote.</div>`;
+  mats.forEach(b => { const ok = feitos.includes(b.m) || filaK.includes(b.m);
+    h += `<div class="mat ${ok ? "feito" : ""}"><div class="nm">${ok ? "✅ " : ""}Matrícula ${b.m}</div><div class="d">${b.nome || ""}<br>${b.end || ""} ${b.porta ? "nº " + b.porta : ""}<br>Hidrômetro: ${b.hd || "—"} · Água: ${b.agua || "—"}</div>
+      <button class="${ok ? "sec" : "pri"}" style="width:100%;margin-top:8px" onclick="formulario('${b.m}')">${ok ? "Conferir de novo" : "Conferir esta matrícula"}</button></div>`; });
+  h += `<div class="linha2"><button class="ok" onclick="formulario('')">+ Matrícula nova / de outro lote</button><button class="sec" onclick="fechar()">Fechar</button></div>`;
+  $("painel").innerHTML = h; $("painel").style.display = "block"; $("painel").scrollTop = 0;
+}
+let F = {};
+function ops(campo, lista) { return `<div class="ops" data-c="${campo}">` + lista.map(o => `<button type="button" class="${F[campo] === o ? "sel" : ""}" onclick="escolher('${campo}', this)">${o}</button>`).join("") + `</div>`; }
+function escolher(campo, el) { F[campo] = el.textContent; el.parentNode.querySelectorAll("button").forEach(b => b.classList.toggle("sel", b === el)); if (campo === "temPorta") $("cxPorta").style.display = F.temPorta === "Sim" ? "block" : "none"; if (campo === "hdConf") $("cxHd").style.display = F.hdConf === "Não" ? "block" : "none"; }
+function formulario(m) {
+  const lo = LOTE, b = BASE.find(x => x.m === m) || {}, bairro = bairroDe(lo.c), ruas = ruasPerto(lo.c).slice(0, 6);
+  F = { m: m, conf: m ? "Confirmada neste lote" : "", bairro: bairro, rua: ruas[0] || "" };
+  const opRua = ruas.map(r => `<option ${r === F.rua ? "selected" : ""}>${r}</option>`).join("") + `<option value="">Outra (escrever na observação)</option>`;
+  $("painel").innerHTML = `<h3>Lote ${lo.l} · Quadra ${lo.q} · Setor ${lo.s}</h3>
+    <label class="c">Matrícula</label><input class="tx" id="fM" inputmode="numeric" value="${m}" ${m ? "readonly" : ""} placeholder="número da matrícula">
+    ${b.nome ? `<div class="nota">${b.nome} · ${b.end || ""} ${b.porta ? "nº " + b.porta : ""} · HD ${b.hd || "—"}</div>` : ""}
+    <label class="c">Conferência</label>${ops("conf", OP.conf)}
+    <label class="c">Situação do imóvel</label>${ops("sit", OP.sit)}
+    <label class="c">Local do hidrômetro</label>${ops("hd", OP.hd)}
+    <label class="c">O número do hidrômetro confere${b.hd ? " (" + b.hd + ")" : ""}?</label>${ops("hdConf", OP.sn)}
+    <div id="cxHd" style="display:none"><label class="c">Número que está no hidrômetro</label><input class="tx" id="fHd"></div>
+    <label class="c">Tem número na porta?</label>${ops("temPorta", OP.sn)}
+    <div id="cxPorta" style="display:none"><label class="c">Número da porta</label><input class="tx" id="fPorta" inputmode="numeric"></div>
+    <label class="c">Complemento (casa A, fundos, apto…)</label><input class="tx" id="fComp">
+    <label class="c">Rua (Correios)</label><select class="tx" id="fRua">${opRua}</select>
+    <div class="nota">Bairro: <b>${bairro || "fora dos bairros dos Correios"}</b> · CEP: <b id="fCep">${cepDe(F.rua, bairro) || "—"}</b></div>
+    <label class="c">Categoria</label>${ops("cat", OP.cat)}
+    <div class="linha2" style="margin-top:4px"><div><label class="c">Economias</label><input class="tx" id="fEco" inputmode="numeric" value="1"></div><div><label class="c">Moradores</label><input class="tx" id="fMor" inputmode="numeric"></div></div>
+    <label class="c">Cliente especial</label>${ops("esp", OP.esp)}
+    <label class="c">Jardim?</label>${ops("jardim", OP.sn)}
+    <label class="c">Pavimento da rua</label>${ops("pRua", OP.rua)}
+    <label class="c">Pavimento da calçada</label>${ops("pCalc", OP.calc)}
+    <label class="c">Fotos</label><div class="linha2" style="margin-top:0"><button class="sec" id="bFH" onclick="pedirFoto('fotoHd')">📷 Hidrômetro</button><button class="sec" id="bFF" onclick="pedirFoto('fotoFach')">📷 Fachada</button></div>
+    <label class="c">Observação</label><textarea class="tx" id="fObs" rows="2"></textarea>
+    <div class="linha2"><button class="ok" onclick="salvarForm()">Salvar</button><button class="sec" onclick="abrirLote(LOTE)">Voltar</button></div>`;
+  $("fRua").onchange = () => { F.rua = $("fRua").value; $("fCep").textContent = cepDe(F.rua, bairro) || "—"; };
+  $("painel").scrollTop = 0;
+}
+let tipoFoto = "";
+function pedirFoto(t) { tipoFoto = t; $("foto").value = ""; $("foto").click(); }
+function reduzir(arq) { return new Promise((ok, no) => { const u = URL.createObjectURL(arq), im = new Image(); im.onload = () => { const c = document.createElement("canvas"), k = Math.min(1, 1100 / Math.max(im.width, im.height)); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(u); ok(c.toDataURL("image/jpeg", 0.6).split(",")[1]); }; im.onerror = no; im.src = u; }); }
+$("foto").onchange = async e => { const a = e.target.files[0]; if (!a) return; try { F[tipoFoto] = await reduzir(a); $(tipoFoto === "fotoHd" ? "bFH" : "bFF").textContent = "✅ Foto " + (tipoFoto === "fotoHd" ? "do hidrômetro" : "da fachada"); } catch (er) { aviso("Não consegui ler a foto."); } };
+function pegarGps() { return new Promise(ok => { if (!navigator.geolocation || !confirm("Você está na frente deste imóvel agora?")) return ok(null); navigator.geolocation.getCurrentPosition(p => ok([p.coords.latitude, p.coords.longitude]), () => ok(null), { enableHighAccuracy: true, timeout: 15000 }); }); }
+async function salvarForm() {
+  const m = $("fM").value.replace(/\D/g, "");
+  if (!m && F.conf !== "Não encontrada") return aviso("Informe o número da matrícula.");
+  if (!F.conf) return aviso("Escolha a conferência (confirmada, mudou, nova…).");
+  if (F.conf !== "Não encontrada" && (!F.sit || !F.hd)) return aviso("Preencha a situação do imóvel e o local do hidrômetro.");
+  const gps = await pegarGps(), lo = LOTE, antigo = BASE.find(x => x.m === m);
+  const linha = [new Date().toISOString(), LOGIN ? LOGIN.usuario : "", lo.s, lo.q, lo.l, "'" + m, F.conf, gps ? gps[0] : "", gps ? gps[1] : "",
+    F.sit || "", F.hd || "", F.hdConf || "", ($("fHd") || {}).value || "", F.temPorta || "", ($("fPorta") || {}).value || "", $("fComp").value, F.rua || "", F.bairro || "", cepDe(F.rua, F.bairro),
+    F.cat || "", $("fEco").value, $("fMor").value, F.esp || "", F.jardim || "", F.pRua || "", F.pCalc || "", F.fotoHd ? "__FOTO1__" : "", F.fotoFach ? "__FOTO2__" : "", $("fObs").value,
+    antigo && (antigo.s !== lo.s || antigo.q !== lo.q || antigo.l !== lo.l) ? antigo.s + "-" + antigo.q + "-" + antigo.l : ""];
+  enfileirar({ k: chave(lo.s, lo.q, lo.l), m: m, linha: linha, foto1: F.fotoHd || "", foto2: F.fotoFach || "" });
+  aviso("Salvo. " + (navigator.onLine === false ? "Vai ser enviado quando houver internet." : "Enviando…"));
+  desenharLotes(); abrirLote(lo);
+}
+
+// ===== fila de envios =====
+function lerFila() { return ler("filaCadastro", []); }
+function gravarFila(f) { gravar("filaCadastro", f); mostrarFila(); }
+function mostrarFila() { const n = lerFila().length; $("fila").style.display = n ? "block" : "none"; $("fila").textContent = "⏳ " + n + " aguardando internet"; }
+function enfileirar(it) { const f = lerFila(); f.push(it); gravarFila(f); enviarFila(); }
+let enviando = false;
+async function enviarFila() {
+  if (enviando || !LOGIN || navigator.onLine === false) return; enviando = true;
+  try {
+    let f = lerFila();
+    while (f.length) {
+      const it = f[0], urls = {};
+      for (const [k, nome] of [["foto1", "hidrometro"], ["foto2", "fachada"]]) if (it[k]) { const r = await api({ acao: "salvarFoto", ...cred(), base64: it[k], tipo: "image/jpeg", nome: "cadastro_" + it.m + "_" + nome + ".jpg" }); if (r.erro) throw new Error(r.erro); urls[k] = r.url; }
+      const linha = it.linha.map(c => c === "__FOTO1__" ? urls.foto1 : c === "__FOTO2__" ? urls.foto2 : c);
+      const r2 = await api({ acao: "gravarVarias", ...cred(), aba: "CadastroCampo", linhas: [linha] }); if (r2.erro) throw new Error(r2.erro);
+      FEITOS[it.k] = (FEITOS[it.k] || []).concat([it.m]); gravar("cadFeitos", FEITOS);
+      f = lerFila(); f.shift(); gravarFila(f);
+    }
+  } catch (e) { if (/Falta a aba/.test(e.message)) aviso("A planilha ainda não tem a aba CadastroCampo. Avise a gerência.", 8000); }
+  enviando = false; mostrarFila();
+}
+window.addEventListener("online", enviarFila); setInterval(enviarFila, 60000);
+
+(async () => {
+  if (!LOGIN) aviso("Entre no Painel EMBASA primeiro (login) e depois abra o cadastro.", 8000);
+  if (!(await carregarMapa())) return;
+  await carregarBase(); desenharBase(); mostrarFila(); enviarFila();
+  if (!BASE.length) aviso("Base de matrículas ainda vazia: abra com internet (e a gerência precisa ter a aba CadastroBase).", 8000);
+})();
+</script>
+</body>
+</html>

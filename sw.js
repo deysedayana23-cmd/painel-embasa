@@ -12,6 +12,17 @@ self.addEventListener("fetch", e => {
     e.respondWith(caches.open(CACHE_ROTAS).then(c => c.match(u).then(r => r || fetch(e.request).then(resp => { c.put(u, resp.clone()).catch(() => {}); return resp; }))));
     return;
   }
+  // 18/11: Cadastro de matrículas também funciona sem internet (tela + mapa das quadras/lotes guardados no celular)
+  if (/\/cadastro_mapa\.json/.test(u)) {
+    e.respondWith(fetch(e.request).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put("cadastro_mapa.json", cp)); return resp; })
+      .catch(() => caches.open(CACHE_ROTAS).then(c => c.match("cadastro_mapa.json"))));
+    return;
+  }
+  if (e.request.mode === "navigate" && /\/cadastro\.html/.test(u)) {
+    e.respondWith(fetch(e.request.url, { cache: "no-store" }).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put("cadastro.html", cp)); return resp; })
+      .catch(() => caches.open(CACHE_ROTAS).then(c => c.match("cadastro.html")).then(r => r || new Response("Abra o cadastro uma vez com internet.", { headers: { "Content-Type": "text/plain; charset=utf-8" } }))));
+    return;
+  }
   if (e.request.mode === "navigate" && /\/rotas\.html/.test(u)) {
     e.respondWith(fetch(e.request.url, { cache: "no-store" }).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put("rotas.html", cp)); return resp; })
       .catch(() => caches.open(CACHE_ROTAS).then(c => c.match("rotas.html")).then(r => r || new Response("Abra as rotas uma vez com internet.", { headers: { "Content-Type": "text/plain; charset=utf-8" } }))));
