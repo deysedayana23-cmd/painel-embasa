@@ -32,13 +32,14 @@ button { font:600 15px system-ui,sans-serif; border:0; border-radius:12px; min-h
 </style>
 </head>
 <body>
-<div id="topo"><div class="t">Painel EMBASA · Rotas de leitura <small style="opacity:.6">v16/11 16h44</small> <span id="fila" style="float:right;font-weight:700"></span></div><select id="selRota" style="margin-top:4px;width:100%;min-height:40px;font:700 16px system-ui;border-radius:8px;border:0;padding:0 8px"></select></div>
+<div id="topo"><div class="t">Painel EMBASA · Rotas de leitura <small style="opacity:.6">v19/11 13h21</small> <span id="fila" style="float:right;font-weight:700"></span></div><select id="selRota" style="margin-top:4px;width:100%;min-height:40px;font:700 16px system-ui;border-radius:8px;border:0;padding:0 8px"></select></div>
 <div id="mapa"></div>
 <div id="guia"><div class="dir" id="gDir">—</div><div class="sub" id="gSub"></div><div class="barra"><div id="gBar"></div></div></div>
 <div id="aviso"></div>
 <div id="base">
   <button class="pri" id="bIr">▶ Iniciar rota</button>
   <button class="lar" id="bFora">Matrícula fora da rota</button>
+  <button class="lar" id="bRet" style="background:#b45309">📍 Conta retida aqui (salvar local)</button>
   <button class="sec" id="bUlt">🔎 Última leitura (matrícula)</button>
   <button class="sec" id="bHid">Enviar localização do hidrômetro</button>
   <button class="sec" id="bCentro">Onde estou</button>
@@ -48,6 +49,17 @@ button { font:600 15px system-ui,sans-serif; border:0; border-radius:12px; min-h
 </div>
 <input type="file" id="foto" accept="image/*" capture="environment" style="display:none">
 <input type="file" id="fFoto" accept="image/*" capture="environment" style="display:none">
+<div id="ret" style="position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);display:none;align-items:flex-end">
+  <div style="background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px;font:16px system-ui;max-height:92vh;overflow:auto">
+    <div style="font-weight:800;font-size:19px;margin-bottom:6px">📍 Conta retida – salvar o local</div>
+    <div style="font-size:14px;color:#555;margin-bottom:8px">Fique na frente do imóvel. Na hora de entregar a conta, você abre este local no Google Maps.</div>
+    <div id="rGps" style="padding:10px;border-radius:10px;background:#fff7ed;margin-bottom:10px">📍 Pegando a localização…</div>
+    <label style="font-weight:700">Número da matrícula</label>
+    <input id="rMat" inputmode="numeric" autocomplete="off" placeholder="Ex.: 74712918" style="width:100%;box-sizing:border-box;min-height:52px;font:700 20px system-ui;border:2px solid #b45309;border-radius:10px;padding:8px;margin:6px 0 10px">
+    <button id="rSalvar" style="width:100%;min-height:56px;border:0;border-radius:10px;background:#15803d;color:#fff;font:700 18px system-ui">Salvar local da conta retida</button>
+    <button id="rCancelar" style="width:100%;min-height:48px;margin-top:8px;border:0;border-radius:10px;background:#e5e7eb;font:700 16px system-ui">Cancelar</button>
+  </div>
+</div>
 <div id="ult" style="position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.55);display:none;align-items:flex-end">
   <div style="background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px;font:16px system-ui;max-height:92vh;overflow:auto">
     <div style="font-weight:800;font-size:19px;margin-bottom:8px">🔎 Última leitura</div>
@@ -293,6 +305,23 @@ ultBaixar(ultListar);
 document.getElementById("bUlt").onclick = () => { document.getElementById("ult").style.display = "flex"; const q = document.getElementById("ult_q"); q.value = ""; document.getElementById("ult_res").innerHTML = ultHtml(""); setTimeout(() => q.focus(), 100); };
 document.getElementById("ult_q").oninput = e => { document.getElementById("ult_res").innerHTML = ultHtml(e.target.value); };
 document.getElementById("ultFechar").onclick = () => { document.getElementById("ult").style.display = "none"; };
+// 19/11: conta retida – salva matrícula + localização (vai para a lista "Contas retidas a entregar" e para a localização das matrículas)
+let retTimer = null;
+function retGps() { const p = ultimaPos, el = document.getElementById("rGps"), bt = `<button onclick="pedirLocalizacao();retGps()" style="display:block;width:100%;min-height:44px;margin-top:8px;border:0;border-radius:10px;background:#b45309;color:#fff;font:700 15px system-ui">📍 Ativar / permitir localização</button>`;
+  el.innerHTML = p ? `📍 Localização OK${precisao ? " (±" + Math.round(precisao) + " m)" : ""}` : gpsErro === "negado" ? `<b>⚠ Localização bloqueada.</b> Toque no cadeado 🔒 ao lado do endereço › Permissões › Localização › Permitir.${bt}` : gpsErro === "desligado" ? `<b>⚠ Localização do celular desligada.</b> Ligue na barra de cima da tela.${bt}` : `📍 Pegando a localização…${bt}`;
+  el.style.background = p ? "#e7f6ec" : "#fff7ed"; }
+document.getElementById("bRet").onclick = () => { if (!ultimaPos) pedirLocalizacao(); else ligarGPS(); document.getElementById("rMat").value = ""; document.getElementById("ret").style.display = "flex"; retGps(); clearInterval(retTimer); retTimer = setInterval(retGps, 1500); };
+document.getElementById("rCancelar").onclick = () => { document.getElementById("ret").style.display = "none"; clearInterval(retTimer); };
+document.getElementById("rSalvar").onclick = () => {
+  const mat = document.getElementById("rMat").value.replace(/\D/g, ""), p = ultimaPos;
+  if (!mat) { alert("Digite o número da matrícula."); return; }
+  if (!p) { pedirLocalizacao(); retGps(); alert("Ainda sem localização. Espere aparecer \"Localização OK\"."); return; }
+  const agora = new Date().toISOString(), ll = p[0].toFixed(6) + "," + p[1].toFixed(6), id = "r" + Date.now().toString(36);
+  enfileirar({ aba: "EntregaRetidas", linha: [agora, quem(), quem(), "retida_local", id, "São Desidério · " + R.nome, "Matrícula " + mat, "", "", "", "", ll] });
+  enfileirar({ aba: "LocalizacaoMatricula", linha: ["'" + mat, ll, agora, quem(), "conta retida – " + R.nome] });
+  document.getElementById("ret").style.display = "none"; clearInterval(retTimer);
+  aviso(`<b>Conta retida</b> ✔ Matrícula ${mat} e o local foram guardados.${navigator.onLine === false ? "<br>Sem internet agora: vai ser enviado sozinho quando pegar internet." : ""}`, 6000);
+};
 desenhar();
 </script>
 </body>
