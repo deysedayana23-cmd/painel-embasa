@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 19/11 13h21</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 19/11 13h22</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -9040,7 +9040,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "19/11 13h21";
+const VERSAO_PAINEL = "19/11 13h22";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -9260,26 +9260,29 @@ function entLocaisHTML(d, ger) {
   const form = ger ? "" : `<div class="card" style="margin-bottom:10px;border-left:6px solid #b45309"><b>📍 Conta deu retida? Salve o local agora</b>
     <div class="nota" style="margin:2px 0 6px">Fique na frente do imóvel. Depois, para entregar, é só abrir no Google Maps.</div>
     <input id="erl_mat" class="campo" inputmode="numeric" placeholder="Número da matrícula">
+    <input id="erl_lei" class="campo" inputmode="numeric" placeholder="Leitura real do hidrômetro (o que está marcando)">
     <select id="erl_loc" class="campo">${["São Desidério", "Angico", "Catolândia", "Buriti Cortado", "Mozondó"].map(x => `<option>${x}</option>`).join("")}</select>
     <button class="acao" style="background:#b45309" onclick="entSalvarLocal(this)">Estou no imóvel – salvar local da conta retida</button></div>`;
   const lista = pend.length ? `<div class="card" style="margin-bottom:10px"><b>Contas retidas com local salvo (${pend.length})</b>${pend.map(l => { const ll = String(l[11] || "");
-      return `<div style="padding:8px 0;border-bottom:1px solid #eee"><b>${sspEsc(l[6])}</b> · ${sspEsc(l[5])}<div class="nota" style="margin:0">salvo por ${sspEsc(sspNome(l[1]))} em ${formatarQuando(l[0])}</div>
+      return `<div style="padding:8px 0;border-bottom:1px solid #eee"><b>${sspEsc(l[6])}</b> · ${sspEsc(l[5])}${l[7] ? `<div style="font-size:16px">Leitura real no local: <b style="color:#0b5394">${sspEsc(l[7])}</b></div>` : ""}<div class="nota" style="margin:0">salvo por ${sspEsc(sspNome(l[1]))} em ${formatarQuando(l[0])}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px">${ll ? `<a class="acao" style="margin:0;text-align:center;text-decoration:none;background:#15803d" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ll)}" target="_blank" rel="noopener">📍 Abrir no Maps</a>` : "<span></span>"}
         ${ger ? `<span class="nota">⏳ a entregar</span>` : `<button class="acao" style="margin:0;background:#0b5394" onclick="entEntregueLocal('${sspEsc(l[4])}',this)">✔ Entreguei</button>`}</div></div>`; }).join("")}</div>` : "";
   return form + lista;
 }
 async function entSalvarLocal(btn) {
   const mat = (document.getElementById("erl_mat").value || "").replace(/\D/g, ""), loc = document.getElementById("erl_loc").value;
+  const lei = (document.getElementById("erl_lei").value || "").replace(/\D/g, "");
   if (!mat) { alert("Digite o número da matrícula."); return; }
+  if (!lei) { alert("Digite a leitura real do hidrômetro."); return; }
   if (!navigator.geolocation) { alert("Este celular não tem localização."); return; }
   sspTravar(btn); btn.textContent = "Pegando a localização…";
   navigator.geolocation.getCurrentPosition(async p => {
     const ll = p.coords.latitude.toFixed(6) + "," + p.coords.longitude.toFixed(6), agora = new Date().toISOString(), cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
     try {
-      const r1 = await chamarApi({ acao: "gravarVarias", ...cred, aba: "EntregaRetidas", linhas: [[agora, cred.usuario, nomesDoUsuario(), "retida_local", "r" + Date.now().toString(36), loc, "Matrícula " + mat, "", "", "", "", ll]] });
+      const r1 = await chamarApi({ acao: "gravarVarias", ...cred, aba: "EntregaRetidas", linhas: [[agora, cred.usuario, nomesDoUsuario(), "retida_local", "r" + Date.now().toString(36), loc, "Matrícula " + mat, "'" + lei, "", "", "", ll]] });
       if (r1.erro) { alert(r1.erro); sspDestravar(btn); return; }
       chamarApi({ acao: "gravarVarias", ...cred, aba: "LocalizacaoMatricula", linhas: [["'" + mat, ll, agora, cred.usuario, "conta retida – " + loc]] }).catch(() => {});
-      alert("Local salvo: matrícula " + mat + ".");
+      alert("Salvo: matrícula " + mat + ", leitura " + lei + " e o local.");
       leitCarregarEntregas();
     } catch (e) { alert("Não consegui salvar. Verifique a internet (no mapa de rotas funciona sem internet)."); sspDestravar(btn); }
   }, e => { alert(e.code === 1 ? "A localização está bloqueada para o aplicativo. Toque no cadeado 🔒 ao lado do endereço › Permissões › Localização › Permitir." : "Não consegui a localização. Ligue a localização do celular e tente de novo."); sspDestravar(btn); }, { enableHighAccuracy: true, timeout: 30000, maximumAge: 10000 });

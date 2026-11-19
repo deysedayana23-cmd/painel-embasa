@@ -32,7 +32,7 @@ button { font:600 15px system-ui,sans-serif; border:0; border-radius:12px; min-h
 </style>
 </head>
 <body>
-<div id="topo"><div class="t">Painel EMBASA · Rotas de leitura <small style="opacity:.6">v19/11 13h21</small> <span id="fila" style="float:right;font-weight:700"></span></div><select id="selRota" style="margin-top:4px;width:100%;min-height:40px;font:700 16px system-ui;border-radius:8px;border:0;padding:0 8px"></select></div>
+<div id="topo"><div class="t">Painel EMBASA · Rotas de leitura <small style="opacity:.6">v19/11 13h22</small> <span id="fila" style="float:right;font-weight:700"></span></div><select id="selRota" style="margin-top:4px;width:100%;min-height:40px;font:700 16px system-ui;border-radius:8px;border:0;padding:0 8px"></select></div>
 <div id="mapa"></div>
 <div id="guia"><div class="dir" id="gDir">—</div><div class="sub" id="gSub"></div><div class="barra"><div id="gBar"></div></div></div>
 <div id="aviso"></div>
@@ -56,6 +56,8 @@ button { font:600 15px system-ui,sans-serif; border:0; border-radius:12px; min-h
     <div id="rGps" style="padding:10px;border-radius:10px;background:#fff7ed;margin-bottom:10px">📍 Pegando a localização…</div>
     <label style="font-weight:700">Número da matrícula</label>
     <input id="rMat" inputmode="numeric" autocomplete="off" placeholder="Ex.: 74712918" style="width:100%;box-sizing:border-box;min-height:52px;font:700 20px system-ui;border:2px solid #b45309;border-radius:10px;padding:8px;margin:6px 0 10px">
+    <label style="font-weight:700">Leitura real do hidrômetro (o que está marcando agora)</label>
+    <input id="rLei" inputmode="numeric" autocomplete="off" placeholder="Ex.: 1532" style="width:100%;box-sizing:border-box;min-height:52px;font:700 20px system-ui;border:2px solid #b45309;border-radius:10px;padding:8px;margin:6px 0 10px">
     <button id="rSalvar" style="width:100%;min-height:56px;border:0;border-radius:10px;background:#15803d;color:#fff;font:700 18px system-ui">Salvar local da conta retida</button>
     <button id="rCancelar" style="width:100%;min-height:48px;margin-top:8px;border:0;border-radius:10px;background:#e5e7eb;font:700 16px system-ui">Cancelar</button>
   </div>
@@ -310,17 +312,19 @@ let retTimer = null;
 function retGps() { const p = ultimaPos, el = document.getElementById("rGps"), bt = `<button onclick="pedirLocalizacao();retGps()" style="display:block;width:100%;min-height:44px;margin-top:8px;border:0;border-radius:10px;background:#b45309;color:#fff;font:700 15px system-ui">📍 Ativar / permitir localização</button>`;
   el.innerHTML = p ? `📍 Localização OK${precisao ? " (±" + Math.round(precisao) + " m)" : ""}` : gpsErro === "negado" ? `<b>⚠ Localização bloqueada.</b> Toque no cadeado 🔒 ao lado do endereço › Permissões › Localização › Permitir.${bt}` : gpsErro === "desligado" ? `<b>⚠ Localização do celular desligada.</b> Ligue na barra de cima da tela.${bt}` : `📍 Pegando a localização…${bt}`;
   el.style.background = p ? "#e7f6ec" : "#fff7ed"; }
-document.getElementById("bRet").onclick = () => { if (!ultimaPos) pedirLocalizacao(); else ligarGPS(); document.getElementById("rMat").value = ""; document.getElementById("ret").style.display = "flex"; retGps(); clearInterval(retTimer); retTimer = setInterval(retGps, 1500); };
+document.getElementById("bRet").onclick = () => { if (!ultimaPos) pedirLocalizacao(); else ligarGPS(); document.getElementById("rMat").value = ""; document.getElementById("rLei").value = ""; document.getElementById("ret").style.display = "flex"; retGps(); clearInterval(retTimer); retTimer = setInterval(retGps, 1500); };
 document.getElementById("rCancelar").onclick = () => { document.getElementById("ret").style.display = "none"; clearInterval(retTimer); };
 document.getElementById("rSalvar").onclick = () => {
   const mat = document.getElementById("rMat").value.replace(/\D/g, ""), p = ultimaPos;
+  const lei = document.getElementById("rLei").value.replace(/\D/g, "");
   if (!mat) { alert("Digite o número da matrícula."); return; }
+  if (!lei) { alert("Digite a leitura real do hidrômetro."); return; }
   if (!p) { pedirLocalizacao(); retGps(); alert("Ainda sem localização. Espere aparecer \"Localização OK\"."); return; }
   const agora = new Date().toISOString(), ll = p[0].toFixed(6) + "," + p[1].toFixed(6), id = "r" + Date.now().toString(36);
-  enfileirar({ aba: "EntregaRetidas", linha: [agora, quem(), quem(), "retida_local", id, "São Desidério · " + R.nome, "Matrícula " + mat, "", "", "", "", ll] });
+  enfileirar({ aba: "EntregaRetidas", linha: [agora, quem(), quem(), "retida_local", id, "São Desidério · " + R.nome, "Matrícula " + mat, "'" + lei, "", "", "", ll] });
   enfileirar({ aba: "LocalizacaoMatricula", linha: ["'" + mat, ll, agora, quem(), "conta retida – " + R.nome] });
   document.getElementById("ret").style.display = "none"; clearInterval(retTimer);
-  aviso(`<b>Conta retida</b> ✔ Matrícula ${mat} e o local foram guardados.${navigator.onLine === false ? "<br>Sem internet agora: vai ser enviado sozinho quando pegar internet." : ""}`, 6000);
+  aviso(`<b>Conta retida</b> ✔ Matrícula ${mat}, leitura ${lei} e o local foram guardados.${navigator.onLine === false ? "<br>Sem internet agora: vai ser enviado sozinho quando pegar internet." : ""}`, 6000);
 };
 desenhar();
 </script>
