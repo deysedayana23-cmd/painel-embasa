@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 19/11 13h35</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 19/11 17h43</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4063,6 +4063,8 @@ function abaFracTxt(v) { const n = ABA_NIVEIS.find(x => x[0] === String(v)); ret
 function abaVeic(nome) { return ABA_VEICULOS.find(v => v.nome === nome) || null; }
 function abaLitros(v) { return (Number(String(v).replace(",", ".")) || 0); }
 function abaMoeda(v) { return "R$ " + abaLitros(v).toFixed(2).replace(".", ","); }
+// 19/11: saldo dos cartões e valores em R$ só a Deyse vê
+const abaVeSaldo = () => !!(window.MODO_GERENTE && !emPrevia() && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse"));
 const abaGer = () => (window.MODO_GERENTE && !emPrevia()) || ["deyse", "thiago", "tiago"].some(n => identidadeAtual().includes(n));
 function abaDiaLiberado() { const h = new Date(), iso = h.getFullYear() + "-" + String(h.getMonth() + 1).padStart(2, "0") + "-" + String(h.getDate()).padStart(2, "0"); return h.getDay() === 1 || ABA_DIAS_EXTRA.includes(iso); }
 async function carregarAbastecimento() {
@@ -4079,8 +4081,8 @@ async function carregarAbastecimento() {
   // saldo atual de cada cartão = o último saldo informado (abastecimento ou recarga)
   const ultimo = {};
   dados.forEach(l => { const c = String(l[2] || ""); if (c && (!ultimo[c] || String(l[0]) > String(ultimo[c][0]))) ultimo[c] = l; });
-  // 16/11: saldo dos cartões e postos só para Deyse e Thiago
-  const saldos = !ger ? "" : `<h3 style="margin-top:0">Saldo dos cartões e postos <span class="nota">(só você e o Thiago veem)</span></h3>` + ABA_CARTOES.map(c => { const u = ultimo[c];
+  // 19/11: saldo dos cartões e postos só para a Deyse
+  const saldos = !abaVeSaldo() ? "" : `<h3 style="margin-top:0">Saldo dos cartões e postos <span class="nota">(só você vê)</span></h3>` + ABA_CARTOES.map(c => { const u = ultimo[c];
     return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
       <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
       <div style="font-size:26px;font-weight:bold;color:#0b5394">${u ? abaMoeda(u[8]) : "sem registro"}</div>
@@ -4107,7 +4109,7 @@ async function carregarAbastecimento() {
     <div style="font-size:18px;font-weight:bold">✔ Abastecimento registrado</div>
     <div style="font-size:21px;font-weight:bold;color:#0b5394;margin-top:6px">Favor devolver o cartão a Tiago.</div></div>` : "";
   window.abaOk = false;
-  box.innerHTML = okMsg + saldos + autHTML + regra + (liberado ? `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` : "") + abaHistorico(dados, ger);
+  box.innerHTML = okMsg + saldos + autHTML + regra + (liberado ? `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` : "") + abaHistorico(dados, abaVeSaldo());
 }
 // 16/11: histórico por veículo e equipamento (todos veem; valores em R$ só a gerência)
 function abaHistorico(dados, ger) {
@@ -4201,8 +4203,11 @@ async function abaCartaoInfo() {
   const box = document.getElementById("aba_cartao_info"), sel = document.getElementById("aba_cartao"); if (!box || !sel) return;
   if (!window.abaCartoesInfo) { try { const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "CartaoInfo" }); window.abaCartoesInfo = (r && !r.erro && r.dados) ? r.dados.slice(1) : []; } catch (e) { window.abaCartoesInfo = []; } }
   const l = window.abaCartoesInfo.filter(x => x[0] === sel.value).pop();
-  box.innerHTML = l ? `<div style="background:#eef4fb;border-left:5px solid #0b5394;border-radius:8px;padding:8px 12px;margin:-4px 0 10px;font-size:16px">
-    Titular: <b>${sspEsc(l[1])}</b><br>Senha: <b style="font-size:20px;letter-spacing:2px">${sspEsc(l[2])}</b><br>Matrícula: <b>${sspEsc(l[3])}</b></div>` : "";
+  // último KM informado neste cartão (para digitar na máquina do posto)
+  const k = (window.abaDados || []).filter(x => x[2] === sel.value && String(x[12] || "").trim()).sort((a, b) => String(a[0]).localeCompare(String(b[0]))).pop();
+  const kmHTML = k ? `<div style="background:#fff7ed;border-left:5px solid #b45309;border-radius:8px;padding:8px 12px;margin:-4px 0 10px;font-size:16px">Último KM usado neste cartão: <b style="font-size:20px">${sspEsc(k[12])}</b><div class="nota" style="margin:0">${sspEsc(k[3])} · ${sspEsc(sspNome(k[1]))} · ${formatarQuando(k[0])}</div></div>` : "";
+  box.innerHTML = kmHTML + (l ? `<div style="background:#eef4fb;border-left:5px solid #0b5394;border-radius:8px;padding:8px 12px;margin:-4px 0 10px;font-size:16px">
+    Titular: <b>${sspEsc(l[1])}</b><br>Senha: <b style="font-size:20px;letter-spacing:2px">${sspEsc(l[2])}</b><br>Matrícula: <b>${sspEsc(l[3])}</b></div>` : "");
 }
 function abaVeicMudou() {
   const v = abaVeic(document.getElementById("aba_veic").value);
@@ -9040,7 +9045,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "19/11 13h35";
+const VERSAO_PAINEL = "19/11 17h43";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
