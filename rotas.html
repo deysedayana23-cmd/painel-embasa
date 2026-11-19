@@ -32,7 +32,7 @@ button { font:600 15px system-ui,sans-serif; border:0; border-radius:12px; min-h
 </style>
 </head>
 <body>
-<div id="topo"><div class="t">Painel EMBASA · Rotas de leitura <small style="opacity:.6">v19/11 13h22</small> <span id="fila" style="float:right;font-weight:700"></span></div><select id="selRota" style="margin-top:4px;width:100%;min-height:40px;font:700 16px system-ui;border-radius:8px;border:0;padding:0 8px"></select></div>
+<div id="topo"><div class="t">Painel EMBASA · Rotas de leitura <small style="opacity:.6">v19/11 13h35</small> <span id="fila" style="float:right;font-weight:700"></span></div><select id="selRota" style="margin-top:4px;width:100%;min-height:40px;font:700 16px system-ui;border-radius:8px;border:0;padding:0 8px"></select></div>
 <div id="mapa"></div>
 <div id="guia"><div class="dir" id="gDir">—</div><div class="sub" id="gSub"></div><div class="barra"><div id="gBar"></div></div></div>
 <div id="aviso"></div>
@@ -326,6 +326,36 @@ document.getElementById("rSalvar").onclick = () => {
   document.getElementById("ret").style.display = "none"; clearInterval(retTimer);
   aviso(`<b>Conta retida</b> ✔ Matrícula ${mat}, leitura ${lei} e o local foram guardados.${navigator.onLine === false ? "<br>Sem internet agora: vai ser enviado sozinho quando pegar internet." : ""}`, 6000);
 };
+
+// ===== 19/11: lotes e matrículas das plantas de quadra da EMBASA (mesma base do Cadastro de matrículas) =====
+// Ordem de leitura = metros andados pela linha da rota (Manual de Cadastro Técnico Comercial). Onde o desenho da rota tem o número, vale o número;
+// nos outros lotes o número é calculado pela metragem, ajustado pelos números do desenho.
+(async () => {
+  const setorR = (String(chave).match(/^S(\d)/) || [])[1]; if (!setorR) return;
+  let CM = null;
+  try { CM = await (await fetch("cadastro_mapa.json")).json(); } catch (e) { try { const c = await caches.open("rotas-v1"); const r = await c.match("cadastro_mapa.json"); if (r) CM = await r.json(); } catch (e2) {} }
+  if (!CM) return;
+  let base = []; try { base = JSON.parse(localStorage.getItem("cadBase") || "[]"); } catch (e) {}
+  if (LOGIN && navigator.onLine !== false) { try { const r = await api({ acao: "listar", usuario: LOGIN.usuario, senha: LOGIN.senha, aba: "CadastroBase" }); if (r.dados) { base = r.dados.slice(1).map(l => ({ s: String(l[0]).padStart(2, "0"), q: String(l[1]).padStart(4, "0"), l: Number(l[2]), m: String(l[3]).replace(/^'/, ""), nome: l[4], end: l[5], porta: l[6], hd: l[7], agua: l[8] })); try { localStorage.setItem("cadBase", JSON.stringify(base)); } catch (e) {} } } catch (e) {} }
+  const S2 = "0" + setorR;
+  // ajuste entre a metragem da linha e os números do desenho (mediana)
+  const difs = R.casas.filter(([p, t]) => /^\d+$/.test(t)).map(([p, t]) => { const pr = projetar(p, 0, TOTAL); return pr && pr.d < 25 ? Number(t) - pr.s : null; }).filter(x => x !== null).sort((a, b) => a - b);
+  const ajuste = difs.length ? difs[Math.floor(difs.length / 2)] : 0;
+  const camLotes = L.layerGroup();
+  const lotesRota = CM.lotes.filter(lo => lo.s === S2).map(lo => { const pr = projetar(lo.c, 0, TOTAL); return pr && pr.d < 35 ? Object.assign({ pr }, lo) : null; }).filter(Boolean);
+  lotesRota.forEach(lo => {
+    const casa = R.casas.find(([p, t]) => dist(p, lo.c) < 9 && /^\d+$/.test(t));
+    const ordem = casa ? casa[1] : String(Math.max(0, Math.round(lo.pr.s + ajuste)));
+    const mats = base.filter(b => b.s === lo.s && b.q === lo.q && b.l === lo.l);
+    const cor = mats.length ? "#d00000" : "#94a3b8";
+    const mk = L.circleMarker(lo.c, { radius: 6, color: "#fff", weight: 2, fillColor: cor, fillOpacity: .95 });
+    const txt = `<b>Quadra ${lo.q} · Lote ${lo.l}</b><br>Ordem de leitura: <b>${ordem}</b>${casa ? " (desenho da rota)" : " (calculada pelos metros)"}<br>` +
+      (mats.length ? mats.map(b => `Matrícula <b>${b.m}</b><br><small>${b.nome || ""} · ${b.end || ""} ${b.porta ? "nº " + b.porta : ""} · HD ${b.hd || "—"}</small>`).join("<hr style='margin:4px 0'>") : "<small>Nenhuma matrícula neste lote na planta</small>");
+    mk.bindPopup(txt).addTo(camLotes);
+  });
+  const ligar = () => { if (mapa.getZoom() >= 18) camLotes.addTo(mapa); else camLotes.remove(); };
+  mapa.on("zoomend", ligar); ligar();
+})();
 desenhar();
 </script>
 </body>
