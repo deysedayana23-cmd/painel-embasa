@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 18/11 20h27</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 19/11 11h20</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4172,7 +4172,8 @@ function abaForm() {
   const f = document.getElementById("aba_form"); if (!f) return;
   f.innerHTML = `<div class="card" style="margin-top:10px;border-left:6px solid #0b5394">
     <div style="font-weight:bold;font-size:16px;margin-bottom:6px">1) Onde vai pagar</div>
-    <select class="campo" id="aba_cartao"><option value="">Escolha o cartão / posto…</option>${ABA_CARTOES.map(c => `<option>${sspEsc(c)}</option>`).join("")}</select>
+    <select class="campo" id="aba_cartao" onchange="abaCartaoInfo()"><option value="">Escolha o cartão / posto…</option>${ABA_CARTOES.map(c => `<option>${sspEsc(c)}</option>`).join("")}</select>
+    <div id="aba_cartao_info"></div>
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">2) Saldo do cartão ANTES de abastecer (R$)</div>
     <input class="campo" id="aba_saldo1" inputmode="decimal" placeholder="Ex.: 250,00">
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">3) O que vai abastecer</div>
@@ -4195,6 +4196,14 @@ function abaForm() {
   const mm = (typeof minhaMoto === "function" && minhaMoto()) || ABA_VEICULOS.find(v => v.simples && identidadeAtual().includes(normalizarNome(v.nome.replace("Moto de ", "")))); if (mm) { document.getElementById("aba_veic").value = mm.nome; abaVeicMudou(); } // já vem a moto da pessoa
   f.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+// 19/11: dados do cartão (titular, senha, matrícula) vêm da aba CartaoInfo da planilha – nunca ficam no código (repositório público)
+async function abaCartaoInfo() {
+  const box = document.getElementById("aba_cartao_info"), sel = document.getElementById("aba_cartao"); if (!box || !sel) return;
+  if (!window.abaCartoesInfo) { try { const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "CartaoInfo" }); window.abaCartoesInfo = (r && !r.erro && r.dados) ? r.dados.slice(1) : []; } catch (e) { window.abaCartoesInfo = []; } }
+  const l = window.abaCartoesInfo.filter(x => x[0] === sel.value).pop();
+  box.innerHTML = l ? `<div style="background:#eef4fb;border-left:5px solid #0b5394;border-radius:8px;padding:8px 12px;margin:-4px 0 10px;font-size:16px">
+    Titular: <b>${sspEsc(l[1])}</b><br>Senha: <b style="font-size:20px;letter-spacing:2px">${sspEsc(l[2])}</b><br>Matrícula: <b>${sspEsc(l[3])}</b></div>` : "";
+}
 function abaVeicMudou() {
   const v = abaVeic(document.getElementById("aba_veic").value);
   document.getElementById("aba_outro_box").style.display = v && v.outro ? "block" : "none";
@@ -4203,6 +4212,7 @@ function abaVeicMudou() {
   const simp = !!(v && v.simples), mostra = (id, sim) => { const e = document.getElementById(id); if (e) e.style.display = sim ? "block" : "none"; };
   mostra("aba_b_nivel", !simp); mostra("aba_b_nivel2", !simp); mostra("aba_b_s2", !simp); mostra("aba_b_valor", simp);
   if (simp && v.cartao) document.getElementById("aba_cartao").value = v.cartao;
+  abaCartaoInfo();
   abaCalcular();
 }
 function abaCalcular() {
@@ -9030,7 +9040,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "18/11 20h27";
+const VERSAO_PAINEL = "19/11 11h20";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
