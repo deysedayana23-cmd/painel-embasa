@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 15h13</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 15h53</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1694,7 +1694,20 @@ function mostrarMenu(itens, titulo) {
   // 09/11: Telemetria só para quem é de São Desidério (gerência, escritório, agentes e operadores da ETA de São Desidério)
   const ehDeSD = (window.MODO_GERENTE && !emPrevia()) || ["deyse", "thiago", "tiago", "igor", "oseias", "luzenildo", "joaquim", "carlito", "francisco", "acacio", "janiolima", "eduardo"].some(n => identidadeAtual().includes(n));
   if (!ehDeSD) itens = itens.filter(i => i.tela !== "telemetria").map(i => i.nome === "Outros" && i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => j.tela !== "telemetria") }) : i);
-  if (!pilha.length && !itens.some(i => i.tela === "abastecimento")) { // 16/11: Abastecimento no menu principal de todos
+  // 20/11: entrega de contas à prefeitura é só do Sinval (e da gerência) – sai do menu de todos os outros
+  const ehPrefeitura = (window.MODO_GERENTE && !emPrevia()) || ["sinval", "simval", "cival", "deyse"].some(n => identidadeAtual().includes(n));
+  const telasPref = ["entregaPrefeitura", "alertaPrefeitura"];
+  if (!ehPrefeitura) itens = itens.filter(i => !telasPref.includes(i.tela)).map(i => i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => !telasPref.includes(j.tela)) }) : i);
+  // 20/11: operadores de ETA não veem contas da prefeitura, Solicitação ao Digiteam nem Demandas Agersa
+  const ehOperadorETA = !(window.MODO_GERENTE && !emPrevia()) && ["acacio", "janiolima", "eduardo", "valdesandro", "sandro", "juvenson", "alan", "genildo", "ramon", "renato"].some(n => identidadeAtual().includes(n));
+  const foraOperador = ["entregaPrefeitura", "alertaPrefeitura", "ssDigiteam", "gersa"];
+  if (ehOperadorETA) itens = itens.filter(i => !foraOperador.includes(i.tela)).map(i => i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => !foraOperador.includes(j.tela)) }) : i);
+  // 20/11: "Trocar minha senha" sai do painel de todos (a gerente troca quando precisar)
+  itens = itens.filter(i => i.tela !== "trocarSenha").map(i => i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => j.tela !== "trocarSenha") }) : i).filter(i => !i.sub || i.sub.length);
+  // 20/11: operadores da ETA de Mozondó não abastecem – não veem o botão Abastecimento
+  const semAbastecimento = !(window.MODO_GERENTE && !emPrevia()) && ["valdesandro", "sandro", "juvenson", "alan"].some(n => identidadeAtual().includes(n));
+  if (semAbastecimento) itens = itens.filter(i => i.tela !== "abastecimento").map(i => i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => j.tela !== "abastecimento") }) : i);
+  if (!semAbastecimento && !pilha.length && !itens.some(i => i.tela === "abastecimento")) { // 16/11: Abastecimento no menu principal de todos
     const k = itens.findIndex(i => i.nome === "Outros"); const a = { nome: "Abastecimento", tela: "abastecimento" };
     itens = k >= 0 ? [...itens.slice(0, k), a, ...itens.slice(k)] : [...itens, a];
   }
@@ -1702,11 +1715,7 @@ function mostrarMenu(itens, titulo) {
     const k = itens.findIndex(i => i.nome === "Outros"); const t = { nome: "Telemetria", tela: "telemetria" };
     itens = k >= 0 ? [...itens.slice(0, k), t, ...itens.slice(k)] : [...itens, t];
   }
-  if (!pilha.length) { // 09/11: "Trocar minha senha" sai do topo e vai para o fim de Outros (para todos)
-    const ts = { nome: "Trocar minha senha", tela: "trocarSenha" };
-    const out = itens.find(i => i.nome === "Outros" && i.sub);
-    if (out) { if (!out.sub.some(j => j.tela === "trocarSenha")) out.sub = [...out.sub, ts]; } else itens = [...itens, { nome: "Outros", sub: [ts] }];
-  }
+  // 20/11: "Trocar minha senha" não entra mais em nenhum menu (a gerente troca a senha quando precisar)
   // 09/11: agentes de campo – painel enxuto (opção A): SS abertas, SS encerradas no SCI, Demandas urgentes, Solicitações do SCI, Pedir SS, Telemetria e Outros
   const ehAgenteCampo = !pilha.length && !(window.MODO_GERENTE && !emPrevia()) && (GRUPO_CAMPO.some(n => identidadeAtual().includes(n)) || ["ramon", "renato"].some(n => identidadeAtual().includes(n))); // 09/11: Ramon e Renato com a tela do Joaquim (SS do Angico)
   if (ehAgenteCampo) {
@@ -1735,7 +1744,7 @@ function mostrarMenu(itens, titulo) {
     const tirar = f => { const k = pool.findIndex(f); return k >= 0 ? pool.splice(k, 1)[0] : null; };
     const principal = [tirar(i => i.tela === "ssPendTodas"), tirar(i => i.urgente || i.tela === "servicosUrgentes"), tirar(i => i.tela === "importarSCI"), tirar(i => i.tela === "abastecimento"), tirar(i => i.tela === "telemetria")].filter(Boolean);
     const outros = pool.filter(i => i.nome !== "Outros" && i.tela !== "trocarSenha").filter((i, k, a) => a.findIndex(j => j.nome === i.nome) === k);
-    itens = [...principal.map(i => Object.assign({}, i, { prioridade: false, grande: false })), { nome: "Outros", sub: [...outros, { nome: "Trocar minha senha", tela: "trocarSenha" }] }];
+    itens = [...principal.map(i => Object.assign({}, i, { prioridade: false, grande: false })), ...(outros.length ? [{ nome: "Outros", sub: outros }] : [])];
   }
   const gradeThiago = !pilha.length && (String(perfilAtual || "").startsWith("Atendente") || ehAgenteCampo || ehDigitador4 || ehLeiturista()); // 09/11: opção 4/A (grade 2×2)
   if (gradeThiago && !ehAgenteCampo && !ehDigitador4) { const ordem = i => i.tela === "ssPendTodas" ? 0 : i.urgente ? 1 : i.tela === "importarSCI" ? 2 : i.tela === "telemetria" ? 3 : i.nome === "Outros" ? 9 : 5; itens = itens.slice().sort((a, b) => ordem(a) - ordem(b)); }
@@ -1895,7 +1904,15 @@ async function atualizarContagemSS() {
       const r = await chamarApi({ acao: "listar", ...cred, aba: "AbastecimentoAutorizacao" });
       if (r.erro) return 0;
       const l = r.dados.slice(1), dec = {}; l.filter(x => x[3] === "decisao").forEach(x => { dec[x[4]] = 1; });
-      return l.filter(x => ["pedido", "divergencia"].includes(x[3]) && !dec[x[4]]).length;
+      let total = l.filter(x => ["pedido", "divergencia"].includes(x[3]) && !dec[x[4]]).length;
+      try { // saldo baixo nas contas do posto de Baianópolis: cada uma conta 1 até a gerente marcar "Já pedi o crédito"
+        const ra = await chamarApi({ acao: "listar", ...cred, aba: "Abastecimento" });
+        const linhas = (ra.dados || []).slice(1).filter(x => /^\d{4}-/.test(String(x[0]))), ult = {};
+        Object.keys(ABA_LIMITE_CREDITO).forEach(c => { const b = abaSaldoBaseLinha(c); if (b) linhas.push(b); });
+        linhas.forEach(x => { const c = String(x[2] || ""); if (c && (!ult[c] || String(x[0]) > String(ult[c][0]))) ult[c] = x; });
+        total += Object.keys(ABA_LIMITE_CREDITO).filter(c => ult[c] && abaLitros(ult[c][8]) <= ABA_LIMITE_CREDITO[c] && !dec[abaAlertaId(ult[c])]).length;
+      } catch (e) {}
+      return total;
     } catch (e) { return 0; }
   };
   const [pendEx, digi, ssp, pedidosDigi, inativas, abastec] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens(), contarPedidosDigi(cred), contarInativas(), contarAbastecimento()]);
@@ -4074,6 +4091,12 @@ const ABA_VEICULOS = [
 // 16/11: abastecer só na segunda-feira (completa o tanque). Nesta semana também na terça 17/11. Fora disso, só com autorização da gerência.
 const ABA_DIAS_EXTRA = ["2026-11-17"];
 const ABA_RECARGA = "[Recarga de saldo]", ABA_INICIAL = "[Situação inicial]";
+// 20/11: saldo corrigido pela gerente no chat (vale como último registro do cartão até alguém informar outro)
+const ABA_SALDO_BASE = { "Cartão de São Desidério (Consórcio)": { valor: 20, em: "2026-11-20T18:55:00Z" } };
+function abaSaldoBaseLinha(c) { const b = ABA_SALDO_BASE[c]; return b ? [b.em, "deyse", c, ABA_RECARGA, "Saldo informado pela gerente", "", "", "", String(b.valor), "", "Deyse", "", ""] : null; }
+// 20/11: avisar a gerente quando o saldo do posto de Baianópolis chegar a R$ 100 ou menos (pedir crédito à Gêneros / ao Consórcio)
+const ABA_LIMITE_CREDITO = { "Posto de gasolina de Baianópolis – moto do Consórcio": 100, "Posto de gasolina de Baianópolis – moto da Gêneros": 100 };
+const abaAlertaId = l => "cred-" + String(l[0]);
 // 20/11: no cartão de São Desidério o funcionário não vê saldo – vê o valor liberado por abastecimento
 // cartões cujo saldo o funcionário não vê (ele vê o valor liberado por veículo)
 const ABA_LIBERADO = { "Cartão de São Desidério (Consórcio)": true };
@@ -4112,6 +4135,8 @@ async function carregarAbastecimento() {
     if (res.erro) { box.innerHTML = '<p class="nota">' + sspEsc(res.erro) + "</p>"; return; }
     dados = (res.dados || []).slice(1).filter(l => /^\d{4}-/.test(String(l[0]))); aut = (ra.dados || []).slice(1);
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; return; }
+  ABA_CARTOES.forEach(c => { const b = abaSaldoBaseLinha(c); if (b && !dados.some(l => String(l[2]) === c && String(l[0]) > b[0])) dados.push(b); }); // saldo corrigido pela gerente
+  dados.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
   window.abaDados = dados;
   const ger = abaGer(), eu = normalizarNome(window.credenciais.usuario);
   // saldo atual de cada cartão = o último saldo informado (abastecimento ou recarga)
@@ -4119,10 +4144,10 @@ async function carregarAbastecimento() {
   dados.forEach(l => { const c = String(l[2] || ""); if (c && (!ultimo[c] || String(l[0]) > String(ultimo[c][0]))) ultimo[c] = l; });
   // 19/11: saldo dos cartões e postos só para a Deyse
   // 20/11: saldo só para a gerente. Exceção: Ivo Carlos e Jânio Gualberto veem os dois saldos do posto de Baianópolis
-  const ehBaianopolis = ["ivo", "janio"].some(n => identidadeAtual().includes(n)) && !identidadeAtual().includes("janiolima");
-  const cartoesSaldo = abaVeSaldo() ? ABA_CARTOES : (ehBaianopolis ? ABA_CARTOES.filter(c => /Baian/i.test(c)) : []);
+  // 20/11 (gerente): saldo é só da Deyse – nem Ivo nem Jânio Gualberto veem mais o saldo do posto de Baianópolis
+  const cartoesSaldo = abaVeSaldo() ? ABA_CARTOES : [];
   const saldoLib = ""; // 20/11: o valor liberado não aparece mais na tela inicial, só no formulário de quem está autorizado
-  const saldos = (cartoesSaldo.length || saldoLib ? `<h3 style="margin-top:0">${abaVeSaldo() ? 'Saldo dos cartões e postos <span class="nota">(só você vê)</span>' : (cartoesSaldo.length ? "Saldo do posto de Baianópolis" : "Valor liberado")}</h3>` : "") + saldoLib + cartoesSaldo.map(c => { const u = ultimo[c];
+  const saldos = (cartoesSaldo.length ? `<h3 style="margin-top:0">Saldo dos cartões e postos <span class="nota">(só você vê)</span></h3>` : "") + saldoLib + cartoesSaldo.map(c => { const u = ultimo[c];
     return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
       <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
       <div style="font-size:26px;font-weight:bold;color:#0b5394">${u ? abaMoeda(u[8]) : "sem registro"}</div>
@@ -4136,6 +4161,14 @@ async function carregarAbastecimento() {
   const divHTML = ger && divs.length ? `<h3>Divergências de saldo</h3>` + divs.map(l => `<div class="card" style="margin-bottom:8px;border-left:6px solid #b45309">
       <b>${sspEsc(sspNome(l[1]))}</b> · ${sspEsc(l[5])}<div class="nota">${sspEsc(l[6])} · ${formatarQuando(l[0])}</div>
       <button class="acao" onclick="abaDecidir('${l[4]}','visto',this)">Já verifiquei</button></div>`).join("") : "";
+  // 20/11: saldo em R$ 100 ou menos nas contas do posto de Baianópolis – pedir crédito à Gêneros / ao Consórcio
+  const alertas = ger ? Object.keys(ABA_LIMITE_CREDITO).filter(c => ultimo[c] && abaLitros(ultimo[c][8]) <= ABA_LIMITE_CREDITO[c] && !decis[abaAlertaId(ultimo[c])]) : [];
+  const credHTML = alertas.length ? `<h3>Crédito a pedir</h3>` + alertas.map(c => { const u = ultimo[c];
+    return `<div class="card" style="margin-bottom:8px;border-left:6px solid #b00020">
+      <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
+      <div style="font-size:24px;font-weight:bold;color:#b00020">${abaMoeda(u[8])}</div>
+      <div class="nota">Chegou a ${abaMoeda(ABA_LIMITE_CREDITO[c])} ou menos. Peça crédito a ${/G[êe]neros/i.test(c) ? "Gêneros" : "Consórcio"}.</div>
+      <button class="acao" onclick="abaDecidir('${abaAlertaId(u)}','credito pedido',this)">Já pedi o crédito</button></div>`; }).join("") : "";
   const autHTML = pendGer.length ? `<h3>Pedidos de abastecimento fora do dia</h3>` + pendGer.map(({ l }) => `<div class="card" style="margin-bottom:8px;border-left:6px solid #b45309"><b>${sspEsc(sspNome(l[1]))}</b> · ${sspEsc(l[5])} · ${formatarQuando(l[0])}<div>${sspEsc(l[6])}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="acao" style="margin:0;background:#15803d" onclick="abaDecidir('${l[4]}','autorizado',this)">Autorizar</button><button class="acao" style="margin:0;background:#777" onclick="abaDecidir('${l[4]}','negado',this)">Não autorizar</button></div></div>`).join("") : "";
   // autorização válida do funcionário: autorizada e ainda não usada (sem abastecimento dele depois da decisão)
@@ -4150,12 +4183,11 @@ async function carregarAbastecimento() {
     : `${minha && minha.d && minha.d[7] === "negado" && !usada ? `<div class="card" style="border-left:6px solid #b00020">❌ Seu último pedido não foi autorizado.</div>` : ""}
       <div class="card"><b>Precisa abastecer hoje?</b><select class="campo" id="aut_veic"><option value="">O que vai abastecer…</option>${abaVeiculosDaPessoa().map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
       <input class="campo" id="aut_motivo" placeholder="Motivo (ex.: tanque na reserva, serviço urgente no Angico)"><button class="acao" onclick="abaPedirAut(this)">Pedir autorização à gerência</button></div>`;
-  else if (!ger && !abaDiaLiberado()) regra += `<div class="card" style="border-left:6px solid #15803d">✅ Você tem autorização da gerência para abastecer.</div>`;
   const okMsg = window.abaOk ? `<div class="card" style="margin-bottom:10px;background:#e8f1fb;border-left:6px solid #0b5394">
     <div style="font-size:18px;font-weight:bold">✔ Abastecimento registrado</div>
     <div style="font-size:21px;font-weight:bold;color:#0b5394;margin-top:6px">Favor devolver o cartão a Tiago.</div></div>` : "";
   window.abaOk = false;
-  box.innerHTML = okMsg + saldos + divHTML + autHTML + regra + (liberado ? `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` : "") + abaHistorico(abaVeSaldo() ? dados : dados.filter(l => normalizarNome(l[1]) === eu), abaVeSaldo(), !abaVeSaldo());
+  box.innerHTML = okMsg + saldos + credHTML + divHTML + autHTML + regra + (liberado ? `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` : "") + abaHistorico(abaVeSaldo() ? dados : dados.filter(l => normalizarNome(l[1]) === eu), abaVeSaldo(), !abaVeSaldo());
 }
 // 16/11: histórico por veículo e equipamento (todos veem; valores em R$ só a gerência)
 function abaHistorico(dados, ger, soMeus) {
@@ -4259,8 +4291,14 @@ function abaSaldoBox() {
   const u = (window.abaDados || []).filter(l => l[2] === c).sort((a, b) => String(a[0]).localeCompare(String(b[0]))).pop();
   const saldo = u ? abaLitros(u[8]) : 0;
   document.getElementById("aba_saldo_painel").value = u ? String(saldo) : "";
-  document.getElementById("aba_saldo1").value = u ? String(saldo) : "";
+  document.getElementById("aba_saldo1").value = abaVeSaldo() && u ? String(saldo) : "";
   document.getElementById("aba_divergencia").value = "";
+  // 20/11: o funcionário não vê saldo nenhum – consulta na maquininha e digita. Se for diferente do painel, a gerente é avisada.
+  if (!abaVeSaldo()) { box.innerHTML = `<div style="background:#e8f1fb;border-left:5px solid #0b5394;border-radius:8px;padding:10px 12px;font-size:17px">
+      <b>Favor verificar na maquininha qual é o saldo atual do cartão</b>
+      <input class="campo" id="aba_saldo_novo" inputmode="decimal" placeholder="Saldo que apareceu na maquininha (R$)"
+        oninput="document.getElementById('aba_saldo1').value=this.value;document.getElementById('aba_divergencia').value=this.value">
+      <div class="nota" style="margin:0">Digite o valor exatamente como aparece na maquininha.</div></div>`; return; }
   box.innerHTML = u ? `<div style="background:#e8f1fb;border-left:5px solid #0b5394;border-radius:8px;padding:10px 12px;font-size:17px">
       Pelo painel, o cartão tem <b style="font-size:22px">${abaMoeda(saldo)}</b>.
       <div style="margin-top:8px;font-weight:bold">O valor do saldo está correto?</div>
@@ -4331,7 +4369,7 @@ async function abaGravar(btn) {
   const cartao = g("aba_cartao"), veic = g("aba_veic"), outro = g("aba_outro").trim();
   const s1 = g("aba_saldo1"), nivel = g("aba_nivel"), litros = g("aba_litros"), nivel2 = g("aba_nivel2"), s2 = g("aba_saldo2"), km = g("aba_km").trim(), kmc = g("aba_kmc").trim();
   if (!cartao) { alert("Escolha o cartão ou o posto."); return; }
-  if (!s1) { alert("Confirme o saldo do cartão ANTES de abastecer (Sim, está certo / Não, está diferente)."); return; }
+  if (!s1) { alert("Informe o saldo que apareceu na maquininha ANTES de abastecer."); return; }
   if (!veic) { alert("Escolha o que vai abastecer."); return; }
   const v = abaVeic(veic);
   if (v && v.outro && !outro) { alert("Escreva o que vai abastecer."); return; }
@@ -6677,7 +6715,17 @@ function sspMontarBase(d, chave) {
       it.vencidaCampo = true; return true;
     }
     return !(it.executada && it.digitada && (!it.fotos.length || it.fotoAnexada));
-  });
+  }).filter(sspForaDoZero);
+}
+// 20/11: a pedido da gerente, a lista de digitação não aparece mais no painel de Oséias (as SS continuam para Igor e Tiago;
+// nada é apagado da planilha). SS abertas depois desta data voltam a aparecer para ele.
+const SSP_ZERO_POR_USUARIO = { oseias: "2026-11-20" };
+function sspZeroDoUsuario() { const k = Object.keys(SSP_ZERO_POR_USUARIO).find(nm => identidadeAtual().includes(nm)); return k ? SSP_ZERO_POR_USUARIO[k] : ""; }
+function sspForaDoZero(it) {
+  const z = sspZeroDoUsuario(); if (!z) return true;
+  const m = String(it.abertura || "").match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  const dia = m ? m[3] + "-" + m[2] + "-" + m[1] : (/^\d{4}-\d{2}-\d{2}/.test(String(it.quando || "")) ? String(it.quando).slice(0, 10) : "");
+  return !!dia && dia > z;
 }
 function sspMontarTodas(d) {
   const vistos = new Set(), out = [];
@@ -9145,7 +9193,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "20/11 15h13";
+const VERSAO_PAINEL = "20/11 15h53";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -9639,7 +9687,7 @@ function menuLeiturista() {
   return [{ nome: "Rotina do mês", tela: "leitRotina", prioridade: true }, { nome: "Rotas de leitura (mapa)", tela: "leitRotas" }, { nome: "Datas das leituras", tela: "leitDatas" },
     { nome: "Contas retidas a entregar", tela: "leitEntregas" }, { nome: "Contas da prefeitura", tela: "leitPrefeitura" }, { nome: "Leitura projetada · leitura real", tela: "leitProjetada" }, { nome: "Solicitar mudança de rota", tela: "leitMudanca" },
     { nome: "Localização do hidrômetro", tela: "locHidrometro" }, { nome: "Bobinas", tela: "bobinas" }, { nome: "Informar vazamento", tela: "pedirSS" }, { nome: "Abastecimento", tela: "abastecimento" },
-    { nome: "Outros", sub: [{ nome: "Trocar minha senha", tela: "trocarSenha" }] }];
+  ];
 }
 
 // ===== Checklist da moto (toda segunda) e Uso do carro (toda vez que usar) – 16/11 =====
