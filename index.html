@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 14h07</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 14h11</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4065,6 +4065,8 @@ const ABA_DIAS_EXTRA = ["2026-11-17"];
 const ABA_RECARGA = "[Recarga de saldo]", ABA_INICIAL = "[Situação inicial]";
 // 20/11: no cartão de São Desidério o funcionário não vê saldo – vê o valor liberado por abastecimento
 const ABA_LIBERADO = { "Cartão de São Desidério (Consórcio)": 100 };
+// 20/11: valor liberado por abastecimento de cada veículo (vale mais que o do cartão)
+const ABA_LIBERADO_VEIC = { "Carro da EMBASA": 50 };
 const ABA_NIVEIS = [["0", "Zerado"], ["0.25", "1/4"], ["0.5", "2/4 (metade)"], ["0.75", "3/4"], ["1", "4/4 (cheio)"]];
 function abaFracTxt(v) { const n = ABA_NIVEIS.find(x => x[0] === String(v)); return n ? n[1] : String(v || ""); }
 function abaVeic(nome) { return ABA_VEICULOS.find(v => v.nome === nome) || null; }
@@ -4192,6 +4194,7 @@ function abaForm() {
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">3) O que vai abastecer</div>
     <select class="campo" id="aba_veic" onchange="abaVeicMudou()"><option value="">Escolha…</option>${ABA_VEICULOS.map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
     <div id="aba_outro_box" style="display:none"><input class="campo" id="aba_outro" placeholder="Escreva o que vai abastecer"></div>
+    <div id="aba_lib_veic"></div>
     <div id="aba_km_box" style="display:none"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">KM real que está marcando no painel do veículo</div>
       <input class="campo" id="aba_km" inputmode="numeric" placeholder="Ex.: 38450"></div>
     <div id="aba_kmc_box"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">KM digitado na máquina do posto (cartão)</div>
@@ -4232,6 +4235,8 @@ function abaVeicMudou() {
   const simp = !!(v && v.simples), mostra = (id, sim) => { const e = document.getElementById(id); if (e) e.style.display = sim ? "block" : "none"; };
   mostra("aba_b_nivel", !simp); mostra("aba_b_nivel2", !simp); mostra("aba_b_s2", !simp); mostra("aba_b_valor", simp);
   if (simp && v.cartao) document.getElementById("aba_cartao").value = v.cartao;
+  const lb = document.getElementById("aba_lib_veic");
+  if (lb) lb.innerHTML = v && ABA_LIBERADO_VEIC[v.nome] ? `<div style="background:#e8f1fb;border-left:5px solid #0b5394;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:17px">Liberado <b style="font-size:21px">${abaMoeda(ABA_LIBERADO_VEIC[v.nome])}</b> neste abastecimento (${sspEsc(v.nome)}).</div>` : "";
   abaCartaoInfo();
   abaCalcular();
 }
@@ -4276,6 +4281,9 @@ async function abaGravar(btn) {
   if (!litros) { alert("Informe quantos litros foram abastecidos."); return; }
   if (!nivel2) { alert("Escolha como ficou o tanque depois de abastecer."); return; }
   if (!s2) { alert("Informe o saldo do cartão DEPOIS de abastecer."); return; }
+  const libR$ = v && ABA_LIBERADO_VEIC[v.nome];
+  if (libR$ && abaLitros(s1) && abaLitros(s2) && (abaLitros(s1) - abaLitros(s2)) > libR$ + 0.001
+    && !confirm("O valor abastecido (" + abaMoeda(abaLitros(s1) - abaLitros(s2)) + ") passou dos " + abaMoeda(libR$) + " liberados. Gravar assim mesmo?")) return;
   const lib = v && v.fixo ? v.fixo : (v && v.tanque ? Math.max(0, v.tanque * (1 - Number(nivel || 0))) : 0);
   if (lib && abaLitros(litros) > lib + 0.001 && !confirm("Você abasteceu " + litros + " L, mais do que os " + lib + " L autorizados. Gravar assim mesmo?")) return;
   sspTravar(btn);
@@ -9061,7 +9069,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "20/11 14h07";
+const VERSAO_PAINEL = "20/11 14h11";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
