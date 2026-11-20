@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 14h21</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 15h13</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1888,8 +1888,18 @@ async function atualizarContagemSS() {
         .filter(x => x.mat && !religadas.has(x.mat) && (ger || inatDoMeuGrupo(x))).length;
     } catch (e) { return 0; }
   };
-  const [pendEx, digi, ssp, pedidosDigi, inativas] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens(), contarPedidosDigi(cred), contarInativas()]);
-  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi, pedidosDigi, inativas }, ssp);
+  // 20/11: contagem do botão Abastecimento (só a gerente): pedidos de autorização e divergências de saldo em aberto
+  const contarAbastecimento = async () => {
+    try {
+      if (!(window.MODO_GERENTE && !emPrevia() && normalizarNome(cred.usuario).includes("deyse"))) return 0;
+      const r = await chamarApi({ acao: "listar", ...cred, aba: "AbastecimentoAutorizacao" });
+      if (r.erro) return 0;
+      const l = r.dados.slice(1), dec = {}; l.filter(x => x[3] === "decisao").forEach(x => { dec[x[4]] = 1; });
+      return l.filter(x => ["pedido", "divergencia"].includes(x[3]) && !dec[x[4]]).length;
+    } catch (e) { return 0; }
+  };
+  const [pendEx, digi, ssp, pedidosDigi, inativas, abastec] = await Promise.all([contarPendExecutar(cred), contarSSDigiteam(cred), sspContagens(), contarPedidosDigi(cred), contarInativas(), contarAbastecimento()]);
+  window.contagemSS = Object.assign({ todas, encerrar, pedidos, ocorrencias, agersa, cortes, pendExecutar: pendEx, ssDigiteam: digi, pedidosDigi, inativas, abastecimento: abastec }, ssp);
   if (window.contagemSS.sspTodas !== undefined) { // pedidos de SS (os que a pessoa vê) e o encerrar pelo escritório entram no total do botão único
     window.contagemSS.sspTodas += Number(encerrar) || 0;
     try { const rp = await chamarApi({ acao: "listar", ...cred, aba: "PedidoSS" }); window.contagemSS.sspTodas += rp && rp.dados ? pssFiltrar(rp.dados).length : 0; } catch (e) {}
@@ -3414,7 +3424,7 @@ function lerPedidosDigiteam(acsDados, saDados) {
     .sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
 }
 Object.assign(TELAS, { pedidosDigi: () => `<h2>Pedidos ao Digiteam</h2><div class="nota">Pedidos dos agentes para receber SS no Digiteam. Os pedidos são colocados no Digiteam só às 8h e às 13h30. Se despachar na mão, toque em "Marcar como despachado" que o agente é avisado.</div><div id="pdg_lista">Carregando...</div>` });
-Object.assign(CONTAGEM_SS_TELAS, { pedidosDigi: "pedidosDigi", inativas: "inativas" });
+Object.assign(CONTAGEM_SS_TELAS, { pedidosDigi: "pedidosDigi", inativas: "inativas", abastecimento: "abastecimento" });
 function ehDigitadorPainel() { return (window.MODO_GERENTE && !emPrevia()) || SSP_DIGITADORES.some(n => identidadeAtual().includes(n)); }
 function pedidosDigiNoMenu(itens) {
   if (!ehDigitadorPainel() || itens.some(i => i.tela === "pedidosDigi")) return itens;
@@ -4051,7 +4061,7 @@ const ABA_VEICULOS = [
   { nome: "Moto de Genildo", tanque: 0, moto: "genildo", lib: 18, info: "18 L liberados por abastecimento (quarta-feira)" },
   { nome: "Moto da Gêneros (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SJX-3G61 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo da Gêneros)" },
   { nome: "Moto do Consórcio (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SKG-9G98 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo do Consórcio)" },
-  { nome: "Moto de Sinval", tanque: 0, moto: ["sinval", "cival"], info: "Moto do leiturista · 16/11: liberado R$ 40,00 neste abastecimento" },
+  { nome: "Moto de Sinval", tanque: 0, semKm: true, moto: ["sinval", "cival"], info: "Moto do leiturista · 16/11: liberado R$ 40,00 neste abastecimento" },
   { nome: "Moto de Igor", simples: true, cartao: "Cartão de São Desidério (Consórcio)" },
   { nome: "Moto de Oséias", simples: true, cartao: "Cartão de São Desidério (Consórcio)" },
   { nome: "Carro da EMBASA", tanque: 0, info: "Placa TYQ-4G63" },
@@ -4111,12 +4121,7 @@ async function carregarAbastecimento() {
   // 20/11: saldo só para a gerente. Exceção: Ivo Carlos e Jânio Gualberto veem os dois saldos do posto de Baianópolis
   const ehBaianopolis = ["ivo", "janio"].some(n => identidadeAtual().includes(n)) && !identidadeAtual().includes("janiolima");
   const cartoesSaldo = abaVeSaldo() ? ABA_CARTOES : (ehBaianopolis ? ABA_CARTOES.filter(c => /Baian/i.test(c)) : []);
-  const saldoLib = abaVeSaldo() ? "" : Object.keys(ABA_LIBERADO).map(c => {
-    const itens = Object.keys(ABA_LIBERADO_VEIC);
-    return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
-      <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
-      ${itens.length ? itens.map(n => `<div style="font-size:20px;font-weight:bold;color:#0b5394">${sspEsc(n)}: liberado ${abaMoeda(ABA_LIBERADO_VEIC[n])} por abastecimento</div>`).join("")
-        : `<div class="nota">O valor liberado aparece quando você escolher o veículo.</div>`}</div>`; }).join("");
+  const saldoLib = ""; // 20/11: o valor liberado não aparece mais na tela inicial, só no formulário de quem está autorizado
   const saldos = (cartoesSaldo.length || saldoLib ? `<h3 style="margin-top:0">${abaVeSaldo() ? 'Saldo dos cartões e postos <span class="nota">(só você vê)</span>' : (cartoesSaldo.length ? "Saldo do posto de Baianópolis" : "Valor liberado")}</h3>` : "") + saldoLib + cartoesSaldo.map(c => { const u = ultimo[c];
     return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
       <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
@@ -4127,11 +4132,17 @@ async function carregarAbastecimento() {
   const decis = {}; aut.filter(l => l[3] === "decisao").forEach(l => { decis[l[4]] = l; });
   const pedidos = aut.filter(l => l[3] === "pedido").map(l => ({ l, d: decis[l[4]] }));
   const pendGer = ger ? pedidos.filter(p => !p.d) : [];
+  const divs = aut.filter(l => l[3] === "divergencia" && !decis[l[4]]);
+  const divHTML = ger && divs.length ? `<h3>Divergências de saldo</h3>` + divs.map(l => `<div class="card" style="margin-bottom:8px;border-left:6px solid #b45309">
+      <b>${sspEsc(sspNome(l[1]))}</b> · ${sspEsc(l[5])}<div class="nota">${sspEsc(l[6])} · ${formatarQuando(l[0])}</div>
+      <button class="acao" onclick="abaDecidir('${l[4]}','visto',this)">Já verifiquei</button></div>`).join("") : "";
   const autHTML = pendGer.length ? `<h3>Pedidos de abastecimento fora do dia</h3>` + pendGer.map(({ l }) => `<div class="card" style="margin-bottom:8px;border-left:6px solid #b45309"><b>${sspEsc(sspNome(l[1]))}</b> · ${sspEsc(l[5])} · ${formatarQuando(l[0])}<div>${sspEsc(l[6])}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="acao" style="margin:0;background:#15803d" onclick="abaDecidir('${l[4]}','autorizado',this)">Autorizar</button><button class="acao" style="margin:0;background:#777" onclick="abaDecidir('${l[4]}','negado',this)">Não autorizar</button></div></div>`).join("") : "";
   // autorização válida do funcionário: autorizada e ainda não usada (sem abastecimento dele depois da decisão)
-  const minha = pedidos.filter(p => normalizarNome(p.l[1]) === eu).pop();
-  const usada = minha && minha.d && dados.some(l => normalizarNome(l[1]) === eu && String(l[0]) > String(minha.d[0]) && l[3] !== ABA_RECARGA);
+  // 20/11: o pedido é de quem o fez – ao ver o painel de outra pessoa, vale a identidade dela
+  const souEu = u => { const n = normalizarNome(u); return n === eu || (!!n && identidadeAtual().includes(n)); };
+  const minha = pedidos.filter(p => souEu(p.l[1])).pop();
+  const usada = minha && minha.d && dados.some(l => souEu(l[1]) && String(l[0]) > String(minha.d[0]) && l[3] !== ABA_RECARGA);
   window.abaAutorizado = !!(minha && minha.d && minha.d[7] === "autorizado" && !usada);
   const liberado = ger || abaDiaLiberado() || window.abaAutorizado;
   let regra = `<div class="aviso" style="background:#e8f1fb;border-left-color:#0b5394"><b>Abastecimento: toda ${abaMeuDiaTxt()} pela manhã${abaMeuDia() === 3 ? " (Tiago leva o cartão à loja de atendimento de Catolândia)" : ", completando o tanque"}.</b> Em outro dia, só com autorização da gerência.</div>`;
@@ -4144,7 +4155,7 @@ async function carregarAbastecimento() {
     <div style="font-size:18px;font-weight:bold">✔ Abastecimento registrado</div>
     <div style="font-size:21px;font-weight:bold;color:#0b5394;margin-top:6px">Favor devolver o cartão a Tiago.</div></div>` : "";
   window.abaOk = false;
-  box.innerHTML = okMsg + saldos + autHTML + regra + (liberado ? `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` : "") + abaHistorico(abaVeSaldo() ? dados : dados.filter(l => normalizarNome(l[1]) === eu), abaVeSaldo(), !abaVeSaldo());
+  box.innerHTML = okMsg + saldos + divHTML + autHTML + regra + (liberado ? `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` : "") + abaHistorico(abaVeSaldo() ? dados : dados.filter(l => normalizarNome(l[1]) === eu), abaVeSaldo(), !abaVeSaldo());
 }
 // 16/11: histórico por veículo e equipamento (todos veem; valores em R$ só a gerência)
 function abaHistorico(dados, ger, soMeus) {
@@ -4198,7 +4209,7 @@ async function abaPedirAut(btn) {
   } catch (e) { alert("Não consegui enviar. Verifique a internet."); sspDestravar(btn); }
 }
 async function abaDecidir(id, dec, btn) {
-  if (!confirm(dec === "autorizado" ? "Autorizar este abastecimento?" : "Não autorizar?")) return;
+  if (dec !== "visto" && !confirm(dec === "autorizado" ? "Autorizar este abastecimento?" : "Não autorizar?")) return;
   sspTravar(btn);
   try { const r = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AbastecimentoAutorizacao",
       linhas: [[new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "decisao", id, "", "", dec]] });
@@ -4211,8 +4222,9 @@ function abaForm() {
     <div style="font-weight:bold;font-size:16px;margin-bottom:6px">1) Onde vai pagar</div>
     <select class="campo" id="aba_cartao" onchange="abaCartaoInfo()"><option value="">Escolha o cartão / posto…</option>${ABA_CARTOES.map(c => `<option>${sspEsc(c)}</option>`).join("")}</select>
     <div id="aba_cartao_info"></div>
-    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">2) Saldo do cartão ANTES de abastecer (R$)</div>
-    <input class="campo" id="aba_saldo1" inputmode="decimal" placeholder="Ex.: 250,00">
+    <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">2) Saldo do cartão ANTES de abastecer</div>
+    <div id="aba_saldo_box"><div class="nota">Escolha o cartão acima para ver o saldo.</div></div>
+    <input type="hidden" id="aba_saldo1"><input type="hidden" id="aba_saldo_painel"><input type="hidden" id="aba_divergencia">
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">3) O que vai abastecer</div>
     <select class="campo" id="aba_veic" onchange="abaVeicMudou()"><option value="">Escolha…</option>${abaVeiculosDaPessoa().map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
     <div id="aba_outro_box" style="display:none"><input class="campo" id="aba_outro" placeholder="Escreva o que vai abastecer"></div>
@@ -4238,9 +4250,40 @@ function abaForm() {
   f.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 // 19/11: dados do cartão (titular, senha, matrícula) vêm da aba CartaoInfo da planilha – nunca ficam no código (repositório público)
+// 20/11: mostra o saldo que o painel tem e pede confirmação; se o funcionário disser que está diferente, avisa a gerência
+function abaSaldoBox() {
+  const box = document.getElementById("aba_saldo_box"), sel = document.getElementById("aba_cartao"); if (!box || !sel) return;
+  const c = sel.value; if (!c) { box.dataset.cartao = ""; box.innerHTML = '<div class="nota">Escolha o cartão acima para ver o saldo.</div>'; return; }
+  if (box.dataset.cartao === c) return; // já perguntou deste cartão: não apaga a resposta do funcionário
+  box.dataset.cartao = c;
+  const u = (window.abaDados || []).filter(l => l[2] === c).sort((a, b) => String(a[0]).localeCompare(String(b[0]))).pop();
+  const saldo = u ? abaLitros(u[8]) : 0;
+  document.getElementById("aba_saldo_painel").value = u ? String(saldo) : "";
+  document.getElementById("aba_saldo1").value = u ? String(saldo) : "";
+  document.getElementById("aba_divergencia").value = "";
+  box.innerHTML = u ? `<div style="background:#e8f1fb;border-left:5px solid #0b5394;border-radius:8px;padding:10px 12px;font-size:17px">
+      Pelo painel, o cartão tem <b style="font-size:22px">${abaMoeda(saldo)}</b>.
+      <div style="margin-top:8px;font-weight:bold">O valor do saldo está correto?</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+        <button class="acao" style="margin:0" onclick="abaSaldoConfere(true)">Sim, está certo</button>
+        <button class="acao" style="margin:0;background:#fff;color:#0b5394;border:2px solid #0b5394" onclick="abaSaldoConfere(false)">Não, está diferente</button></div>
+      <div id="aba_saldo_dif"></div></div>`
+    : `<div class="nota">O painel ainda não tem saldo deste cartão.</div><input class="campo" id="aba_saldo_novo" inputmode="decimal" placeholder="Saldo que está no cartão (R$)" oninput="document.getElementById('aba_saldo1').value=this.value">`;
+}
+function abaSaldoConfere(ok) {
+  const d = document.getElementById("aba_saldo_dif"); if (!d) return;
+  if (ok) { document.getElementById("aba_saldo1").value = document.getElementById("aba_saldo_painel").value;
+    document.getElementById("aba_divergencia").value = "";
+    d.innerHTML = `<div style="margin-top:8px;font-weight:bold;color:#15803d">✔ Saldo confirmado. Siga para o KM da máquina.</div>`; return; }
+  d.innerHTML = `<div style="margin-top:8px"><b>Qual é o saldo atual do cartão?</b>
+    <input class="campo" id="aba_saldo_novo" inputmode="decimal" placeholder="Valor que apareceu na maquininha (R$)"
+      oninput="document.getElementById('aba_saldo1').value=this.value;document.getElementById('aba_divergencia').value=this.value">
+    <div class="nota">A gerência será avisada da diferença.</div></div>`;
+}
 async function abaCartaoInfo() {
   const box = document.getElementById("aba_cartao_info"), sel = document.getElementById("aba_cartao"); if (!box || !sel) return;
   if (!window.abaCartoesInfo) { try { const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "CartaoInfo" }); window.abaCartoesInfo = (r && !r.erro && r.dados) ? r.dados.slice(1) : []; } catch (e) { window.abaCartoesInfo = []; } }
+  abaSaldoBox();
   const l = window.abaCartoesInfo.filter(x => x[0] === sel.value).pop();
   // 20/11: KM utilizado na última compra deste cartão (número de projeção digitado na máquina, não o KM real)
   const kmDe = x => String(x[13] || x[12] || "").trim();
@@ -4252,13 +4295,13 @@ async function abaCartaoInfo() {
 function abaVeicMudou() {
   const v = abaVeic(document.getElementById("aba_veic").value);
   document.getElementById("aba_outro_box").style.display = v && v.outro ? "block" : "none";
-  document.getElementById("aba_km_box").style.display = v && !v.fixo && !v.simples ? "block" : "none"; // motobomba não tem KM
+  document.getElementById("aba_km_box").style.display = v && !v.fixo && !v.simples && !v.semKm ? "block" : "none"; // motobomba não tem KM
   // 17/11: motos de Igor e Oséias = só saldo do cartão (Consórcio de São Desidério), litros e valor
   const simp = !!(v && v.simples), mostra = (id, sim) => { const e = document.getElementById(id); if (e) e.style.display = sim ? "block" : "none"; };
   mostra("aba_b_nivel", !simp); mostra("aba_b_nivel2", !simp); mostra("aba_b_s2", !simp); mostra("aba_b_valor", simp);
   if (simp && v.cartao) document.getElementById("aba_cartao").value = v.cartao;
   const lb = document.getElementById("aba_lib_veic");
-  if (lb) lb.innerHTML = v && ABA_LIBERADO_VEIC[v.nome] ? `<div style="background:#e8f1fb;border-left:5px solid #0b5394;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:17px">Liberado <b style="font-size:21px">${abaMoeda(ABA_LIBERADO_VEIC[v.nome])}</b> neste abastecimento (${sspEsc(v.nome)}).</div>` : "";
+  if (lb) lb.innerHTML = v && ABA_LIBERADO_VEIC[v.nome] && (window.abaAutorizado || abaDiaLiberado()) ? `<div style="background:#e8f1fb;border-left:5px solid #0b5394;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:17px">Liberado <b style="font-size:21px">${abaMoeda(ABA_LIBERADO_VEIC[v.nome])}</b> neste abastecimento (${sspEsc(v.nome)}).</div>` : "";
   abaCartaoInfo();
   abaCalcular();
 }
@@ -4275,12 +4318,20 @@ function abaCalcular() {
   else if (v) txt = /R\$/.test(v.info || "") ? v.info.split(" · ").filter(x => /R\$/.test(x)).join(" · ") + ". Informe abaixo quantos litros deram." : "O limite de litros deste item ainda não foi definido pela gerente.";
   box.innerHTML = txt ? `<div style="background:#e8f1fb;border-left:6px solid #0b5394;border-radius:8px;padding:10px;margin:8px 0;font-size:17px">${txt}</div>` : "";
 }
+// 20/11: avisa a gerência quando o saldo da maquininha não bate com o do painel
+async function abaAvisarDivergencia(cartao) {
+  const dif = (document.getElementById("aba_divergencia") || {}).value, painel = (document.getElementById("aba_saldo_painel") || {}).value;
+  if (!dif || abaLitros(dif) === abaLitros(painel)) return;
+  try { await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "AbastecimentoAutorizacao",
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, nomesDoUsuario(), "divergencia", "d" + Date.now().toString(36), cartao,
+        "Painel " + abaMoeda(painel) + " · maquininha " + abaMoeda(dif), ""]] }); } catch (e) {}
+}
 async function abaGravar(btn) {
   const g = id => (document.getElementById(id) || {}).value || "";
   const cartao = g("aba_cartao"), veic = g("aba_veic"), outro = g("aba_outro").trim();
   const s1 = g("aba_saldo1"), nivel = g("aba_nivel"), litros = g("aba_litros"), nivel2 = g("aba_nivel2"), s2 = g("aba_saldo2"), km = g("aba_km").trim(), kmc = g("aba_kmc").trim();
   if (!cartao) { alert("Escolha o cartão ou o posto."); return; }
-  if (!s1) { alert("Informe o saldo do cartão ANTES de abastecer."); return; }
+  if (!s1) { alert("Confirme o saldo do cartão ANTES de abastecer (Sim, está certo / Não, está diferente)."); return; }
   if (!veic) { alert("Escolha o que vai abastecer."); return; }
   const v = abaVeic(veic);
   if (v && v.outro && !outro) { alert("Escreva o que vai abastecer."); return; }
@@ -4290,6 +4341,7 @@ async function abaGravar(btn) {
     if (!valor) { alert("Informe o valor abastecido (R$)."); return; }
     const depois = Math.round((abaLitros(s1) - abaLitros(valor)) * 100) / 100;
     sspTravar(btn);
+    await abaAvisarDivergencia(cartao);
     try {
       const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Abastecimento",
         linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, "Valor " + abaMoeda(valor), "", litros, s1, String(depois), "", nomesDoUsuario(), "", ""]] });
@@ -4298,7 +4350,7 @@ async function abaGravar(btn) {
     } catch (e) { alert("Não consegui gravar. Verifique a internet."); sspDestravar(btn); }
     return;
   }
-  if (v && !v.fixo && !km) { alert("Informe o KM real que está marcando no painel do veículo."); return; }
+  if (v && !v.fixo && !v.semKm && !km) { alert("Informe o KM real que está marcando no painel do veículo."); return; }
   if (!kmc) { alert("Informe o KM digitado na máquina do posto (cartão)."); return; }
   if (!nivel) { alert("Escolha como está o tanque agora."); return; }
   if (!litros) { alert("Informe quantos litros foram abastecidos."); return; }
@@ -4310,6 +4362,7 @@ async function abaGravar(btn) {
   const lib = v && v.lib ? v.lib : (v && v.fixo ? v.fixo : (v && v.tanque ? Math.max(0, v.tanque * (1 - Number(nivel || 0))) : 0));
   if (lib && abaLitros(litros) > lib + 0.001 && !confirm("Você abasteceu " + litros + " L, mais do que os " + lib + " L autorizados. Gravar assim mesmo?")) return;
   sspTravar(btn);
+  await abaAvisarDivergencia(cartao);
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Abastecimento",
       linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, outro, abaFracTxt(nivel), litros, s1, s2, String(lib ? Number(lib.toFixed(1)) : ""), nomesDoUsuario(), abaFracTxt(nivel2), km, kmc]] });
@@ -9092,7 +9145,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "20/11 14h21";
+const VERSAO_PAINEL = "20/11 15h13";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
