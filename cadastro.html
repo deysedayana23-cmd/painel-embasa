@@ -92,9 +92,18 @@ async function carregarMapa() {
 async function carregarBase() {
   BASE = ler("cadBase", []); FEITOS = ler("cadFeitos", {});
   if (!LOGIN || navigator.onLine === false) return;
+  // 20/11: nome/endereço/hidrômetro vêm da aba BaseMatriculas (SCI); setor/quadra/lote vêm da camada do QGIS (cadastro_lotes.json)
   try {
-    const r = await api({ acao: "listar", ...cred(), aba: "CadastroBase" });
-    if (r.dados) { BASE = r.dados.slice(1).map(l => ({ s: String(l[0]).padStart(2, "0"), q: String(l[1]).padStart(4, "0"), l: Number(l[2]), m: String(l[3]).replace(/^'/, ""), nome: l[4], end: l[5], porta: l[6], hd: l[7], agua: l[8] })); gravar("cadBase", BASE); }
+    let lotes = null;
+    try { const rr = await fetch("cadastro_lotes.json?v=" + Date.now()); if (rr.ok) lotes = await rr.json(); } catch (e) {}
+    if (!lotes) try { const c = await caches.open("rotas-v1"); const rr = await c.match("cadastro_lotes.json"); if (rr) lotes = await rr.json(); } catch (e) {}
+    const r = await api({ acao: "listar", ...cred(), aba: "BaseMatriculas" });
+    if (lotes && r.dados) {
+      const cab = r.dados[0].map(x => String(x).toLowerCase()), ix = n => cab.indexOf(n), mp = {};
+      r.dados.slice(1).forEach(l => { mp[String(l[ix("matricula")]).replace(/^'/, "").replace(/^0+/, "")] = l; });
+      BASE = lotes.map(([m, s, q, lt]) => { const l = mp[String(m).replace(/^0+/, "")] || []; return { s, q, l: lt, m: String(m), nome: l[ix("nome")] || "", end: String(l[ix("logradouro")] || "").replace(/^\d+\s*-\s*/, ""), porta: l[ix("numero")] || "", hd: l[ix("hidrometro")] || "", agua: "" }; });
+      gravar("cadBase", BASE);
+    }
   } catch (e) {}
   try {
     const r = await api({ acao: "listar", ...cred(), aba: "CadastroCampo" });
@@ -254,7 +263,7 @@ window.addEventListener("online", enviarFila); setInterval(enviarFila, 60000);
   if (!LOGIN) aviso("Entre no Painel EMBASA primeiro (login) e depois abra o cadastro.", 8000);
   if (!(await carregarMapa())) return;
   await carregarBase(); desenharBase(); mostrarFila(); enviarFila();
-  if (!BASE.length) aviso("Base de matrículas ainda vazia: abra com internet (e a gerência precisa ter a aba CadastroBase).", 8000);
+  if (!BASE.length) aviso("Base de matrículas ainda vazia: abra com internet.", 8000);
 })();
 </script>
 </body>

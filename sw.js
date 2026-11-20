@@ -13,8 +13,8 @@ self.addEventListener("fetch", e => {
     return;
   }
   // 18/11: Cadastro de matrículas também funciona sem internet (tela + mapa das quadras/lotes guardados no celular)
-  if (/\/(cadastro_mapa|visitas)\.json/.test(u)) {
-    const nome = /visitas\.json/.test(u) ? "visitas.json" : "cadastro_mapa.json"; // 20/11: visitas de conferência também offline
+  if (/\/(cadastro_mapa|cadastro_lotes|visitas)\.json/.test(u)) {
+    const nome = /visitas\.json/.test(u) ? "visitas.json" : /cadastro_lotes/.test(u) ? "cadastro_lotes.json" : "cadastro_mapa.json"; // 20/11: visitas de conferência também offline
     e.respondWith(fetch(e.request).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put(nome, cp)); return resp; })
       .catch(() => caches.open(CACHE_ROTAS).then(c => c.match(nome))));
     return;
