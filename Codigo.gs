@@ -18,9 +18,9 @@ const PERMISSAO_ALMOX = {
   "ETA Angico": ["Ramon", "Renato"],
   "ETA São Desidério": ["Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo", "Luzenildo", "Joaquim", "Carlito", "Francisco", "Thiago", "Tiago"],
   "Escritório São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo", "Thiago", "Tiago"],
-  "Escritório Catolândia": ["Isaque", "Isaac"],
+  "Escritório Catolândia": ["Isaque", "Isaac", "Genildo", "Genildo Alves dos Santos"],
   "Escritório Baianópolis": ["Ivo Carlos", "Jânio Gualberto"],
-  "ETA Mozondó": ["Genildo", "Alan", "Juvenson", "Valdesandro", "Valdesandro Goncalves De Souza"]
+  "ETA Mozondó": ["Murilo", "Alan", "Juvenson", "Valdesandro", "Valdesandro Goncalves De Souza"]
 };
 
 // ---------- utilidades ----------
