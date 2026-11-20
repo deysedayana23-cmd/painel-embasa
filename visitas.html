@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conferir localização das matrículas</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root { --azul:#0b5394; --verm:#d00000; --verde:#15803d; --lar:#ea580c; --roxo:#7c3aed; --fundo:#f4f7fb; --tinta:#14213d; }
+* { box-sizing:border-box; }
+html, body { margin:0; height:100%; font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--tinta); background:var(--fundo); }
+#topo { position:fixed; top:0; left:0; right:0; z-index:1000; background:var(--azul); color:#fff; padding:8px 10px; }
+#topo .t { font-size:12px; opacity:.9; } #topo .n { font-size:17px; font-weight:800; }
+#sel { display:flex; gap:6px; margin-top:6px; }
+#sel select { flex:1; min-width:0; font:15px system-ui; padding:8px; border-radius:8px; border:0; }
+#mapa { position:fixed; top:100px; left:0; right:0; height:38%; }
+#lista { position:fixed; top:calc(100px + 38%); bottom:0; left:0; right:0; overflow:auto; padding:8px 10px calc(16px + env(safe-area-inset-bottom)); }
+button { font:600 14px system-ui,sans-serif; border:0; border-radius:10px; min-height:42px; padding:6px 10px; cursor:pointer; }
+.ok { background:var(--verde); color:#fff; } .pri { background:var(--verm); color:#fff; } .sec { background:#fff; color:var(--tinta); border:1px solid #c9d6e8; }
+.res { display:flex; gap:6px; flex-wrap:wrap; font-size:13px; margin:2px 0 8px; }
+.res span { border-radius:20px; padding:3px 9px; color:#fff; font-weight:700; }
+.card { background:#fff; border:1px solid #d6e0ee; border-left:6px solid #94a3b8; border-radius:12px; padding:9px 10px; margin:8px 0; }
+.card .m { font-weight:800; font-size:16px; } .card .d { font-size:13px; color:#3d4a63; margin-top:2px; }
+.card .obs { font-size:12.5px; background:#f5f3ff; color:#4c1d95; border-radius:6px; padding:5px 7px; margin-top:6px; }
+.card .bt { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:8px; }
+.card .bt button { min-height:40px; font-size:13px; padding:4px; }
+.c-foto { border-left-color:var(--azul); } .c-procurar { border-left-color:var(--lar); } .c-conferir { border-left-color:var(--roxo); }
+.c-feito { border-left-color:var(--verde); background:#eefaf1; } .c-nao { border-left-color:#6b7280; background:#f3f4f6; }
+.chip { display:inline-block; font-size:11px; font-weight:800; border-radius:10px; padding:2px 7px; color:#fff; margin-left:6px; vertical-align:middle; }
+.pend { background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:8px 10px; font-size:13px; margin:6px 0; }
+.pend b { color:#9a3412; } .pend li { margin:3px 0; }
+.nota { font-size:13px; color:#3d4a63; background:#eef3fa; border-radius:8px; padding:8px; margin:6px 0; }
+#modal { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1005; display:none; align-items:flex-end; }
+#modal .cx { background:#fff; width:100%; border-radius:16px 16px 0 0; padding:14px; max-height:85%; overflow:auto; }
+#modal h3 { margin:0 0 8px; color:var(--azul); }
+input.tx, textarea.tx { width:100%; font:16px system-ui; padding:9px; border:1px solid #c9d6e8; border-radius:8px; margin:4px 0 8px; }
+label { font-size:13px; font-weight:700; }
+.linha2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+#aviso { position:fixed; left:10px; right:10px; top:108px; z-index:1006; background:#14213d; color:#fff; border-radius:12px; padding:12px 14px; font-size:15px; display:none; }
+#fila { position:fixed; right:10px; bottom:12px; z-index:1001; background:#b45309; color:#fff; border-radius:10px; padding:6px 10px; font-size:13px; display:none; }
+.lab { background:rgba(255,255,255,.85); border:0; border-radius:4px; padding:0 3px; font-size:11px; font-weight:700; box-shadow:none; }
+.lab::before { display:none; }
+</style>
+</head>
+<body>
+<div id="topo">
+  <div class="t">Painel EMBASA · São Desidério · <span id="quem"></span></div>
+  <div class="n">Conferir localização das matrículas</div>
+  <div id="sel">
+    <select id="selSetor"></select>
+    <select id="selQuadra"></select>
+    <button class="sec" id="bGps" style="min-height:36px">📍</button>
+    <button class="sec" id="bSair" style="min-height:36px">Sair</button>
+  </div>
+</div>
+<div id="mapa"></div>
+<div id="lista"></div>
+<div id="fila"></div>
+<div id="aviso"></div>
+<div id="modal"><div class="cx" id="mcx"></div></div>
+<script>
+// 20/11: visitas de conferência da localização (Joaquim e Deyse).
+// Base: fotos das plantas com as matrículas anotadas nas visitas do ano passado, comparadas com a camada do QGIS.
+// Azul = anotada na foto no mesmo lote (só confirmar) · Laranja = está na camada mas não apareceu na foto (procurar)
+// Roxo = divergência entre foto e camada (conferir) · Verde = já conferida · Cinza = não encontrada.
+const URL_API = "https://script.google.com/macros/s/AKfycbxyePlBgyfdn3Fh8Eiz1nDGGlVAwPKVgwS9TY2R0A-m7FZ3Vp76ghK5xbzKSaxYuGsR/exec";
+const ABA = "ConferenciaLocal";
+let LOGIN = null; try { LOGIN = JSON.parse(localStorage.getItem("painelLogin") || "null"); } catch (e) {}
+const $ = id => document.getElementById(id);
+const norm = t => String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const PODE = !!LOGIN && ["joaquim", "deyse"].some(n => norm(LOGIN.usuario).includes(n));
+function aviso(t, ms) { const a = $("aviso"); a.textContent = t; a.style.display = "block"; clearTimeout(aviso.t); aviso.t = setTimeout(() => a.style.display = "none", ms || 4000); }
+async function api(corpo) { const r = await fetch(URL_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(corpo) }); return r.json(); }
+const cred = () => ({ usuario: LOGIN.usuario, senha: LOGIN.senha });
+const ler = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch (e) { return d; } };
+const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { aviso("Memória do celular cheia."); } };
+$("bSair").onclick = () => { location.href = "index.html"; };
+const COR = { foto: "#0b5394", procurar: "#ea580c", conferir: "#7c3aed", feito: "#15803d", nao: "#6b7280" };
+const TXT = { foto: "Anotada aqui – confirmar", procurar: "Não apareceu na foto – procurar", conferir: "Divergência – conferir", feito: "Conferida", nao: "Não encontrada" };
+
+let VIS = null, MAPA = null, BASE = [], RESP = {};   // RESP[m] = {acao, lote, ...} última resposta
+async function pegarJson(arq) {
+  try { const r = await fetch(arq + "?v=" + Date.now()); if (r.ok) return await r.json(); } catch (e) {}
+  try { const c = await caches.open("rotas-v1"); const r = await c.match(arq); if (r) return await r.json(); } catch (e) {}
+  return null;
+}
+async function carregar() {
+  VIS = await pegarJson("visitas.json"); MAPA = await pegarJson("cadastro_mapa.json");
+  BASE = ler("cadBase", []); RESP = ler("confResp", {});
+  lerFila().forEach(it => RESP[it.m] = it.r);
+  if (!LOGIN || navigator.onLine === false) return;
+  try {
+    const r = await api({ acao: "listar", ...cred(), aba: "CadastroBase" });
+    if (r.dados) { BASE = r.dados.slice(1).map(l => ({ s: String(l[0]).padStart(2, "0"), q: String(l[1]).padStart(4, "0"), l: Number(l[2]), m: String(l[3]).replace(/^'/, ""), nome: l[4], end: l[5], porta: l[6], hd: l[7], agua: l[8] })); gravar("cadBase", BASE); }
+  } catch (e) {}
+  try {
+    const r = await api({ acao: "listar", ...cred(), aba: ABA });
+    if (r.dados) { r.dados.slice(1).forEach(l => { const m = String(l[5]).replace(/^'/, ""); RESP[m] = { acao: l[6], l: l[7], hd: l[8], obs: l[9], quando: l[0], quem: l[1] }; }); lerFila().forEach(it => RESP[it.m] = it.r); gravar("confResp", RESP); }
+  } catch (e) {}
+}
+const info = m => BASE.find(b => b.m.replace(/^0+/, "") === String(m).replace(/^0+/, "")) || {};
+function estado(x) { const r = RESP[x.m]; if (!r) return x.st; return r.acao === "Não encontrada" ? "nao" : "feito"; }
+
+// ===== mapa =====
+const mapa = L.map("mapa", { zoomControl: false, maxZoom: 21 }).setView([-12.359, -44.975], 16);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19 }).addTo(mapa);
+const camQ = L.layerGroup().addTo(mapa), camL = L.layerGroup().addTo(mapa);
+let QD = null, marcaEu = null;
+$("bGps").onclick = () => {
+  if (!navigator.geolocation) return aviso("Sem GPS no navegador.");
+  navigator.geolocation.getCurrentPosition(p => { const c = [p.coords.latitude, p.coords.longitude]; if (marcaEu) marcaEu.remove(); marcaEu = L.circleMarker(c, { radius: 8, color: "#fff", weight: 3, fillColor: "#2563eb", fillOpacity: 1 }).addTo(mapa); mapa.setView(c, 19); },
+    () => aviso("Não consegui o GPS."), { enableHighAccuracy: true, timeout: 20000 });
+};
+function desenharMapa() {
+  camQ.clearLayers(); camL.clearLayers(); if (!MAPA || !QD) return;
+  const poly = MAPA.quadras.filter(x => x.s === QD.s && x.q === QD.q);
+  let bb = null;
+  poly.forEach(qq => qq.p.forEach(anel => { const p = L.polygon(anel, { color: "#ffeb3b", weight: 3, fill: false, interactive: false }).addTo(camQ); bb = bb ? bb.extend(p.getBounds()) : p.getBounds(); }));
+  const lotes = MAPA.lotes.filter(x => x.s === QD.s && x.q === QD.q);
+  lotes.forEach(lo => {
+    const ms = QD.mats.filter(x => x.l === lo.l), sts = ms.map(estado);
+    const cor = !ms.length ? "#94a3b8" : sts.includes("conferir") ? COR.conferir : sts.includes("procurar") ? COR.procurar : sts.includes("foto") ? COR.foto : sts.every(s => s === "nao") ? COR.nao : COR.feito;
+    L.circleMarker(lo.c, { radius: 9, color: "#fff", weight: 2, fillColor: cor, fillOpacity: .95 }).on("click", () => irLote(lo.l)).addTo(camL);
+    L.marker(lo.c, { icon: L.divIcon({ className: "", html: "", iconSize: [0, 0] }) }).bindTooltip(String(lo.l), { permanent: true, direction: "right", className: "lab", offset: [8, 0] }).addTo(camL);
+  });
+  if (bb) mapa.fitBounds(bb, { maxZoom: 19, padding: [10, 10] });
+  else if (lotes.length) mapa.fitBounds(L.latLngBounds(lotes.map(l => l.c)), { maxZoom: 19 });
+}
+function irLote(l) { const el = document.querySelector(`[data-l="${l}"]`); if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.style.outline = "3px solid #facc15"; setTimeout(() => el.style.outline = "", 1500); } else aviso("Nenhuma matrícula da camada no lote " + l + ".", 2500); }
+
+// ===== lista =====
+function montarSel() {
+  const setores = [...new Set(VIS.quadras.map(q => q.s))];
+  const ult = ler("confUlt", {});
+  $("selSetor").innerHTML = setores.map(s => `<option value="${s}" ${s === ult.s ? "selected" : ""}>Setor ${s}</option>`).join("");
+  $("selSetor").onchange = () => { montarQuadras(); };
+  montarQuadras(ult.q);
+}
+function resumoQ(q) { const t = q.mats.length, f = q.mats.filter(x => RESP[x.m]).length; return f + "/" + t; }
+function montarQuadras(qSel) {
+  const s = $("selSetor").value, qs = VIS.quadras.filter(q => q.s === s);
+  $("selQuadra").innerHTML = qs.map(q => `<option value="${q.q}" ${q.q === qSel ? "selected" : ""}>Quadra ${q.q.replace(/^0+/, "")} · ${resumoQ(q)} conferidas</option>`).join("");
+  $("selQuadra").onchange = () => abrirQuadra();
+  abrirQuadra();
+}
+function abrirQuadra() {
+  const s = $("selSetor").value, q = $("selQuadra").value;
+  QD = VIS.quadras.find(x => x.s === s && x.q === q); gravar("confUlt", { s, q });
+  desenharMapa(); desenharLista();
+}
+function desenharLista() {
+  if (!QD) return;
+  const cont = {}; QD.mats.forEach(x => { const e = estado(x); cont[e] = (cont[e] || 0) + 1; });
+  let h = `<div class="res">` + ["foto", "procurar", "conferir", "feito", "nao"].filter(k => cont[k]).map(k => `<span style="background:${COR[k]}">${cont[k]} ${({ foto: "confirmar", procurar: "procurar", conferir: "conferir", feito: "conferidas", nao: "não achadas" })[k]}</span>`).join("") + `</div>`;
+  if (QD.obs) h += `<div class="nota">${QD.obs}</div>`;
+  if (QD.pend.length) h += `<details class="pend"><summary><b>Anotações da foto para conferir (${QD.pend.length})</b></summary><ul>${QD.pend.map(p => `<li>${p}</li>`).join("")}</ul></details>`;
+  QD.mats.forEach(x => {
+    const e = estado(x), b = info(x.m), r = RESP[x.m];
+    h += `<div class="card c-${e}" data-l="${x.l ?? ""}"><div class="m">${x.m}<span class="chip" style="background:${COR[e]}">${TXT[e]}</span></div>
+      <div class="d">Lote ${x.l ?? "—"}${b.nome ? " · " + b.nome : ""}${b.end ? "<br>" + b.end + (b.porta ? " nº " + b.porta : "") : ""}${b.hd ? " · HD " + b.hd : ""}</div>
+      ${x.obs ? `<div class="obs">${x.obs}</div>` : ""}
+      ${r ? `<div class="d" style="margin-top:4px">✔ ${r.acao}${r.l && String(r.l) !== String(x.l) ? " · lote " + r.l : ""}${r.hd ? " · HD " + r.hd : ""}${r.obs ? " · " + r.obs : ""}</div>` : ""}
+      ${PODE ? `<div class="bt"><button class="ok" onclick="responder('${x.m}','Confirmada no lote')">✅ Está aqui</button><button class="sec" onclick="outroLote('${x.m}')">↪ Outro lote</button><button class="pri" onclick="responder('${x.m}','Não encontrada')">✖ Não achei</button></div>` : ""}
+    </div>`;
+  });
+  if (PODE) h += `<button class="ok" style="width:100%;margin-top:6px" onclick="adicionar()">+ Adicionar matrícula / hidrômetro que não está na lista</button>`;
+  $("lista").innerHTML = h;
+}
+function modal(html) { $("mcx").innerHTML = html; $("modal").style.display = "flex"; }
+function fechar() { $("modal").style.display = "none"; }
+$("modal").onclick = e => { if (e.target.id === "modal") fechar(); };
+function outroLote(m) {
+  modal(`<h3>Matrícula ${m} em outro lote</h3><label>Lote onde ela está (número no círculo da planta)</label><input class="tx" id="nL" inputmode="numeric">
+    <label>Quadra (se for outra quadra)</label><input class="tx" id="nQ" inputmode="numeric" placeholder="${QD.q.replace(/^0+/, "")}">
+    <label>Observação</label><input class="tx" id="nO">
+    <div class="linha2"><button class="ok" onclick="salvarOutro('${m}')">Salvar</button><button class="sec" onclick="fechar()">Cancelar</button></div>`);
+}
+function salvarOutro(m) {
+  const l = $("nL").value.replace(/\D/g, ""), q = $("nQ").value.replace(/\D/g, ""); if (!l) return aviso("Informe o lote.");
+  responder(m, "Mudou de lote", { l: Number(l), q: q ? q.padStart(4, "0") : "", obs: $("nO").value }); fechar();
+}
+function adicionar() {
+  modal(`<h3>Adicionar nesta quadra (${QD.q.replace(/^0+/, "")})</h3><label>Matrícula (se souber)</label><input class="tx" id="aM" inputmode="numeric">
+    <label>Número do hidrômetro</label><input class="tx" id="aH">
+    <label>Lote</label><input class="tx" id="aL" inputmode="numeric"><label>Observação (porta, nome…)</label><input class="tx" id="aO">
+    <div class="linha2"><button class="ok" onclick="salvarAdd()">Salvar</button><button class="sec" onclick="fechar()">Cancelar</button></div>`);
+}
+function salvarAdd() {
+  const m = $("aM").value.replace(/\D/g, ""), hd = $("aH").value.trim(), l = $("aL").value.replace(/\D/g, "");
+  if (!m && !hd) return aviso("Informe a matrícula ou o hidrômetro."); if (!l) return aviso("Informe o lote.");
+  const k = m || ("HD-" + hd);
+  if (m && !QD.mats.some(x => x.m === m)) QD.mats.push({ m: m, l: Number(l), st: "conferir", obs: "adicionada em campo" });
+  responder(k, "Adicionada em campo", { l: Number(l), hd: hd, obs: $("aO").value }); fechar();
+}
+function pegarGps() { return new Promise(ok => { if (!navigator.geolocation) return ok(null); navigator.geolocation.getCurrentPosition(p => ok([p.coords.latitude, p.coords.longitude]), () => ok(null), { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }); }); }
+async function responder(m, acao, extra) {
+  if (!PODE) return;
+  extra = extra || {}; const x = QD.mats.find(y => y.m === m) || {};
+  const r = { acao, l: extra.l ?? x.l ?? "", hd: extra.hd || "", obs: extra.obs || "" };
+  RESP[m] = r; gravar("confResp", RESP); desenharLista(); desenharMapa(); montarQuadrasTexto();
+  const gps = await pegarGps();
+  const linha = [new Date().toISOString(), LOGIN.usuario, QD.s, QD.q, x.l ?? "", "'" + m, acao, (extra.q ? extra.q + "-" : "") + (r.l ?? ""), r.hd, r.obs, gps ? gps[0] : "", gps ? gps[1] : "", x.st || ""];
+  enfileirar({ m, r, linha });
+}
+function montarQuadrasTexto() { [...$("selQuadra").options].forEach(o => { const q = VIS.quadras.find(z => z.s === $("selSetor").value && z.q === o.value); if (q) o.textContent = `Quadra ${q.q.replace(/^0+/, "")} · ${resumoQ(q)} conferidas`; }); }
+
+// ===== fila (funciona sem internet) =====
+const lerFila = () => ler("filaConf", []);
+function gravarFila(f) { gravar("filaConf", f); const n = f.length; $("fila").style.display = n ? "block" : "none"; $("fila").textContent = "⏳ " + n + " aguardando internet"; }
+function enfileirar(it) { const f = lerFila(); f.push(it); gravarFila(f); enviarFila(); }
+let enviando = false;
+async function enviarFila() {
+  if (enviando || !LOGIN || navigator.onLine === false) return; enviando = true;
+  try {
+    let f = lerFila();
+    while (f.length) {
+      const r = await api({ acao: "gravarVarias", ...cred(), aba: ABA, linhas: [f[0].linha] }); if (r.erro) throw new Error(r.erro);
+      f = lerFila(); f.shift(); gravarFila(f);
+    }
+  } catch (e) { if (/Falta a aba/.test(e.message)) aviso("A planilha ainda não tem a aba " + ABA + ". As respostas ficam guardadas no celular até a aba ser criada.", 9000); }
+  enviando = false;
+}
+window.addEventListener("online", enviarFila); setInterval(enviarFila, 60000);
+
+(async () => {
+  if (!PODE) { document.body.innerHTML = "<div style=\"padding:30px;font:18px system-ui\">Esta tela é só do Joaquim e da gerência.<br><br><a href=\"index.html\">← Voltar ao painel</a></div>"; return; }
+  $("quem").textContent = LOGIN.usuario;
+  await carregar();
+  if (!VIS) { $("lista").innerHTML = `<div class="nota">Abra esta tela uma vez com internet para guardar as visitas no celular.</div>`; return; }
+  gravarFila(lerFila()); montarSel(); enviarFila();
+})();
+</script>
+</body>
+</html>

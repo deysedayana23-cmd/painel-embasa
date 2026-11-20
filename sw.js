@@ -13,14 +13,16 @@ self.addEventListener("fetch", e => {
     return;
   }
   // 18/11: Cadastro de matrículas também funciona sem internet (tela + mapa das quadras/lotes guardados no celular)
-  if (/\/cadastro_mapa\.json/.test(u)) {
-    e.respondWith(fetch(e.request).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put("cadastro_mapa.json", cp)); return resp; })
-      .catch(() => caches.open(CACHE_ROTAS).then(c => c.match("cadastro_mapa.json"))));
+  if (/\/(cadastro_mapa|visitas)\.json/.test(u)) {
+    const nome = /visitas\.json/.test(u) ? "visitas.json" : "cadastro_mapa.json"; // 20/11: visitas de conferência também offline
+    e.respondWith(fetch(e.request).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put(nome, cp)); return resp; })
+      .catch(() => caches.open(CACHE_ROTAS).then(c => c.match(nome))));
     return;
   }
-  if (e.request.mode === "navigate" && /\/cadastro\.html/.test(u)) {
-    e.respondWith(fetch(e.request.url, { cache: "no-store" }).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put("cadastro.html", cp)); return resp; })
-      .catch(() => caches.open(CACHE_ROTAS).then(c => c.match("cadastro.html")).then(r => r || new Response("Abra o cadastro uma vez com internet.", { headers: { "Content-Type": "text/plain; charset=utf-8" } }))));
+  if (e.request.mode === "navigate" && /\/(cadastro|visitas)\.html/.test(u)) {
+    const pag = /visitas\.html/.test(u) ? "visitas.html" : "cadastro.html";
+    e.respondWith(fetch(e.request.url, { cache: "no-store" }).then(resp => { const cp = resp.clone(); caches.open(CACHE_ROTAS).then(c => c.put(pag, cp)); return resp; })
+      .catch(() => caches.open(CACHE_ROTAS).then(c => c.match(pag)).then(r => r || new Response("Abra o cadastro uma vez com internet.", { headers: { "Content-Type": "text/plain; charset=utf-8" } }))));
     return;
   }
   if (e.request.mode === "navigate" && /\/rotas\.html/.test(u)) {
