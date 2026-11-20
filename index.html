@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 14h18</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 14h21</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4047,7 +4047,8 @@ const ABA_VEICULOS = [
   { nome: "Moto de Luzenildo", tanque: 0, moto: "luzenildo" },
   { nome: "Moto de Joaquim", tanque: 0, moto: "joaquim", info: "Moto JPI · com engate, sem carretinha" },
   { nome: "Moto de Francisco", tanque: 0, moto: "francisco" },
-  { nome: "Moto de Isaque", tanque: 16, moto: "isaque", info: "Placa PLY-3173 · Honda CG 160 · 2022" },
+  { nome: "Moto de Isaque", tanque: 16, moto: "isaque", lib: 18, info: "Placa PLY-3173 · Honda CG 160 · 2022 · 18 L liberados por abastecimento (quarta-feira)" },
+  { nome: "Moto de Genildo", tanque: 0, moto: "genildo", lib: 18, info: "18 L liberados por abastecimento (quarta-feira)" },
   { nome: "Moto da Gêneros (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SJX-3G61 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo da Gêneros)" },
   { nome: "Moto do Consórcio (Baianópolis)", tanque: 14.6, moto: ["ivo", "janio"], info: "Placa SKG-9G98 · Honda CG 160 Start · 2024 · condutores Ivo e Jânio · paga no posto de Baianópolis (saldo do Consórcio)" },
   { nome: "Moto de Sinval", tanque: 0, moto: ["sinval", "cival"], info: "Moto do leiturista · 16/11: liberado R$ 40,00 neste abastecimento" },
@@ -4071,12 +4072,27 @@ const ABA_LIBERADO_VEIC = { "Carro da EMBASA": 50 };
 const ABA_NIVEIS = [["0", "Zerado"], ["0.25", "1/4"], ["0.5", "2/4 (metade)"], ["0.75", "3/4"], ["1", "4/4 (cheio)"]];
 function abaFracTxt(v) { const n = ABA_NIVEIS.find(x => x[0] === String(v)); return n ? n[1] : String(v || ""); }
 function abaVeic(nome) { return ABA_VEICULOS.find(v => v.nome === nome) || null; }
+// 20/11: cada funcionário vê só a moto dele e os equipamentos que usa; a gerência vê tudo
+const ABA_COMUNS = ["Carro da EMBASA", "Motobomba grande", "Motobomba pequeno", "Gerador grande", "Gerador pequeno"];
+const ABA_SO_MOTO = ["sinval", "cival"]; // leiturista: só a moto dele
+function abaMinhaMoto(v) { const eu = identidadeAtual();
+  return [].concat(v.moto || v.nome.replace(/^Moto (de|da|do) /, "")).some(n => eu.includes(normalizarNome(n))); }
+function abaVeiculosDaPessoa() {
+  if (abaGer()) return ABA_VEICULOS;
+  const minhas = ABA_VEICULOS.filter(v => !v.outro && !ABA_COMUNS.includes(v.nome) && abaMinhaMoto(v));
+  if (ABA_SO_MOTO.some(n => identidadeAtual().includes(n))) return minhas;
+  return [...minhas, ...ABA_VEICULOS.filter(v => ABA_COMUNS.includes(v.nome) || v.outro)];
+}
 function abaLitros(v) { return (Number(String(v).replace(",", ".")) || 0); }
 function abaMoeda(v) { return "R$ " + abaLitros(v).toFixed(2).replace(".", ","); }
 // 19/11: saldo dos cartões e valores em R$ só a Deyse vê
 const abaVeSaldo = () => !!(window.MODO_GERENTE && !emPrevia() && normalizarNome(window.credenciais && window.credenciais.usuario).includes("deyse"));
 const abaGer = () => (window.MODO_GERENTE && !emPrevia()) || ["deyse", "thiago", "tiago"].some(n => identidadeAtual().includes(n));
-function abaDiaLiberado() { const h = new Date(), iso = h.getFullYear() + "-" + String(h.getMonth() + 1).padStart(2, "0") + "-" + String(h.getDate()).padStart(2, "0"); return h.getDay() === 1 || ABA_DIAS_EXTRA.includes(iso); }
+// 20/11: Genildo e Isaque abastecem na quarta (Tiago leva o cartão à loja de atendimento de Catolândia); os demais, na segunda
+const ABA_QUARTA = ["genildo", "isaque", "isaac"];
+function abaMeuDia() { return ABA_QUARTA.some(n => identidadeAtual().includes(n)) ? 3 : 1; }
+function abaMeuDiaTxt() { return abaMeuDia() === 3 ? "quarta-feira" : "segunda-feira"; }
+function abaDiaLiberado() { const h = new Date(), iso = h.getFullYear() + "-" + String(h.getMonth() + 1).padStart(2, "0") + "-" + String(h.getDate()).padStart(2, "0"); return h.getDay() === abaMeuDia() || ABA_DIAS_EXTRA.includes(iso); }
 async function carregarAbastecimento() {
   const box = document.getElementById("aba_tela"); if (!box) return;
   const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
@@ -4118,10 +4134,10 @@ async function carregarAbastecimento() {
   const usada = minha && minha.d && dados.some(l => normalizarNome(l[1]) === eu && String(l[0]) > String(minha.d[0]) && l[3] !== ABA_RECARGA);
   window.abaAutorizado = !!(minha && minha.d && minha.d[7] === "autorizado" && !usada);
   const liberado = ger || abaDiaLiberado() || window.abaAutorizado;
-  let regra = `<div class="aviso" style="background:#e8f1fb;border-left-color:#0b5394"><b>Abastecimento: toda segunda-feira pela manhã, completando o tanque.</b> Em outro dia, só com autorização da gerência.</div>`;
+  let regra = `<div class="aviso" style="background:#e8f1fb;border-left-color:#0b5394"><b>Abastecimento: toda ${abaMeuDiaTxt()} pela manhã${abaMeuDia() === 3 ? " (Tiago leva o cartão à loja de atendimento de Catolândia)" : ", completando o tanque"}.</b> Em outro dia, só com autorização da gerência.</div>`;
   if (!liberado) regra += minha && !minha.d ? `<div class="card" style="border-left:6px solid #b45309">⏳ Seu pedido de autorização (${sspEsc(minha.l[5])}) está aguardando a gerência.</div>`
     : `${minha && minha.d && minha.d[7] === "negado" && !usada ? `<div class="card" style="border-left:6px solid #b00020">❌ Seu último pedido não foi autorizado.</div>` : ""}
-      <div class="card"><b>Precisa abastecer hoje?</b><select class="campo" id="aut_veic"><option value="">O que vai abastecer…</option>${ABA_VEICULOS.map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
+      <div class="card"><b>Precisa abastecer hoje?</b><select class="campo" id="aut_veic"><option value="">O que vai abastecer…</option>${abaVeiculosDaPessoa().map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
       <input class="campo" id="aut_motivo" placeholder="Motivo (ex.: tanque na reserva, serviço urgente no Angico)"><button class="acao" onclick="abaPedirAut(this)">Pedir autorização à gerência</button></div>`;
   else if (!ger && !abaDiaLiberado()) regra += `<div class="card" style="border-left:6px solid #15803d">✅ Você tem autorização da gerência para abastecer.</div>`;
   const okMsg = window.abaOk ? `<div class="card" style="margin-bottom:10px;background:#e8f1fb;border-left:6px solid #0b5394">
@@ -4133,7 +4149,7 @@ async function carregarAbastecimento() {
 // 16/11: histórico por veículo e equipamento (todos veem; valores em R$ só a gerência)
 function abaHistorico(dados, ger, soMeus) {
   const mes = new Date().toISOString().slice(0, 7);
-  return `<h3 style="margin-top:16px">${soMeus ? "Meus abastecimentos" : "Histórico por veículo e equipamento"}</h3>` + ABA_VEICULOS.filter(v => !v.outro || dados.some(l => l[3] === "Outros")).map(v => {
+  return `<h3 style="margin-top:16px">${soMeus ? "Meus abastecimentos" : "Histórico por veículo e equipamento"}</h3>` + abaVeiculosDaPessoa().filter(v => !v.outro || dados.some(l => l[3] === "Outros")).map(v => {
     const d = dados.filter(l => l[3] === v.nome).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
     const abast = d.filter(l => l[4] !== ABA_INICIAL);
     const doMes = abast.filter(l => String(l[0]).slice(0, 7) === mes);
@@ -4146,7 +4162,7 @@ function abaHistorico(dados, ger, soMeus) {
       return `<div style="border-bottom:1px solid #e8f1fb;padding:8px 0;font-size:15px">${l[4] === ABA_INICIAL ? "<b>Situação inicial</b>" : `<b>${String(abaLitros(l[6])).replace(".", ",")} L</b>`}${ger && valor ? " · " + abaMoeda(valor) : ""} · ${sspEsc(sspNome(l[1]))}
         <div class="nota">${formatarQuando(l[0])}${l[2] && ger ? " · " + sspEsc(l[2]) : ""}</div>
         <div class="nota">Tanque: ${sspEsc(l[5] || "?")} → ${sspEsc(l[11] || "?")}${l[12] ? " · KM " + sspEsc(l[12]) : ""}${cons}</div>${l[4] && l[4] !== ABA_INICIAL && !/^Gerador|^Motobomba/.test(v.nome) ? `<div class="nota">${sspEsc(l[4])}</div>` : ""}</div>`; }).reverse().join("");
-    const lim = v.fixo ? v.fixo + " L por abastecimento" : v.tanque ? "tanque de " + v.tanque + " L" : v.outro ? "" : "capacidade a definir";
+    const lim = v.lib ? v.lib + " L por abastecimento" : v.fixo ? v.fixo + " L por abastecimento" : v.tanque ? "tanque de " + v.tanque + " L" : v.outro ? "" : "capacidade a definir";
     return `<details class="card" style="margin-bottom:8px"><summary style="font-weight:bold;font-size:16px">${sspEsc(v.nome)} (${abast.length})</summary>
       ${v.info || lim ? `<div class="nota">${[v.info, lim].filter(Boolean).map(sspEsc).join(" · ")}</div>` : ""}
       <div class="nota">Neste mês: <b>${String(Number(litrosMes.toFixed(1))).replace(".", ",")} L</b>${ger ? " · " + abaMoeda(valorMes) : ""} em ${doMes.length} abastecimento(s)</div>
@@ -4198,7 +4214,7 @@ function abaForm() {
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">2) Saldo do cartão ANTES de abastecer (R$)</div>
     <input class="campo" id="aba_saldo1" inputmode="decimal" placeholder="Ex.: 250,00">
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">3) O que vai abastecer</div>
-    <select class="campo" id="aba_veic" onchange="abaVeicMudou()"><option value="">Escolha…</option>${ABA_VEICULOS.map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
+    <select class="campo" id="aba_veic" onchange="abaVeicMudou()"><option value="">Escolha…</option>${abaVeiculosDaPessoa().map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
     <div id="aba_outro_box" style="display:none"><input class="campo" id="aba_outro" placeholder="Escreva o que vai abastecer"></div>
     <div id="aba_lib_veic"></div>
     <div id="aba_km_box" style="display:none"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">KM real que está marcando no painel do veículo</div>
@@ -4252,6 +4268,7 @@ function abaCalcular() {
   const temFrac = document.getElementById("aba_nivel").value !== "";
   let txt = "";
   if (v && v.simples) txt = "Pague no <b>" + v.cartao + "</b>. Informe o saldo do cartão antes, quantos litros e o valor abastecido.";
+  else if (v && v.lib) txt = "Você está autorizado a abastecer <b>" + v.lib + " litros</b>.";
   else if (v && v.fixo) txt = "Você está autorizado a abastecer <b>" + v.fixo + " litros</b>.";
   else if (v && v.tanque && temFrac) { const lib = Math.max(0, v.tanque * (1 - frac));
     txt = "Tanque de " + v.tanque + " L, está " + abaFracTxt(frac) + ". Você está autorizado a <b>completar o tanque: " + String(Number(lib.toFixed(1))).replace(".", ",") + " litros</b>."; }
@@ -4290,7 +4307,7 @@ async function abaGravar(btn) {
   const libR$ = v && ABA_LIBERADO_VEIC[v.nome];
   if (libR$ && abaLitros(s1) && abaLitros(s2) && (abaLitros(s1) - abaLitros(s2)) > libR$ + 0.001
     && !confirm("O valor abastecido (" + abaMoeda(abaLitros(s1) - abaLitros(s2)) + ") passou dos " + abaMoeda(libR$) + " liberados. Gravar assim mesmo?")) return;
-  const lib = v && v.fixo ? v.fixo : (v && v.tanque ? Math.max(0, v.tanque * (1 - Number(nivel || 0))) : 0);
+  const lib = v && v.lib ? v.lib : (v && v.fixo ? v.fixo : (v && v.tanque ? Math.max(0, v.tanque * (1 - Number(nivel || 0))) : 0));
   if (lib && abaLitros(litros) > lib + 0.001 && !confirm("Você abasteceu " + litros + " L, mais do que os " + lib + " L autorizados. Gravar assim mesmo?")) return;
   sspTravar(btn);
   try {
@@ -9075,7 +9092,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "20/11 14h18";
+const VERSAO_PAINEL = "20/11 14h21";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
