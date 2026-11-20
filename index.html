@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 13h47</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 14h07</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4063,6 +4063,8 @@ const ABA_VEICULOS = [
 // 16/11: abastecer só na segunda-feira (completa o tanque). Nesta semana também na terça 17/11. Fora disso, só com autorização da gerência.
 const ABA_DIAS_EXTRA = ["2026-11-17"];
 const ABA_RECARGA = "[Recarga de saldo]", ABA_INICIAL = "[Situação inicial]";
+// 20/11: no cartão de São Desidério o funcionário não vê saldo – vê o valor liberado por abastecimento
+const ABA_LIBERADO = { "Cartão de São Desidério (Consórcio)": 100 };
 const ABA_NIVEIS = [["0", "Zerado"], ["0.25", "1/4"], ["0.5", "2/4 (metade)"], ["0.75", "3/4"], ["1", "4/4 (cheio)"]];
 function abaFracTxt(v) { const n = ABA_NIVEIS.find(x => x[0] === String(v)); return n ? n[1] : String(v || ""); }
 function abaVeic(nome) { return ABA_VEICULOS.find(v => v.nome === nome) || null; }
@@ -4087,12 +4089,16 @@ async function carregarAbastecimento() {
   const ultimo = {};
   dados.forEach(l => { const c = String(l[2] || ""); if (c && (!ultimo[c] || String(l[0]) > String(ultimo[c][0]))) ultimo[c] = l; });
   // 19/11: saldo dos cartões e postos só para a Deyse
-  const saldos = !abaVeSaldo() ? "" : `<h3 style="margin-top:0">Saldo dos cartões e postos <span class="nota">(só você vê)</span></h3>` + ABA_CARTOES.map(c => { const u = ultimo[c];
+  const cartoesSaldo = abaVeSaldo() ? ABA_CARTOES : ABA_CARTOES.filter(c => !ABA_LIBERADO[c]);
+  const saldoLib = abaVeSaldo() ? "" : Object.keys(ABA_LIBERADO).map(c => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
+      <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
+      <div style="font-size:22px;font-weight:bold;color:#0b5394">Liberado ${abaMoeda(ABA_LIBERADO[c])} por abastecimento</div></div>`).join("");
+  const saldos = `<h3 style="margin-top:0">Saldo dos cartões e postos${abaVeSaldo() ? ' <span class="nota">(só você vê)</span>' : ""}</h3>` + saldoLib + cartoesSaldo.map(c => { const u = ultimo[c];
     return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
       <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
       <div style="font-size:26px;font-weight:bold;color:#0b5394">${u ? abaMoeda(u[8]) : "sem registro"}</div>
       ${u ? `<div class="nota">${u[3] === ABA_RECARGA ? "recarga" : "informado"} por ${sspEsc(sspNome(u[1]))} em ${formatarQuando(u[0])}</div>` : ""}</div>`; }).join("")
-    + `<button class="acao" style="background:#15803d" onclick="abaFormSaldo()">➕ Adicionar saldo</button><div id="aba_saldo_form"></div>`;
+    + (abaVeSaldo() ? `<button class="acao" style="background:#15803d" onclick="abaFormSaldo()">➕ Adicionar saldo</button><div id="aba_saldo_form"></div>` : "");
   // autorizações
   const decis = {}; aut.filter(l => l[3] === "decisao").forEach(l => { decis[l[4]] = l; });
   const pedidos = aut.filter(l => l[3] === "pedido").map(l => ({ l, d: decis[l[4]] }));
@@ -4114,12 +4120,12 @@ async function carregarAbastecimento() {
     <div style="font-size:18px;font-weight:bold">✔ Abastecimento registrado</div>
     <div style="font-size:21px;font-weight:bold;color:#0b5394;margin-top:6px">Favor devolver o cartão a Tiago.</div></div>` : "";
   window.abaOk = false;
-  box.innerHTML = okMsg + saldos + autHTML + regra + (liberado ? `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` : "") + abaHistorico(dados, abaVeSaldo());
+  box.innerHTML = okMsg + saldos + autHTML + regra + (liberado ? `<button class="acao" onclick="abaForm()">⛽ Registrar abastecimento</button><div id="aba_form"></div>` : "") + abaHistorico(abaVeSaldo() ? dados : dados.filter(l => normalizarNome(l[1]) === eu), abaVeSaldo(), !abaVeSaldo());
 }
 // 16/11: histórico por veículo e equipamento (todos veem; valores em R$ só a gerência)
-function abaHistorico(dados, ger) {
+function abaHistorico(dados, ger, soMeus) {
   const mes = new Date().toISOString().slice(0, 7);
-  return `<h3 style="margin-top:16px">Histórico por veículo e equipamento</h3>` + ABA_VEICULOS.filter(v => !v.outro || dados.some(l => l[3] === "Outros")).map(v => {
+  return `<h3 style="margin-top:16px">${soMeus ? "Meus abastecimentos" : "Histórico por veículo e equipamento"}</h3>` + ABA_VEICULOS.filter(v => !v.outro || dados.some(l => l[3] === "Outros")).map(v => {
     const d = dados.filter(l => l[3] === v.nome).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
     const abast = d.filter(l => l[4] !== ABA_INICIAL);
     const doMes = abast.filter(l => String(l[0]).slice(0, 7) === mes);
@@ -4186,8 +4192,11 @@ function abaForm() {
     <div style="font-weight:bold;font-size:16px;margin:10px 0 6px">3) O que vai abastecer</div>
     <select class="campo" id="aba_veic" onchange="abaVeicMudou()"><option value="">Escolha…</option>${ABA_VEICULOS.map(v => `<option>${sspEsc(v.nome)}</option>`).join("")}</select>
     <div id="aba_outro_box" style="display:none"><input class="campo" id="aba_outro" placeholder="Escreva o que vai abastecer"></div>
-    <div id="aba_km_box" style="display:none"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">KM que está marcando agora no painel</div>
+    <div id="aba_km_box" style="display:none"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">KM real que está marcando no painel do veículo</div>
       <input class="campo" id="aba_km" inputmode="numeric" placeholder="Ex.: 38450"></div>
+    <div id="aba_kmc_box"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">KM digitado na máquina do posto (cartão)</div>
+      <input class="campo" id="aba_kmc" inputmode="numeric" placeholder="Maior que o da última compra">
+      <div class="nota">Não é o KM real do veículo. É o número de projeção que o cartão aceita; tem que ser maior que o da última compra deste cartão.</div></div>
     <div id="aba_b_nivel"><div style="font-weight:bold;font-size:16px;margin:10px 0 6px">4) Como está o tanque agora</div>
     <select class="campo" id="aba_nivel" onchange="abaCalcular()"><option value="">Escolha…</option>${ABA_NIVEIS.map(n => `<option value="${n[0]}">${n[1]}</option>`).join("")}</select></div>
     <div id="aba_aut"></div>
@@ -4208,9 +4217,10 @@ async function abaCartaoInfo() {
   const box = document.getElementById("aba_cartao_info"), sel = document.getElementById("aba_cartao"); if (!box || !sel) return;
   if (!window.abaCartoesInfo) { try { const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "CartaoInfo" }); window.abaCartoesInfo = (r && !r.erro && r.dados) ? r.dados.slice(1) : []; } catch (e) { window.abaCartoesInfo = []; } }
   const l = window.abaCartoesInfo.filter(x => x[0] === sel.value).pop();
-  // último KM informado neste cartão (para digitar na máquina do posto)
-  const k = (window.abaDados || []).filter(x => x[2] === sel.value && String(x[12] || "").trim()).sort((a, b) => String(a[0]).localeCompare(String(b[0]))).pop();
-  const kmHTML = k ? `<div style="background:#fff7ed;border-left:5px solid #b45309;border-radius:8px;padding:8px 12px;margin:-4px 0 10px;font-size:16px">Último KM usado neste cartão: <b style="font-size:20px">${sspEsc(k[12])}</b><div class="nota" style="margin:0">${sspEsc(k[3])} · ${sspEsc(sspNome(k[1]))} · ${formatarQuando(k[0])}</div></div>` : "";
+  // 20/11: KM utilizado na última compra deste cartão (número de projeção digitado na máquina, não o KM real)
+  const kmDe = x => String(x[13] || x[12] || "").trim();
+  const k = (window.abaDados || []).filter(x => x[2] === sel.value && kmDe(x)).sort((a, b) => String(a[0]).localeCompare(String(b[0]))).pop();
+  const kmHTML = k ? `<div style="background:#fff7ed;border-left:5px solid #b45309;border-radius:8px;padding:8px 12px;margin:-4px 0 10px;font-size:16px">KM utilizado na última compra deste cartão: <b style="font-size:20px">${sspEsc(kmDe(k))}</b><div class="nota" style="margin:0">Digite um número maior que este na máquina do posto.</div><div class="nota" style="margin:0">${sspEsc(k[3])} · ${sspEsc(sspNome(k[1]))} · ${formatarQuando(k[0])}</div></div>` : "";
   box.innerHTML = kmHTML + (l ? `<div style="background:#eef4fb;border-left:5px solid #0b5394;border-radius:8px;padding:8px 12px;margin:-4px 0 10px;font-size:16px">
     Titular: <b>${sspEsc(l[1])}</b><br>Senha: <b style="font-size:20px;letter-spacing:2px">${sspEsc(l[2])}</b><br>Matrícula: <b>${sspEsc(l[3])}</b></div>` : "");
 }
@@ -4240,7 +4250,7 @@ function abaCalcular() {
 async function abaGravar(btn) {
   const g = id => (document.getElementById(id) || {}).value || "";
   const cartao = g("aba_cartao"), veic = g("aba_veic"), outro = g("aba_outro").trim();
-  const s1 = g("aba_saldo1"), nivel = g("aba_nivel"), litros = g("aba_litros"), nivel2 = g("aba_nivel2"), s2 = g("aba_saldo2"), km = g("aba_km").trim();
+  const s1 = g("aba_saldo1"), nivel = g("aba_nivel"), litros = g("aba_litros"), nivel2 = g("aba_nivel2"), s2 = g("aba_saldo2"), km = g("aba_km").trim(), kmc = g("aba_kmc").trim();
   if (!cartao) { alert("Escolha o cartão ou o posto."); return; }
   if (!s1) { alert("Informe o saldo do cartão ANTES de abastecer."); return; }
   if (!veic) { alert("Escolha o que vai abastecer."); return; }
@@ -4260,7 +4270,8 @@ async function abaGravar(btn) {
     } catch (e) { alert("Não consegui gravar. Verifique a internet."); sspDestravar(btn); }
     return;
   }
-  if (v && !v.fixo && !km) { alert("Informe o KM que está marcando agora no painel."); return; }
+  if (v && !v.fixo && !km) { alert("Informe o KM real que está marcando no painel do veículo."); return; }
+  if (!kmc) { alert("Informe o KM digitado na máquina do posto (cartão)."); return; }
   if (!nivel) { alert("Escolha como está o tanque agora."); return; }
   if (!litros) { alert("Informe quantos litros foram abastecidos."); return; }
   if (!nivel2) { alert("Escolha como ficou o tanque depois de abastecer."); return; }
@@ -4270,7 +4281,7 @@ async function abaGravar(btn) {
   sspTravar(btn);
   try {
     const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "Abastecimento",
-      linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, outro, abaFracTxt(nivel), litros, s1, s2, String(lib ? Number(lib.toFixed(1)) : ""), nomesDoUsuario(), abaFracTxt(nivel2), km]] });
+      linhas: [[new Date().toISOString(), window.credenciais.usuario, cartao, veic, outro, abaFracTxt(nivel), litros, s1, s2, String(lib ? Number(lib.toFixed(1)) : ""), nomesDoUsuario(), abaFracTxt(nivel2), km, kmc]] });
     if (res.erro) { alert(res.erro); sspDestravar(btn); return; }
     window.abaOk = true; // a mensagem aparece no topo da tela depois de recarregar
     await carregarAbastecimento();
@@ -9050,7 +9061,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "20/11 13h47";
+const VERSAO_PAINEL = "20/11 14h07";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
