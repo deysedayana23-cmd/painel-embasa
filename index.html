@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 15h53</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 15h58</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -831,7 +831,7 @@ const PERFIS = {
     {nome:"Entrega de contas da prefeitura", tela:"alertaPrefeitura"},
     {nome:"Hora extra", sub:[{nome:"Informar hora extra", tela:"horaExtra"},{nome:"Histórico de hora extra", tela:"horaExtraHist"}]}
   ],
-  "Operador Mozondó (Genildo)": [
+  "Operador Mozondó (Murilo)": [
     {nome:"SS para encerrar pelo escritório", tela:"encerrarEscritorio"},
     {nome:"Vazamento de rede", tela:"ssRede", grande:true}, {nome:"Vazamento de ramal", tela:"ssRamal", grande:true},
     {nome:"Níveis dos reservatórios", sub:[
@@ -1377,7 +1377,7 @@ const QUEM_MOVIMENTA_ALMOX = {
   "Escritório São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Igor", "Oseias", "Acácio", "Jânio Lima", "Eduardo", "Thiago", "Tiago"],
   "Escritório Catolândia": ["Isaque", "Isaac"],
   "Escritório Baianópolis": ["Ivo Carlos", "Jânio Gualberto"],
-  "ETA Mozondó": ["Genildo", "Alan", "Juvenson", "Valdesandro", "Valdesandro Goncalves De Souza"]
+  "ETA Mozondó": ["Murilo", "Alan", "Juvenson", "Valdesandro", "Valdesandro Goncalves De Souza"]
 };
 function podeMovimentarAlmox(local) {
   if (window.MODO_GERENTE && !emPrevia()) return true;
@@ -1499,7 +1499,7 @@ Object.keys(PERFIS).forEach(k => {
   if (outros.length) PERFIS[k] = [...manter, {nome: "Outros", sub: outros}];
 });
 
-let perfilAtual = "Operador Mozondó (Genildo)";
+let perfilAtual = "Operador Mozondó (Murilo)";
 let pilha = [];
 
 function init() {
@@ -1576,7 +1576,7 @@ function contarPrioridadesHoje() {
 // ===== QUEM VÊ CADA BOTÃO (menu principal). Botão sem regra aqui = todos =====
 const GRUPOS_BOTAO = {
   agentes: ["luzenildo", "joaquim", "carlito", "francisco", "isaque", "isaac", "ivocarlos", "janiogualberto"],
-  operadores: ["igor", "oseias", "acacio", "janiolima", "eduardo", "genildo", "alan", "juvenson", "valdesandro", "sandro", "ramon", "renato"]
+  operadores: ["igor", "oseias", "acacio", "janiolima", "eduardo", "murilo", "alan", "juvenson", "valdesandro", "sandro", "ramon", "renato"]
 };
 const REGRA_BOTAO = {
   "SS em aberto por localidade": ["deyse"], // 09/11: saiu dos digitadores
@@ -1585,7 +1585,7 @@ const REGRA_BOTAO = {
   "Vazamento de ramal": "menos_deyse",
   "Abrir e encerrar SS": "menos_deyse",
   "EPI": "menos_deyse",
-  "SS para encerrar pelo escritório": ["deyse", "thiago", "oseias", "igor", "alan", "genildo"],
+  "SS para encerrar pelo escritório": ["deyse", "thiago", "oseias", "igor", "alan", "murilo"],
   "SS pendente": "agentes_perfil",
   "pendExecutar": "agentes_perfil",
   "Níveis e macro ETA": "operadores",
@@ -1699,13 +1699,13 @@ function mostrarMenu(itens, titulo) {
   const telasPref = ["entregaPrefeitura", "alertaPrefeitura"];
   if (!ehPrefeitura) itens = itens.filter(i => !telasPref.includes(i.tela)).map(i => i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => !telasPref.includes(j.tela)) }) : i);
   // 20/11: operadores de ETA não veem contas da prefeitura, Solicitação ao Digiteam nem Demandas Agersa
-  const ehOperadorETA = !(window.MODO_GERENTE && !emPrevia()) && ["acacio", "janiolima", "eduardo", "valdesandro", "sandro", "juvenson", "alan", "genildo", "ramon", "renato"].some(n => identidadeAtual().includes(n));
+  const ehOperadorETA = !(window.MODO_GERENTE && !emPrevia()) && ["acacio", "janiolima", "eduardo", "valdesandro", "sandro", "juvenson", "alan", "murilo", "ramon", "renato"].some(n => identidadeAtual().includes(n));
   const foraOperador = ["entregaPrefeitura", "alertaPrefeitura", "ssDigiteam", "gersa"];
   if (ehOperadorETA) itens = itens.filter(i => !foraOperador.includes(i.tela)).map(i => i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => !foraOperador.includes(j.tela)) }) : i);
   // 20/11: "Trocar minha senha" sai do painel de todos (a gerente troca quando precisar)
   itens = itens.filter(i => i.tela !== "trocarSenha").map(i => i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => j.tela !== "trocarSenha") }) : i).filter(i => !i.sub || i.sub.length);
   // 20/11: operadores da ETA de Mozondó não abastecem – não veem o botão Abastecimento
-  const semAbastecimento = !(window.MODO_GERENTE && !emPrevia()) && ["valdesandro", "sandro", "juvenson", "alan"].some(n => identidadeAtual().includes(n));
+  const semAbastecimento = !(window.MODO_GERENTE && !emPrevia()) && ["valdesandro", "sandro", "juvenson", "alan", "murilo"].some(n => identidadeAtual().includes(n));
   if (semAbastecimento) itens = itens.filter(i => i.tela !== "abastecimento").map(i => i.sub ? Object.assign({}, i, { sub: i.sub.filter(j => j.tela !== "abastecimento") }) : i);
   if (!semAbastecimento && !pilha.length && !itens.some(i => i.tela === "abastecimento")) { // 16/11: Abastecimento no menu principal de todos
     const k = itens.findIndex(i => i.nome === "Outros"); const a = { nome: "Abastecimento", tela: "abastecimento" };
@@ -2450,14 +2450,14 @@ async function registrarUrgencia(descricao, resposta) {
 }
 
 // ===== ESCALA DE TURNO – ETA MOZONDÓ (alterna dia sim, dia não) =====
-// Base: 02/11/2026 → diurno Genildo, noturno Juvenson. Dia seguinte: Alan e Valdesandro.
+// Base: 02/11/2026 → diurno Murilo (antes Genildo), noturno Juvenson. Dia seguinte: Alan e Valdesandro.
 const BASE_ESCALA_MOZONDO = Date.UTC(2026, 10, 2);
 const NOMES_MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
 function turnoMozondo(ano, mes, dia) {
   const diff = Math.round((Date.UTC(ano, mes, dia) - BASE_ESCALA_MOZONDO) / 86400000);
   const par = ((diff % 2) + 2) % 2 === 0;
-  return { diurno: par ? "Genildo" : "Alan", noturno: par ? "Juvenson" : "Valdesandro" };
+  return { diurno: par ? "Murilo" : "Alan", noturno: par ? "Juvenson" : "Valdesandro" };
 }
 
 function mostrarEscalaMes(ano, mes) {
@@ -2712,7 +2712,7 @@ async function atualizarMedicao(linha) {
 const REF_PREFEITURA = "11/2026";
 const ENTREGAS_PREFEITURA = [
   { loc: "Baianópolis", chaves: ["ivocarlos", "janiogualberto"] },
-  { loc: "Catolândia", chaves: ["isaque", "isaac"] },
+  { loc: "Catolândia", chaves: ["isaque", "isaac", "genildo"] },
   { loc: "São Desidério", chaves: ["luzenildo", "joaquim", "carlito", "francisco"] }
 ];
 function grupoEntregaPrefeitura() {
@@ -3235,7 +3235,7 @@ async function carregarAcoesSS(boxId = "pa_acoes") {
 // Aba EncerrarSS: data_hora | usuario | ss | servico | localidade | observacao | situacao | encerrada_por | data_encerramento
 function podeVerEncerrarEscritorio() {
   const quem = identidadeAtual();
-  return ["deyse", "thiago", "oseias", "igor", "alan", "genildo"].some(n => quem.includes(n));
+  return ["deyse", "thiago", "oseias", "igor", "alan", "murilo"].some(n => quem.includes(n));
 }
 function telaEncerrarEscritorio() {
   return `<h2>Encerrar SS como executada</h2>
@@ -3292,7 +3292,7 @@ async function carregarEncerrarEscritorio(boxId = "ee_lista") {
   if (!box) return;
   box.textContent = "Carregando...";
   const quemEncerra = normalizarNome(window.credenciais && window.credenciais.usuario) + " " + normalizarNome(window.nomeUsuario);
-  const gerencia = window.MODO_GERENTE || ["thiago", "igor", "oseias", "alan", "genildo"].some(n => quemEncerra.includes(n));
+  const gerencia = window.MODO_GERENTE || ["thiago", "igor", "oseias", "alan", "murilo"].some(n => quemEncerra.includes(n));
   try {
     const credEE = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
     const [res, saEE, istEE] = await Promise.all([chamarApi({ acao: "listar", ...credEE, aba: "EncerrarSS" }),
@@ -3494,7 +3494,7 @@ const SCI_GRUPOS_BOTAO = ["São Desidério", "Angico", "Catolândia", "Baianópo
 // Vão só para os digitadores; o campo não vê. Se depois vierem no Excel normal da unidade, continuam com os digitadores.
 const SCI_GRUPOS_TODOS = SCI_GRUPOS_BOTAO.concat(SCI_GRUPOS_BOTAO.map(g => "Vencidas " + g), SCI_GRUPOS_BOTAO.map(g => "Escritório " + g));
 const SCI_DESTINO = { "São Desidério": "Luzenildo, Joaquim, Carlito e Francisco (pedem no Digiteam)", "Angico": "Ramon e Renato (execução manual, sem Digiteam)",
-  "Catolândia": "Isaque (Catolândia, Buriti Cortado e Mozondó)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis, São Marcos e Passagem de Pedra)" };
+  "Catolândia": "Isaque (setores 1 e 2) e Genildo (setores 3 em diante, Buriti Cortado e Mozondó)", "Baianópolis": "Ivo e Jânio Gualberto (Baianópolis, São Marcos e Passagem de Pedra)" };
 SCI_GRUPOS_BOTAO.forEach(g => { SCI_DESTINO["Vencidas " + g] = "Campo (botão \"SS encerradas no SCI\"): " + SCI_DESTINO[g] + " · e para os digitadores (encerrar no sistema)";
   SCI_DESTINO["Escritório " + g] = "Somente os digitadores (Deyse, Thiago, Oseias e Igor), no filtro \"Escritório encerrar\" de " + g + ". O campo não recebe."; });
 // 09/11: a maioria das SS tem que ser da própria unidade (o Excel de Catolândia no botão de Baianópolis tirou todas as SS de Baianópolis do painel)
@@ -3639,14 +3639,14 @@ async function carregarImportarSCI() {
 // Aba SSDirecionadas: data_hora | por | para | destino (campo/venc/escr) | ss | tipo | localidade | cliente | endereco | bairro | hidrometro | obs | matricula | abertura | vencimento | arquivo
 const DIR_PESSOAS = [
   ["luzenildo", "Luzenildo", "campo", ["luzenildo"]], ["joaquim", "Joaquim", "campo", ["joaquim"]], ["carlito", "Carlito", "campo", ["carlito"]], ["francisco", "Francisco", "campo", ["francisco"]],
-  ["isaque", "Isaque", "campo", ["isaque", "isaac"]], ["ivo", "Ivo Carlos", "campo", ["ivo"]], ["janio", "Jânio Gualberto", "campo", ["janiogualberto"]], ["ramon", "Ramon", "campo", ["ramon"]], ["renato", "Renato", "campo", ["renato"]],
+  ["isaque", "Isaque", "campo", ["isaque", "isaac"]], ["genildo", "Genildo", "campo", ["genildo"]], ["ivo", "Ivo Carlos", "campo", ["ivo"]], ["janio", "Jânio Gualberto", "campo", ["janiogualberto"]], ["ramon", "Ramon", "campo", ["ramon"]], ["renato", "Renato", "campo", ["renato"]],
   ["thiago", "Thiago", "dig", ["thiago", "tiago"]], ["igor", "Igor", "dig", ["igor"]], ["oseias", "Oséias", "dig", ["oseias"]], ["deyse", "Deyse", "dig", ["deyse"]]
 ];
 const DIR_URG = ["urg", "⚡ Demandas urgentes · executar em campo AINDA HOJE"];
 const DIR_DESTINOS = { campo: [DIR_URG, ["campo", "SS pendentes · Falta ir a campo"], ["venc", "⚠ ATENÇÃO: SS encerrada no sistema por vencimento (executar com urgência)"]], dig: [DIR_URG, ["escr", "SS pendentes · Escritório encerrar no SCI"]],
   thiago: [["exclThiago", "SS exclusivas para Thiago encerrar"], DIR_URG, ["escr", "SS pendentes · Escritório encerrar no SCI"]] };
 // nome usado em Demandas urgentes (igual à lista PESSOAS, para a demanda aparecer para a pessoa)
-const DIR_NOME_URG = { luzenildo: "Luzenildo", joaquim: "Joaquim", carlito: "Carlito", francisco: "Francisco Teixeira de Sales", isaque: "Isaque", ivo: "Ivo Carlos de Souza", janio: "Janio Gualberto Macedo",
+const DIR_NOME_URG = { luzenildo: "Luzenildo", joaquim: "Joaquim", carlito: "Carlito", francisco: "Francisco Teixeira de Sales", isaque: "Isaque", genildo: "Genildo Alves dos Santos", ivo: "Ivo Carlos de Souza", janio: "Janio Gualberto Macedo",
   ramon: "Ramon", renato: "Renato", thiago: "Thiago", igor: "Igor", oseias: "Oseias", deyse: "Deyse" };
 const dirPessoa = k => DIR_PESSOAS.find(p => p[0] === k);
 const dirSouEu = k => { const p = dirPessoa(k); return !!p && p[3].some(n => identidadeAtual().includes(n)); };
@@ -4883,8 +4883,8 @@ function menuOperadorDe(perfil) {
   principal.push({nome: "Outros", sub: resto});
   return principal;
 }
-const GRUPO_CAMPO = ["luzenildo", "joaquim", "francisco", "carlito", "ivo", "janiogualberto", "isaque", "isaac"];
-const GRUPO_GESTAO = ["deyse", "thiago", "alan", "genildo", "igor", "oseias"];
+const GRUPO_CAMPO = ["luzenildo", "joaquim", "francisco", "carlito", "ivo", "janiogualberto", "isaque", "isaac", "genildo"];
+const GRUPO_GESTAO = ["deyse", "thiago", "alan", "murilo", "igor", "oseias"];
 function menuBaseDoPerfil(n) {
   const simples = ["luzenildo", "francisco", "carlito", "joaquim", "igor", "ivocarlos", "janiogualberto"].some(x => n.includes(x));
   if (simples) return menuSimplesDe(perfilAtual);
@@ -4903,12 +4903,12 @@ function identidadeAtual() {
 }
 // ===== Perfil de OPERADOR DE ETA (próprio ou terceirizado): a mesma tela principal para todos; muda só o almoxarifado, os níveis e a escala de cada ETA =====
 const ETAS_OPERADORES = {
-  mozondo: { nomes: ["alan", "genildo", "juvenson", "valdesandro", "sandro"], perfil: "Operador Mozondó (Genildo)", almox: ["ETA Mozondó"] },
+  mozondo: { nomes: ["alan", "murilo", "juvenson", "valdesandro", "sandro"], perfil: "Operador Mozondó (Murilo)", almox: ["ETA Mozondó"] },
   sd: { nomes: ["igor", "oseias", "acacio", "janiolima", "eduardo"], perfil: "Operador ETA São Desidério (exemplo: Igor)", perfilProprio: "Operador ETA São Desidério próprio (exemplo: Acácio)", almox: ["ETA São Desidério", "Escritório São Desidério"] },
   angico: { nomes: ["ramon", "renato"], perfil: "Operador Angico (Ramon ou Renato)", almox: ["ETA Angico"] }
 };
 // Só quem tem computador: encerrar SS como executada
-const COM_COMPUTADOR = ["alan", "genildo", "oseias", "igor"];
+const COM_COMPUTADOR = ["alan", "murilo", "oseias", "igor"];
 // Quem recebe e abre os pedidos de ocorrência operacional no SCI
 const QUEM_ABRE_OCORRENCIA = ["deyse", "thiago", "igor", "oseias"];
 function etaDoOperador(n) {
@@ -5348,9 +5348,9 @@ const AGERSA_EQUIPE = {
   // Cada localidade só para a equipe de campo dela (pedido da Deyse em 04/11)
   "São Desidério": ["Luzenildo", "Joaquim", "Carlito", "Francisco"],
   "Angico": ["Ramon", "Renato"],
-  "Catolândia": ["Isaque"],
+  "Catolândia": ["Isaque", "Genildo"],
   "Baianópolis": ["Ivo Carlos", "Jânio Gualberto"],
-  "Mozondó": ["Genildo", "Alan", "Juvenson", "Valdesandro"],
+  "Mozondó": ["Murilo", "Alan", "Juvenson", "Valdesandro"],
   "Captação São Desidério": ["Ramon", "Renato"]
 };
 function mostrarResponsaveisAgersa() {
@@ -6365,7 +6365,7 @@ async function responderSS(linha, mandarDigiteam) {
 const SSP_LOCAIS = { sd: "São Desidério", cat: "Catolândia", bai: "Baianópolis", ang: "Angico" };
 const SSP_TELA = { ssPendSD: "sd", ssPendCat: "cat", ssPendBai: "bai", ssPendAng: "ang", ssVencSD: "sd", ssVencCat: "cat", ssVencBai: "bai", ssVencAng: "ang" };
 const SSP_CONTA = { sd: "sspSD", cat: "sspCat", bai: "sspBai", ang: "sspAng" };
-const SSP_EQUIPE = { sd: ["luzenildo", "joaquim", "carlito", "francisco"], cat: ["isaque", "isaac"], bai: ["ivocarlos", "janiogualberto"], ang: ["ramon", "renato"] };
+const SSP_EQUIPE = { sd: ["luzenildo", "joaquim", "carlito", "francisco"], cat: ["isaque", "isaac", "genildo"], bai: ["ivocarlos", "janiogualberto"], ang: ["ramon", "renato"] };
 // Excel do SCI (grupo) → tela de SS pendentes
 const SSP_GRUPO_CHAVE = { "São Desidério": "sd", "Catolândia": "cat", "Baianópolis": "bai", "Angico": "ang" };
 const SSP_DIGITADORES = ["deyse", "thiago", "tiago", "oseias", "igor"];
@@ -6373,6 +6373,22 @@ const SSP_DIGITADORES = ["deyse", "thiago", "tiago", "oseias", "igor"];
 // Operacional (Carlito e Francisco): vazamento, falta de água, ligação nova, transferência de hidrômetro, manutenção de rede, recomposição de pavimento, limpeza geral.
 // Comercial (Joaquim e Luzenildo): substituição de hidrômetro, corte, revisão de corte, entrega de contas, religação e o restante.
 const SSP_SD_OPERACIONAL = ["carlito", "francisco"];
+// 20/11: Catolândia dividida por setor – Isaque nos setores 1 e 2; Genildo nos setores 3 em diante, no Buriti Cortado e no Mozondó
+const SSP_CAT_ISAQUE = ["isaque", "isaac"], SSP_CAT_GENILDO = ["genildo"];
+function sspSetorNum(it) { const m = String(it.setor || "").match(/(\d{1,2})/); return m ? Number(m[1]) : 0; }
+function sspCatDeIsaque(it) { // true = Isaque; false = Genildo; null = setor desconhecido (aparece para os dois)
+  const loc = normalizarNome(it.loc || ""); if (["buriticortado", "mozondo"].includes(loc)) return false;
+  const n = sspSetorNum(it); if (!n) return null;
+  return n <= 2;
+}
+function sspFiltroEquipeCat(lista, chave) {
+  if (chave !== "cat" || (window.MODO_GERENTE && !emPrevia())) return lista;
+  const id = identidadeAtual();
+  if (SSP_DIGITADORES.some(n => id.includes(n))) return lista;
+  if (SSP_CAT_GENILDO.some(n => id.includes(n))) return lista.filter(it => sspCatDeIsaque(it) !== true);
+  if (SSP_CAT_ISAQUE.some(n => id.includes(n))) return lista.filter(it => sspCatDeIsaque(it) !== false);
+  return lista;
+}
 const SSP_SD_COMERCIAL = ["joaquim", "luzenildo"];
 // 09/11: em Catolândia e Baianópolis o campo pode encerrar qualquer SS, inclusive corte (com a leitura do corte obrigatória); depois vai para o digitador.
 const SSP_CORTE_NO_CAMPO = ["ang", "cat", "bai"];
@@ -6700,6 +6716,7 @@ function sspMontarBase(d, chave) {
       return !(it.executada && it.digitada && (!it.fotos.length || it.fotoAnexada));
     }
     if (!sspFiltroEquipeSD([it], chave).length) return false; // divisão operacional x comercial em São Desidério
+    if (!sspFiltroEquipeCat([it], chave).length) return false; // Catolândia: Isaque nos setores 1 e 2, Genildo nos demais
     if (it.ss && d.naoExec && d.naoExec.has(it.ss)) return false; // campo informou "não executado": fica com o escritório
     if (it.ss && d.religPedida && d.religPedida.has(it.ss)) return false; // 09/11: revisão de corte já religada em campo – o digitador gera a religação
     // 09/11: corte de São Desidério é só pelo Digiteam – não aparece para o digitador (nem como "escritório encerrar")
@@ -7341,7 +7358,7 @@ const CORTE_TIPO = "42.1 - CORTE POR FALTA DE PAGAMENTO";
 const AVISO_CORTE = `<div style="background:#0b5394;color:#fff;border-radius:10px;padding:12px;font-size:17px;font-weight:bold;margin-bottom:10px">⚠ Executar exclusivamente pelo Digiteam.</div>`;
 Object.assign(TELAS, { cortes: () => telaCortes() });
 // Equipe de cada Excel do SCI (quem recebe a SS é o Excel/botão, não a localidade escrita na SS)
-const SCI_EQUIPES_PAINEL = { "São Desidério": ["luzenildo", "joaquim", "carlito", "francisco"], "Angico": ["ramon", "renato"], "Catolândia": ["isaque", "isaac"], "Baianópolis": ["ivo", "janiogualberto"] };
+const SCI_EQUIPES_PAINEL = { "São Desidério": ["luzenildo", "joaquim", "carlito", "francisco"], "Angico": ["ramon", "renato"], "Catolândia": ["isaque", "isaac", "genildo"], "Baianópolis": ["ivo", "janiogualberto"] };
 function grupoSCIDoUsuario() {
   const id = identidadeAtual();
   for (const g of Object.keys(SCI_EQUIPES_PAINEL)) if (SCI_EQUIPES_PAINEL[g].some(n => id.includes(n))) return g;
@@ -8280,8 +8297,8 @@ const SISTEMAS_ACESSO = ["SCI", "Digiteam", "Webrol", "Jupiter", "VPN", "Geoweb"
 // - Digiteam: todos os agentes de sistema
 // - Jupiter: só os operadores (não o Ramon nem o Renato)
 // - Webrol e VPN: todos
-const AGENTES_SISTEMA = ["luzenildo", "joaquim", "carlito", "francisco", "isaque", "ivocarlos", "janiogualberto"];
-const OPERADORES_SISTEMA = ["igor", "oseias", "acacio", "janiolima", "eduardo", "genildo", "alan", "juvenson", "valdesandro"];
+const AGENTES_SISTEMA = ["luzenildo", "joaquim", "carlito", "francisco", "isaque", "genildo", "ivocarlos", "janiogualberto"];
+const OPERADORES_SISTEMA = ["igor", "oseias", "acacio", "janiolima", "eduardo", "murilo", "alan", "juvenson", "valdesandro"];
 function sistemasDe(nome) {
   const n = normalizarNome(nome);
   const lista = ["Webrol", "VPN"];
@@ -8738,7 +8755,7 @@ async function editarNivel(chave, linha, atual) {
 
 // ===== ESQUECI A SENHA: a pessoa escolhe o próprio nome; a gerência e o Thiago recebem o pedido e resetam a senha =====
 const NOMES_ESQUECI_SENHA = ["Luzenildo", "Joaquim", "Carlito", "Francisco", "Isaque", "Ivo Carlos", "Jânio Gualberto",
-  "Igor", "Oseias", "Acácio", "Eduardo", "Jânio Lima", "Genildo", "Alan", "Juvenson", "Valdesandro", "Ramon", "Renato", "Thiago"];
+  "Igor", "Oseias", "Acácio", "Eduardo", "Jânio Lima", "Murilo", "Genildo", "Alan", "Juvenson", "Valdesandro", "Ramon", "Renato", "Thiago"];
 function esqueciSenha() {
   const msg = document.getElementById("lg_msg");
   msg.innerHTML = "<b>Escolha seu nome:</b><br>" + NOMES_ESQUECI_SENHA.map(n =>
@@ -8790,6 +8807,7 @@ const PESSOAS = [
   ["Carlito", "Agente de campo (exemplo: Luzenildo)"],
   ["Francisco Teixeira de Sales", "Agente de campo (exemplo: Luzenildo)"],
   ["Isaque", "Agente de campo (exemplo: Luzenildo)"],
+  ["Genildo Alves dos Santos", "Agente de campo (exemplo: Luzenildo)"],
   ["Ivo Carlos de Souza", "Agente de campo (exemplo: Luzenildo)"],
   ["Janio Gualberto Macedo", "Agente de campo (exemplo: Luzenildo)"],
   ["Igor", "Operador ETA São Desidério (exemplo: Igor)"],
@@ -8800,10 +8818,11 @@ const PESSOAS = [
   ["Eduardo", "Operador ETA São Desidério próprio (exemplo: Acácio)"],
   ["Ramon", "Operador Angico (Ramon ou Renato)"],
   ["Renato", "Operador Angico (Ramon ou Renato)"],
-  ["Genildo", "Operador Mozondó (Genildo)"],
-  ["Alan", "Operador Mozondó (Genildo)"],
-  ["Juvenson", "Operador Mozondó (Genildo)"],
-  ["Valdesandro", "Operador Mozondó (Genildo)"],
+  ["Murilo", "Operador Mozondó (Murilo)"],
+  ["Genildo", "Agente de campo (exemplo: Luzenildo)"],
+  ["Alan", "Operador Mozondó (Murilo)"],
+  ["Juvenson", "Operador Mozondó (Murilo)"],
+  ["Valdesandro", "Operador Mozondó (Murilo)"],
   ["Sinval", "Leiturista (Sinval)"],
   ["Thiago", "Atendente (Thiago)"],
   ["Deyse", "Gerente (você)"]
@@ -8814,7 +8833,7 @@ const MAPA_PERFIS = {
   "operador_sd_terceirizado": "Operador ETA São Desidério (exemplo: Igor)",
   "operador_sd_proprio": "Operador ETA São Desidério próprio (exemplo: Acácio)",
   "operador_angico": "Operador Angico (Ramon ou Renato)",
-  "operador_mozondo": "Operador Mozondó (Genildo)",
+  "operador_mozondo": "Operador Mozondó (Murilo)",
   "atendente": "Atendente (Thiago)",
   "leiturista": "Leiturista (Sinval)",
   "gerente": "Gerente (você)"
@@ -9193,7 +9212,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "20/11 15h53";
+const VERSAO_PAINEL = "20/11 15h58";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
