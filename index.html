@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 16h08</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 16h28</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1773,7 +1773,8 @@ function mostrarMenu(itens, titulo) {
   // 16/11: agentes de campo (e Ramon/Renato): Localização do hidrômetro no painel principal
   if (ehAgenteCampo && !itens.some(i => i.tela === "locHidrometro")) { const k = itens.findIndex(i => i.nome === "Outros"); itens = [...itens.slice(0, k), { nome: "Localização do hidrômetro", tela: "locHidrometro" }, ...itens.slice(k)]; }
   // 18/11: consulta da localização da matrícula (Excel da gerência) – só agentes de campo
-  if (ehAgenteCampo && !itens.some(i => i.tela === "locMatricula")) { const k = itens.findIndex(i => i.tela === "locHidrometro"); itens = [...itens.slice(0, k), { nome: "Localização da matrícula", tela: "locMatricula" }, ...itens.slice(k)]; }
+  // 20/11: Localização da matrícula para todos os funcionários
+  if (!pilha.length && !itens.some(i => i.tela === "locMatricula")) { const k = itens.findIndex(i => i.tela === "locHidrometro"); const lmb = { nome: "Localização da matrícula", tela: "locMatricula" }; itens = k >= 0 ? [...itens.slice(0, k), lmb, ...itens.slice(k)] : [...itens, lmb]; }
   // 16/11: checklist da moto (quem tem moto) no painel principal; Uso do carro em Outros para todos; gerência vê os checklists em Outros
   if (!pilha.length && !ehLeit && minhaMoto() && !itens.some(i => i.tela === "checklistMoto")) { const k = itens.findIndex(i => i.nome === "Outros"); const c = { nome: "Checklist da moto", tela: "checklistMoto" }; itens = k >= 0 ? [...itens.slice(0, k), c, ...itens.slice(k)] : [...itens, c]; }
   if (!pilha.length) { const out = itens.find(i => i.nome === "Outros" && i.sub); const extra = [...(ehDeyseGer() ? [{ nome: "Zerar SS do app", tela: "zerarSS" }] : []), { nome: "Uso do carro", tela: "usoCarro" }, ...(ehGerLeitura() ? [{ nome: "Checklist das motos", tela: "checklistMoto" }] : [])];
@@ -1832,7 +1833,7 @@ const MENU_ENXUTO_CAMPO = {
   principal: [ME_SS_PEND, ME_URG, i => i.nome === "Solicitação no SCI", i => i.tela === "ssDigiteam" || i.tela === "solicitarSS",
     i => i.nome === "Ocorrência operacional" || i.tela === "ocorAbrir", i => i.tela === "meusPedidos",
     i => i.nome === "Hora extra" || i.tela === "horaExtra", i => i.tela === "abastecimento", i => i.tela === "telemetria",
-    i => i.tela === "locHidrometro"],
+    i => i.tela === "locHidrometro", i => i.tela === "locMatricula"],
   outros: [i => i.tela === "usoCarro", i => i.tela === "checklistMoto", i => i.tela === "gersa",
     i => /^Escala ETA/.test(i.nome || "") || ["escalaSD", "escalaMozondo", "escalaAngico"].includes(i.tela),
     i => /Almoxarifado/i.test(i.nome || ""), i => i.tela === "epi", i => i.tela === "escalaSobreaviso",
@@ -1840,7 +1841,7 @@ const MENU_ENXUTO_CAMPO = {
 };
 const MENU_ENXUTO_THIAGO = {
   principal: [i => i.tela === "ssPendTodas", i => i.tela === "ligNovaThiago", ME_URG, i => i.tela === "importarSCI",
-    i => i.tela === "telemetria", i => i.tela === "abastecimento"],
+    i => i.tela === "telemetria", i => i.tela === "abastecimento", i => i.tela === "locMatricula"],
   outros: [i => i.tela === "usoCarro", i => i.tela === "checklistMoto", i => /Almoxarifado/i.test(i.nome || ""),
     i => i.tela === "cronograma", i => i.tela === "coelba", i => i.tela === "aquisicao" || /RILC/i.test(i.nome || ""),
     i => i.tela === "conserto"]
@@ -3837,25 +3838,32 @@ async function lmBaixar() {
   try {
     const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula" });
     if (!r || r.erro || !r.dados) return lmCache();
-    const mapa = {}; r.dados.slice(1).forEach(l => { const k = lmNorm(l[0]); if (k && l[1]) mapa[k] = [String(l[0]), String(l[1]), String(l[2] || "")]; }); // a última linha da matrícula vale
+    const mapa = {}; r.dados.slice(1).forEach(l => { const k = lmNorm(l[0]); if (k && l[1]) mapa[k] = [String(l[0]), String(l[1]), String(l[2] || ""), String(l[5] || "")]; }); // a última linha da matrícula vale (col. 6 = localidade, quando vier no Excel)
     const c = { em: new Date().toISOString(), m: mapa };
     try { localStorage.setItem(LM_CHAVE, JSON.stringify(c)); } catch (e) {}
     return c;
   } catch (e) { return lmCache(); }
 }
+// 20/11: escolher a localidade, digitar a matrícula e pesquisar. Só aparece o que já foi conferido em campo (visitas).
+const LM_LOCALIDADES = ["São Desidério", "Angico", "Catolândia", "Baianópolis", "Buriti Cortado", "Mozondó", "São Marcos", "Passagem de Pedra"];
 Object.assign(TELAS, { locMatricula: () => { setTimeout(lmCarregar, 0); return `<h2>Localização da matrícula</h2>
-  <div class="nota">Digite a matrícula e toque em "Abrir no Google Maps" para chegar na residência.</div>
-  <input id="lm_q" class="campo" inputmode="numeric" placeholder="Digite a matrícula" oninput="lmMostrar()" style="font-size:20px">
+  <div class="nota">Escolha a localidade, digite a matrícula e toque em Pesquisar. Só aparecem as matrículas já conferidas em campo.</div>
+  <select id="lm_loc" class="campo" style="font-size:18px"><option value="">Escolha a localidade…</option>${LM_LOCALIDADES.map(l => `<option>${sspEsc(l)}</option>`).join("")}</select>
+  <input id="lm_q" class="campo" inputmode="numeric" placeholder="Digite a matrícula" style="font-size:20px" onkeydown="if(event.key==='Enter')lmMostrar()">
+  <button class="acao" onclick="lmMostrar()">🔎 Pesquisar</button>
   <div id="lm_res">Carregando...</div>`; } });
 async function lmCarregar() { const b = document.getElementById("lm_res"); if (!b) return; if (lmCache()) lmMostrar(); await lmBaixar(); lmMostrar(); }
 function lmMostrar() {
   const box = document.getElementById("lm_res"); if (!box) return;
   const c = lmCache(), q = lmNorm((document.getElementById("lm_q") || {}).value);
   if (!c || !Object.keys(c.m).length) { box.innerHTML = `<div class="nota" style="color:#b45309">A lista de localizações ainda não foi enviada pelo escritório${navigator.onLine === false ? " (ou o celular está sem internet)" : ""}.</div>`; return; }
-  if (!q) { box.innerHTML = `<div class="nota">${Object.keys(c.m).length} matrículas com localização guardadas no celular · atualizado em ${formatarQuando(c.em)}</div>`; return; }
+  const loc = (document.getElementById("lm_loc") || {}).value || "";
+  if (!q) { box.innerHTML = `<div class="nota">${Object.keys(c.m).length} matrículas conferidas em campo e guardadas no celular · atualizado em ${formatarQuando(c.em)}</div>`; return; }
   const l = c.m[q];
-  if (!l) { box.innerHTML = q.length < 4 ? "" : `<div class="nota" style="color:#b00020;font-weight:bold">Matrícula ${sspEsc(q)} sem localização na lista.</div>`; return; }
-  box.innerHTML = `<div class="card" style="border-left:6px solid #15803d"><div style="font-size:18px">Matrícula <b>${sspEsc(l[0])}</b></div>
+  if (!l) { box.innerHTML = `<div class="card" style="border-left:6px solid #b45309"><b>Matrícula ${sspEsc(q)}: ainda não foi verificada em campo.</b><div class="nota">Assim que a visita for feita e a localização confirmada, ela aparece aqui.</div></div>`; return; }
+  const locReg = l[3] || "";
+  const aviso = loc && locReg && normalizarNome(loc) !== normalizarNome(locReg) ? `<div class="nota" style="color:#b45309">No painel esta matrícula está em ${sspEsc(locReg)}, não em ${sspEsc(loc)}.</div>` : "";
+  box.innerHTML = `<div class="card" style="border-left:6px solid #15803d"><div style="font-size:18px">Matrícula <b>${sspEsc(l[0])}</b>${locReg ? " · " + sspEsc(locReg) : ""}</div>${aviso}
     <a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d;font-size:19px;padding:16px;margin-top:8px" href="${sspEsc(lmLink(l[1]))}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a></div>`;
 }
 // envio do Excel (gerência / digitadores)
@@ -3887,10 +3895,11 @@ async function lmEnviarExcel(input) {
     const iM = cab.findIndex(c => /^matr/.test(c));
     let iL = cab.findIndex(c => /local|link|maps|google|coorden|gps|endereco/.test(c) && !/^matr/.test(c));
     const iLat = cab.findIndex(c => /^lat/.test(c)), iLon = cab.findIndex(c => /^(lon|lng)/.test(c));
+    const iLoc = cab.findIndex(c => /^(localidade|cidade|distrito|povoado)/.test(c)); // 20/11: localidade, quando o Excel trouxer
     if (iL < 0 && (iLat < 0 || iLon < 0)) { alert("Não achei a coluna da localização (Localização, Link, Coordenadas, ou Latitude e Longitude)."); if (st) st.textContent = ""; return; }
     const agora = new Date().toISOString(), quem = window.credenciais.usuario;
     const linhas = rows.slice(h + 1).map(r => { const m = String(r[iM] || "").trim(); const loc = iL >= 0 && String(r[iL] || "").trim() ? String(r[iL]).trim() : (iLat >= 0 && String(r[iLat] || "").trim() ? String(r[iLat]).trim() + "," + String(r[iLon] || "").trim() : "");
-      return lmNorm(m) && loc ? ["'" + m, loc, agora, quem, arq.name] : null; }).filter(Boolean);
+      return lmNorm(m) && loc ? ["'" + m, loc, agora, quem, arq.name, iLoc >= 0 ? String(r[iLoc] || "").trim() : ""] : null; }).filter(Boolean);
     if (!linhas.length) { alert("Nenhuma linha com matrícula e localização."); if (st) st.textContent = ""; return; }
     if (!confirm("Enviar " + linhas.length + " matrículas com localização para o painel dos agentes de campo?")) { if (st) st.textContent = ""; return; }
     const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
@@ -9278,7 +9287,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "20/11 16h08";
+const VERSAO_PAINEL = "20/11 16h28";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
