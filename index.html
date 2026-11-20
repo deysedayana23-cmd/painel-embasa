@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 14h17</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 20/11 14h18</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4092,14 +4092,16 @@ async function carregarAbastecimento() {
   const ultimo = {};
   dados.forEach(l => { const c = String(l[2] || ""); if (c && (!ultimo[c] || String(l[0]) > String(ultimo[c][0]))) ultimo[c] = l; });
   // 19/11: saldo dos cartões e postos só para a Deyse
-  const cartoesSaldo = abaVeSaldo() ? ABA_CARTOES : ABA_CARTOES.filter(c => !ABA_LIBERADO[c]);
+  // 20/11: saldo só para a gerente. Exceção: Ivo Carlos e Jânio Gualberto veem os dois saldos do posto de Baianópolis
+  const ehBaianopolis = ["ivo", "janio"].some(n => identidadeAtual().includes(n)) && !identidadeAtual().includes("janiolima");
+  const cartoesSaldo = abaVeSaldo() ? ABA_CARTOES : (ehBaianopolis ? ABA_CARTOES.filter(c => /Baian/i.test(c)) : []);
   const saldoLib = abaVeSaldo() ? "" : Object.keys(ABA_LIBERADO).map(c => {
     const itens = Object.keys(ABA_LIBERADO_VEIC);
     return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
       <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
       ${itens.length ? itens.map(n => `<div style="font-size:20px;font-weight:bold;color:#0b5394">${sspEsc(n)}: liberado ${abaMoeda(ABA_LIBERADO_VEIC[n])} por abastecimento</div>`).join("")
         : `<div class="nota">O valor liberado aparece quando você escolher o veículo.</div>`}</div>`; }).join("");
-  const saldos = `<h3 style="margin-top:0">Saldo dos cartões e postos${abaVeSaldo() ? ' <span class="nota">(só você vê)</span>' : ""}</h3>` + saldoLib + cartoesSaldo.map(c => { const u = ultimo[c];
+  const saldos = (cartoesSaldo.length || saldoLib ? `<h3 style="margin-top:0">${abaVeSaldo() ? 'Saldo dos cartões e postos <span class="nota">(só você vê)</span>' : (cartoesSaldo.length ? "Saldo do posto de Baianópolis" : "Valor liberado")}</h3>` : "") + saldoLib + cartoesSaldo.map(c => { const u = ultimo[c];
     return `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
       <div style="font-size:15px;font-weight:600">${sspEsc(c)}</div>
       <div style="font-size:26px;font-weight:bold;color:#0b5394">${u ? abaMoeda(u[8]) : "sem registro"}</div>
@@ -9073,7 +9075,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "20/11 14h17";
+const VERSAO_PAINEL = "20/11 14h18";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
