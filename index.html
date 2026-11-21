@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 20h05</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 20h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3987,6 +3987,16 @@ function ilTela() {
 }
 // ---- mapa (imagem de satélite, é só tocar no ponto) ----
 let ilMat = null, ilPonto = null, ilMapaObj = null, ilMarca = null;
+// Satélite em duas camadas: a de baixo sempre tem imagem (zoom 16), a de cima é a nitida.
+// Sem isso, ao aproximar muito num lugar onde o Esri não tem foto, o azulejo vem vazio e a tela fica branca.
+function ilSatelite(mapa) {
+  const u = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  L.tileLayer(u, { maxZoom: 21, maxNativeZoom: 16, attribution: "Esri" }).addTo(mapa);
+  const topo = L.tileLayer(u, { maxZoom: 21, maxNativeZoom: 18 });
+  topo.on("tileerror", e => { if (e.tile) e.tile.style.display = "none"; });
+  topo.addTo(mapa);
+  return mapa;
+}
 function ilCarregarLeaflet() {
   if (window.L) return Promise.resolve(true);
   return new Promise(ok => {
@@ -4020,7 +4030,7 @@ async function ilAbrirMapa(m) {
   const div = document.getElementById("il_mapa"); if (!div) return;
   if (!ok || !window.L) { div.innerHTML = `<div style="padding:14px" class="nota">Não consegui abrir o mapa (internet fraca). Use a opção do Google Maps aqui embaixo.</div>`; return; }
   ilMapaObj = L.map("il_mapa").setView(c, 17);
-  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19, attribution: "Esri" }).addTo(ilMapaObj);
+  ilSatelite(ilMapaObj);
   ilMapaObj.on("click", ev => ilMarcar(ev.latlng.lat, ev.latlng.lng));
   setTimeout(() => { try { ilMapaObj.invalidateSize(); } catch (e) {} }, 300);
 }
@@ -4115,7 +4125,7 @@ async function mcAbrir(loc) {
   }
   if (mcMapa) { try { mcMapa.remove(); } catch (e) {} mcMapa = null; }
   mcMapa = L.map("mc_mapa");
-  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 21, maxNativeZoom: 19, attribution: "Esri" }).addTo(mcMapa);
+  ilSatelite(mcMapa);
   const d = mcDados[loc];
   const quadras = L.geoJSON(d.quadra, { style: f => ({ color: f.properties.semlote ? "#b00020" : "#ffd400", weight: f.properties.semlote ? 3 : 1.5, fillOpacity: f.properties.semlote ? 0.25 : 0 }),
     onEachFeature: (f, l) => l.bindPopup("Quadra " + (f.properties.rot || "?") + (f.properties.semlote ? " – <b>sem lote desenhado</b>" : "")) }).addTo(mcMapa);
@@ -9546,7 +9556,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "21/11 20h05";
+const VERSAO_PAINEL = "21/11 20h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
