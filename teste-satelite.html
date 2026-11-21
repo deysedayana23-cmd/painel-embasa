@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teste do satélite</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+ body{margin:0;font-family:system-ui,Arial,sans-serif;background:#0C447C;color:#fff}
+ #barra{padding:10px;font-size:17px;line-height:1.5}
+ b{font-size:22px}
+ #mapa{height:70vh;background:#555}
+ .botoes{padding:8px}
+ button{font-size:16px;padding:10px 14px;margin:4px;border:0;border-radius:8px;background:#fff;color:#0C447C;font-weight:bold}
+</style></head><body>
+<div id="barra">Zoom atual: <b id="z">–</b><br><span id="st">Aproxime até ficar branco e me diga o número do zoom.</span></div>
+<div class="botoes">
+  <button onclick="trocar(0)">1 · Só Esri (como está hoje)</button>
+  <button onclick="trocar(1)">2 · Esri em duas camadas</button>
+  <button onclick="trocar(2)">3 · Com mapa de ruas embaixo</button>
+</div>
+<div id="mapa"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var U="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+var O="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+var mapa=L.map("mapa").setView([-12.3625,-44.9755],17), atual=[], erros=0;
+function conta(l){ l.on("tileerror",function(e){ erros++; if(e.tile) e.tile.style.display="none"; atualiza(); }); return l; }
+function atualiza(){ document.getElementById("z").textContent=mapa.getZoom();
+  document.getElementById("st").textContent = erros ? ("Azulejos sem imagem até agora: "+erros) : "Nenhum azulejo faltando até agora."; }
+function limpa(){ atual.forEach(function(l){mapa.removeLayer(l)}); atual=[]; erros=0; }
+function trocar(n){ limpa();
+  if(n===0){ atual.push(conta(L.tileLayer(U,{maxZoom:21}))); }
+  if(n===1){ atual.push(L.tileLayer(U,{maxZoom:21,maxNativeZoom:16})); atual.push(conta(L.tileLayer(U,{maxZoom:21,maxNativeZoom:18}))); }
+  if(n===2){ atual.push(L.tileLayer(O,{maxZoom:21,maxNativeZoom:19})); atual.push(L.tileLayer(U,{maxZoom:21,maxNativeZoom:16,opacity:1})); atual.push(conta(L.tileLayer(U,{maxZoom:21,maxNativeZoom:18}))); }
+  atual.forEach(function(l){l.addTo(mapa)}); atualiza(); }
+mapa.on("zoomend",atualiza);
+trocar(1);
+</script></body></html>
