@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 18h39</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 18h42</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1844,6 +1844,17 @@ const MENU_ENXUTO_CAMPO = {
     i => /Almoxarifado/i.test(i.nome || ""), i => i.tela === "epi", i => i.tela === "escalaSobreaviso",
     i => i.tela === "coelba", i => i.tela === "conserto"]
 };
+// 21/11: Luzenildo, Francisco, Carlito e Joaquim – painel principal mais limpo.
+// Solicitação no SCI, Digiteam, Hora extra, Abastecimento, Localização do hidrômetro e Localização da matrícula vão para "Outros".
+const MENU_ENXUTO_CAMPO_SD = {
+  principal: [ME_SS_PEND, ME_URG, i => i.nome === "Ocorrência operacional" || i.tela === "ocorAbrir",
+    i => i.tela === "meusPedidos", i => i.tela === "telemetria"],
+  outros: [i => i.nome === "Solicitação no SCI" || /Solicita[çc](ão|ões|ao|oes) no SCI/i.test(i.nome || ""),
+    i => i.tela === "ssDigiteam" || i.tela === "solicitarSS",
+    i => i.nome === "Hora extra" || i.tela === "horaExtra",
+    i => i.tela === "abastecimento", i => i.tela === "locHidrometro", i => i.tela === "locMatricula",
+    ...MENU_ENXUTO_CAMPO.outros]
+};
 const MENU_ENXUTO_THIAGO = {
   principal: [i => i.tela === "ssPendTodas", i => i.tela === "ligNovaThiago", ME_URG, i => i.tela === "importarSCI",
     i => i.tela === "telemetria", i => i.tela === "abastecimento", i => i.tela === "locMatricula"],
@@ -1876,7 +1887,8 @@ function menuEnxuto(itens) {
   const id = identidadeAtual();
   const souCampo = !ger && GRUPO_CAMPO.some(n => id.includes(n));
   const souThiago = !ger && ["thiago", "tiago"].some(n => id.includes(n));
-  const regra = souCampo ? MENU_ENXUTO_CAMPO : souThiago ? MENU_ENXUTO_THIAGO : null;
+  const souCampoSD = souCampo && ["luzenildo", "francisco", "carlito", "joaquim"].some(n => id.includes(n));
+  const regra = souCampoSD ? MENU_ENXUTO_CAMPO_SD : souCampo ? MENU_ENXUTO_CAMPO : souThiago ? MENU_ENXUTO_THIAGO : null;
   if (!regra) return itens;
   const pool = []; itens.forEach(i => { if (i.sub && i.nome === "Outros") i.sub.forEach(j => pool.push(j)); else pool.push(i); });
   const usados = new Set();
@@ -9437,7 +9449,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "21/11 18h39";
+const VERSAO_PAINEL = "21/11 18h42";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
