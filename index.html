@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 19h14</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 19h26</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3914,7 +3914,25 @@ function ilPendentes() { const f = ilFeitasCache(); return ilMinhas().filter(x =
 function ilRotuloNivel1() { return ilRegiao() === "CAT" ? "povoado" : "bairro"; }
 Object.assign(TELAS, { semLocal: () => { setTimeout(ilCarregar, 0); return `<h2>Matrículas sem localização</h2>
   <div class="nota">Matrículas que ainda não estão no mapa. Escolha o ${ilRotuloNivel1()}, o logradouro e a matrícula, e toque em <b>Sei onde fica</b>. Dê um toque em cima do imóvel (no muro, onde fica a caixinha do hidrômetro). Quando você marcar, ela some da lista de todos.</div>
+  ${ilRegiao() === "TODAS" ? `<div id="il_recebidas" class="nota">Conferindo o que a equipe já mandou…</div>` : ""}
   <div id="il_box">Carregando…</div>`; } });
+// Gerência: o que a equipe já marcou no painel, para validar
+function ilRecebidas(dados) {
+  const box = document.getElementById("il_recebidas"); if (!box) return;
+  const nomes = {}; IL_LISTA.forEach(x => nomes[lmNorm(x[0])] = x);
+  const rec = dados.slice(1).filter(l => /informado no painel/i.test(String(l[4] || "")))
+    .map(l => ({ m: String(l[0]).replace(/\D/g, ""), ll: String(l[1] || ""), q: String(l[2] || ""), quem: String(l[3] || ""), loc: String(l[5] || "") }))
+    .reverse();
+  if (!rec.length) { box.innerHTML = `<div class="nota">A equipe ainda não marcou nenhuma localização por aqui.</div>`; return; }
+  const porQuem = {}; rec.forEach(r => porQuem[r.quem] = (porQuem[r.quem] || 0) + 1);
+  box.innerHTML = `<div class="card" style="border-left:6px solid #15803d;margin-bottom:10px">
+    <div style="font-size:18px;font-weight:bold">${rec.length} localização(ões) marcada(s) pela equipe</div>
+    <div class="nota">${Object.keys(porQuem).map(k => sspEsc(sspNome(k)) + ": " + porQuem[k]).join(" · ")}</div>
+    <details><summary>Ver uma por uma</summary>${rec.map(r => { const d = nomes[lmNorm(r.m)] || [];
+      return `<div style="padding:6px 0;border-bottom:1px solid #eee">
+        <b>${sspEsc(r.m)}</b> · ${sspEsc(d[5] || "")}<div class="nota">${sspEsc(d[3] || "")}${d[4] && d[4] !== "S N" ? ", nº " + sspEsc(d[4]) : ""} · ${sspEsc(r.loc)} · marcada por ${sspEsc(sspNome(r.quem))} em ${formatarQuando(r.q)}</div>
+        <a href="${sspEsc(lmLink(r.ll))}" target="_blank" rel="noopener">Ver no mapa</a></div>`; }).join("")}</details></div>`;
+}
 async function ilCarregar() {
   ilTela();
   if (navigator.onLine === false) return;
@@ -3924,6 +3942,7 @@ async function ilCarregar() {
     const tem = {}; r.dados.slice(1).forEach(l => { const k = lmNorm(l[0]); if (k && l[1]) tem[k] = 1; });
     ilFeitasSalvar(IL_LISTA.map(x => x[0]).filter(m => tem[lmNorm(m)]));
     ilTela();
+    if (ilRegiao() === "TODAS") ilRecebidas(r.dados);
   } catch (e) {}
 }
 let ilGrupo = null, ilLogr = null;
@@ -9468,7 +9487,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "21/11 19h14";
+const VERSAO_PAINEL = "21/11 19h26";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
