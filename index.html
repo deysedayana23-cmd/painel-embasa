@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 18h36</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 18h39</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3901,6 +3901,7 @@ async function ilCarregar() {
   } catch (e) {}
 }
 let ilBairro = null, ilLogr = null;
+function ilEscolher(k) { const v = (window.ilOpcoes || [])[k]; if (v == null) return; if (ilBairro) ilLogr = v; else ilBairro = v; ilTela(); }
 function ilVoltarNivel() { if (ilLogr) ilLogr = null; else ilBairro = null; ilTela(); }
 function ilTela() {
   const box = document.getElementById("il_box"); if (!box) return;
@@ -3909,15 +3910,17 @@ function ilTela() {
   const btnVolta = (ilBairro ? `<button class="acao" style="background:#777;margin-bottom:8px" onclick="ilVoltarNivel()">← ${sspEsc(ilLogr ? ilBairro : "Todos os bairros")}</button>` : "");
   if (!ilBairro) {
     const c = {}; pend.forEach(x => { const b = IL_BAIRROS[x[1]]; c[b] = (c[b] || 0) + 1; });
+    const ordB = Object.keys(c).sort(); window.ilOpcoes = ordB;
     box.innerHTML = `<div class="nota" style="font-size:16px">Faltam <b>${pend.length}</b> matrículas.</div>` +
-      Object.keys(c).sort().map(b => `<button class="acao" style="background:#0C447C;text-align:left;font-size:17px" onclick="ilBairro=${JSON.stringify(b)};ilTela()">${sspEsc(b)} <b>(${c[b]})</b></button>`).join("");
+      ordB.map((b, k) => `<button class="acao" style="background:#0C447C;text-align:left;font-size:17px" onclick="ilEscolher(${k})">${sspEsc(b)} <b>(${c[b]})</b></button>`).join("");
     return;
   }
   const doBairro = pend.filter(x => IL_BAIRROS[x[1]] === ilBairro);
   if (!ilLogr) {
     const c = {}; doBairro.forEach(x => { c[x[2]] = (c[x[2]] || 0) + 1; });
+    const ordL = Object.keys(c).sort(); window.ilOpcoes = ordL;
     box.innerHTML = btnVolta + `<div class="nota" style="font-size:16px">${sspEsc(ilBairro)} · faltam <b>${doBairro.length}</b></div>` +
-      Object.keys(c).sort().map(l => `<button class="acao" style="background:#0C447C;text-align:left;font-size:17px" onclick="ilLogr=${JSON.stringify(l)};ilTela()">${sspEsc(l)} <b>(${c[l]})</b></button>`).join("");
+      ordL.map((l, k) => `<button class="acao" style="background:#0C447C;text-align:left;font-size:17px" onclick="ilEscolher(${k})">${sspEsc(l)} <b>(${c[l]})</b></button>`).join("");
     return;
   }
   const lista = doBairro.filter(x => x[2] === ilLogr).sort((a, b) => (parseInt(a[3], 10) || 0) - (parseInt(b[3], 10) || 0));
@@ -9434,7 +9437,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "21/11 18h36";
+const VERSAO_PAINEL = "21/11 18h39";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
