@@ -706,8 +706,8 @@ var topo=L.tileLayer(MT,{maxZoom:22,maxNativeZoom:20,attribution:"MapTiler"});to
 var quadra=L.geoJSON(D.quadra,{style:function(f){return f.properties.semlote?{color:"#b00020",weight:3,fillOpacity:.3}:{color:"#ffd400",weight:2,fillOpacity:0}},
  onEachFeature:function(f,l){l.bindPopup("Quadra "+(f.properties.rot||"?")+(f.properties.semlote?" — <b>sem lote desenhado</b>":""))}}).addTo(mapa);
 var lotes=L.geoJSON(D.lotes,{style:{color:"#39f",weight:1}}).addTo(mapa);
-var cons=L.geoJSON(D.cons,{pointToLayer:function(f,ll){return L.circleMarker(ll,{radius:3,color:"#000",weight:1,fillColor:"#fff",fillOpacity:1})}}).addTo(mapa);
-var foto=D.foto?L.geoJSON(D.foto,{pointToLayer:function(f,ll){return L.circleMarker(ll,{radius:5,color:"#060",weight:2,fillColor:"#0f0",fillOpacity:1}).bindPopup("Matrícula "+(f.properties.matricula||"?")+"<br>a confirmar em campo")}}).addTo(mapa):L.layerGroup().addTo(mapa);
+var cons=L.geoJSON(D.cons,{pointToLayer:function(f,ll){return L.circleMarker(ll,{radius:3,color:"#000",weight:1,fillColor:"#fff",fillOpacity:1}).bindPopup("<a target=_blank rel=noopener href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint="+ll.lat+","+ll.lng+"'>Ver no Google</a>")}}).addTo(mapa);
+var foto=D.foto?L.geoJSON(D.foto,{pointToLayer:function(f,ll){return L.circleMarker(ll,{radius:5,color:"#060",weight:2,fillColor:"#0f0",fillOpacity:1}).bindPopup("Matrícula "+(f.properties.matricula||"?")+"<br>a confirmar em campo<br><a target=_blank rel=noopener href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint="+ll.lat+","+ll.lng+"'>Ver no Google</a>")}}).addTo(mapa):L.layerGroup().addTo(mapa);
 mapa.fitBounds(quadra.getBounds(),{padding:[20,20]});
 function liga(id,cam){document.getElementById(id).onchange=function(){this.checked?mapa.addLayer(cam):mapa.removeLayer(cam)}}
 liga("cq",quadra);liga("cl",lotes);liga("cc",cons);liga("cf",foto);
