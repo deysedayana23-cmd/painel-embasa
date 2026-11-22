@@ -687,6 +687,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <label><input type="checkbox" id="cc" checked> <span class="bo" style="background:#fff"></span>matrícula</label>
 <label><input type="checkbox" id="cf" checked> <span class="bo" style="background:#0f0"></span>conferida por foto</label>
 <hr style="margin:8px 0">
+<b>Desenhar</b>
+<div style="margin:6px 0">
+<button onclick="dModo('quadra')" style="font-size:13px;padding:6px 8px;margin:2px">Nova quadra</button>
+<button onclick="dModo('lote')" style="font-size:13px;padding:6px 8px;margin:2px">Divisão de lote</button><br>
+<button onclick="dFechar()" style="font-size:13px;padding:6px 8px;margin:2px;background:#15803d;color:#fff;border:0;border-radius:5px">Fechar</button>
+<button onclick="dDesfazer()" style="font-size:13px;padding:6px 8px;margin:2px">Desfazer</button>
+<button onclick="dBaixar()" style="font-size:13px;padding:6px 8px;margin:2px;background:#0C447C;color:#fff;border:0;border-radius:5px">Baixar</button>
+</div>
+<div id="d_status" style="font-size:12px;color:#333;background:#f3f3f3;padding:6px;border-radius:5px">Escolha o que vai desenhar.</div>
+<hr style="margin:8px 0">
 <span style="font-size:12px;color:#555">Clique na quadra para ver o número. Pontos verdes fora de quadra são imóveis em área ainda não desenhada.</span>
 </div>
 <script>/* @preserve
@@ -709,4 +719,54 @@ var foto=L.geoJSON(D.foto,{pointToLayer:function(f,ll){return L.circleMarker(ll,
 mapa.fitBounds(quadra.getBounds(),{padding:[20,20]});
 function liga(id,cam){document.getElementById(id).onchange=function(){this.checked?mapa.addLayer(cam):mapa.removeLayer(cam)}}
 liga("cq",quadra);liga("cl",lotes);liga("cc",cons);liga("cf",foto);
+var LOCALIDADE="MOZONDO";
+// ---- ferramenta de desenho ----
+var modo=null, atual=[], tempLinha=null, tempPts=[], feitos=[], camadaFeitos=L.layerGroup().addTo(mapa);
+function dStatus(t){document.getElementById('d_status').innerHTML=t;}
+function dModo(m){
+  modo=m; atual=[]; limpaTemp();
+  dStatus(m==='quadra'?'<b>Desenhando QUADRA</b><br>Clique em cada canto. No fim toque em Fechar.'
+    :m==='lote'?'<b>Desenhando DIVISÃO DE LOTE</b><br>Clique no começo e no fim do traço. Depois Fechar.'
+    :'Escolha o que vai desenhar.');
+}
+function limpaTemp(){ if(tempLinha){mapa.removeLayer(tempLinha);tempLinha=null;} tempPts.forEach(p=>mapa.removeLayer(p)); tempPts=[]; }
+function dClique(e){
+  if(!modo) return;
+  atual.push([e.latlng.lat,e.latlng.lng]);
+  tempPts.push(L.circleMarker(e.latlng,{radius:4,color:'#f0f',fillColor:'#f0f',fillOpacity:1}).addTo(mapa));
+  if(tempLinha) mapa.removeLayer(tempLinha);
+  tempLinha=L.polyline(atual,{color:'#f0f',weight:2,dashArray:'4,4'}).addTo(mapa);
+  dStatus('<b>'+(modo==='quadra'?'QUADRA':'LOTE')+'</b> · '+atual.length+' ponto(s). Toque em Fechar quando terminar.');
+}
+function dFechar(){
+  if(!modo||atual.length<2){dStatus('Faltam pontos.');return;}
+  var f={tipo:modo,pontos:atual.slice()};
+  feitos.push(f);
+  if(modo==='quadra') L.polygon(atual,{color:'#f0f',weight:3,fillOpacity:.15}).addTo(camadaFeitos);
+  else L.polyline(atual,{color:'#f0f',weight:3}).addTo(camadaFeitos);
+  limpaTemp(); atual=[];
+  dStatus('Guardado. Total: <b>'+feitos.length+'</b> desenho(s). Pode desenhar outro ou Baixar.');
+}
+function dDesfazer(){
+  if(atual.length){atual.pop(); var p=tempPts.pop(); if(p)mapa.removeLayer(p);
+    if(tempLinha)mapa.removeLayer(tempLinha); tempLinha=atual.length?L.polyline(atual,{color:'#f0f',weight:2,dashArray:'4,4'}).addTo(mapa):null;
+    dStatus('Apagou o último ponto. Restam '+atual.length+'.'); return;}
+  if(feitos.length){feitos.pop(); camadaFeitos.clearLayers();
+    feitos.forEach(f=>f.tipo==='quadra'?L.polygon(f.pontos,{color:'#f0f',weight:3,fillOpacity:.15}).addTo(camadaFeitos):L.polyline(f.pontos,{color:'#f0f',weight:3}).addTo(camadaFeitos));
+    dStatus('Apagou o último desenho. Restam '+feitos.length+'.');}
+}
+function dBaixar(){
+  if(!feitos.length){dStatus('Não há nada desenhado.');return;}
+  var fc={type:'FeatureCollection',localidade:LOCALIDADE,features:feitos.map(function(f,i){
+    var c=f.pontos.map(p=>[p[1],p[0]]);
+    if(f.tipo==='quadra'){c.push(c[0]);return{type:'Feature',properties:{tipo:'quadra',n:i+1},geometry:{type:'Polygon',coordinates:[c]}};}
+    return{type:'Feature',properties:{tipo:'lote',n:i+1},geometry:{type:'LineString',coordinates:c}};})};
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(fc)],{type:'application/json'}));
+  a.download='desenho_'+LOCALIDADE+'_'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'')+'.geojson';
+  a.click();
+  dStatus('Arquivo baixado. Me mande ele aqui no chat.');
+}
+mapa.on('click',dClique);
+
 </script></body></html>
