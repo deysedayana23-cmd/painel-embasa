@@ -4087,12 +4087,7 @@ async function ilConfirmar(btn) {
 // o que ainda falta desenhar. Os desenhos ficam em arquivos na pasta /mapa do painel.
 const MC_LOCS = [["São Desidério", "SAO_DESIDERIO"], ["Catolândia", "CATOLANDIA"], ["Baianópolis", "BAIANOPOLIS"],
   ["Mozondó", "MOZONDO"], ["Buriti Cortado", "BURITI_CORTADO"], ["Angico", "ANGICO"]];
-const MC_RESUMO = {"SAO_DESIDERIO":{"quadras":316,"semlote":42,"lotes":6718,"consumidores":4308,"foto":232,"semponto":159},
-  "CATOLANDIA":{"quadras":153,"semlote":46,"lotes":1879,"consumidores":920,"foto":50,"semponto":107},
-  "BAIANOPOLIS":{"quadras":135,"semlote":12,"lotes":2340,"consumidores":1716,"foto":1,"semponto":34},
-  "MOZONDO":{"quadras":17,"semlote":1,"lotes":348,"consumidores":144,"foto":7,"semponto":19},
-  "BURITI_CORTADO":{"quadras":5,"semlote":1,"lotes":154,"consumidores":104,"foto":0,"semponto":2},
-  "ANGICO":{"quadras":7,"semlote":0,"lotes":124,"consumidores":97,"foto":2,"semponto":20}};
+const MC_RESUMO = {"SAO_DESIDERIO": {"quadras": 316, "semlote": 43, "lotes": 6718, "consumidores": 4308, "foto": 232, "semponto": 159}, "CATOLANDIA": {"quadras": 153, "semlote": 46, "lotes": 1879, "consumidores": 920, "foto": 50, "semponto": 107}, "BAIANOPOLIS": {"quadras": 135, "semlote": 12, "lotes": 2340, "consumidores": 1716, "foto": 1, "semponto": 34}, "MOZONDO": {"quadras": 17, "semlote": 1, "lotes": 348, "consumidores": 144, "foto": 7, "semponto": 19}, "BURITI_CORTADO": {"quadras": 5, "semlote": 1, "lotes": 154, "consumidores": 104, "foto": 0, "semponto": 2}, "ANGICO": {"quadras": 7, "semlote": 0, "lotes": 124, "consumidores": 97, "foto": 2, "semponto": 20}};
 let mcDados = {}, mcMapa = null, mcCamadas = {};
 Object.assign(TELAS, { mapaCompleto: () => `<h2>Mapa completo por localidade</h2>
   <div class="nota">Quadras em vermelho são as que ainda não têm nenhum lote desenhado. Use para ver o que falta desenhar antes de mandar a equipe a campo.</div>
