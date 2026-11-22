@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 20h44</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 21h49</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3991,8 +3991,12 @@ let ilMat = null, ilPonto = null, ilMapaObj = null, ilMarca = null;
 // Sem isso, ao aproximar muito num lugar onde o Esri não tem foto, o azulejo vem vazio e a tela fica branca.
 function ilSatelite(mapa) {
   const u = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-  L.tileLayer(u, { maxZoom: 21, maxNativeZoom: 16, attribution: "Esri" }).addTo(mapa);
-  const topo = L.tileLayer(u, { maxZoom: 21, maxNativeZoom: 19 });
+  const mt = "https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=ZRmaSl8EvXhbh52Ukh4L";
+  L.tileLayer(u, { maxZoom: 22, maxNativeZoom: 16, attribution: "Esri" }).addTo(mapa);
+  const esri = L.tileLayer(u, { maxZoom: 22, maxNativeZoom: 19 });
+  esri.on("tileerror", e => { if (e.tile) e.tile.style.display = "none"; });
+  esri.addTo(mapa);
+  const topo = L.tileLayer(mt, { maxZoom: 22, maxNativeZoom: 20, attribution: "MapTiler" });
   topo.on("tileerror", e => { if (e.tile) e.tile.style.display = "none"; });
   topo.addTo(mapa);
   return mapa;
@@ -4029,7 +4033,7 @@ async function ilAbrirMapa(m) {
   const ok = await ilCarregarLeaflet();
   const div = document.getElementById("il_mapa"); if (!div) return;
   if (!ok || !window.L) { div.innerHTML = `<div style="padding:14px" class="nota">Não consegui abrir o mapa (internet fraca). Use a opção do Google Maps aqui embaixo.</div>`; return; }
-  ilMapaObj = L.map("il_mapa").setView(c, 17);
+  ilMapaObj = L.map("il_mapa", { maxZoom: 22 }).setView(c, 18);
   ilSatelite(ilMapaObj);
   ilMapaObj.on("click", ev => ilMarcar(ev.latlng.lat, ev.latlng.lng));
   setTimeout(() => { try { ilMapaObj.invalidateSize(); } catch (e) {} }, 300);
@@ -4119,7 +4123,7 @@ async function mcAbrir(loc) {
     div.innerHTML = "";
   }
   if (mcMapa) { try { mcMapa.remove(); } catch (e) {} mcMapa = null; }
-  mcMapa = L.map("mc_mapa");
+  mcMapa = L.map("mc_mapa", { maxZoom: 22 });
   ilSatelite(mcMapa);
   const d = mcDados[loc];
   const quadras = L.geoJSON(d.quadra, { style: f => ({ color: f.properties.semlote ? "#b00020" : "#ffd400", weight: f.properties.semlote ? 3 : 1.5, fillOpacity: f.properties.semlote ? 0.25 : 0 }),
@@ -9551,7 +9555,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "21/11 20h44";
+const VERSAO_PAINEL = "21/11 21h49";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
