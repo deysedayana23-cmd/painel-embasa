@@ -701,7 +701,7 @@ var U="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapSer
 var MT="https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=ZRmaSl8EvXhbh52Ukh4L";
 var mapa=L.map("mapa");
 L.tileLayer(U,{maxZoom:22,maxNativeZoom:16,attribution:"Esri"}).addTo(mapa);
-var esri=L.tileLayer(U,{maxZoom:22,maxNativeZoom:19});esri.on("tileerror",function(e){if(e.tile)e.tile.style.display="none"});esri.addTo(mapa);
+var esri=L.tileLayer(U,{maxZoom:22,maxNativeZoom:17});esri.on("tileerror",function(e){if(e.tile)e.tile.style.display="none"});esri.addTo(mapa);
 var topo=L.tileLayer(MT,{maxZoom:22,maxNativeZoom:20,attribution:"MapTiler"});topo.on("tileerror",function(e){if(e.tile)e.tile.style.display="none"});topo.addTo(mapa);
 var quadra=L.geoJSON(D.quadra,{style:function(f){return f.properties.semlote?{color:"#b00020",weight:3,fillOpacity:.3}:{color:"#ffd400",weight:2,fillOpacity:0}},
  onEachFeature:function(f,l){l.bindPopup("Quadra "+(f.properties.rot||"?")+(f.properties.semlote?" — <b>sem lote desenhado</b>":""))}}).addTo(mapa);
