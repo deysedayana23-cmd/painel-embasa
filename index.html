@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 21h54</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 21/11 22h51</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3918,7 +3918,7 @@ function ilFeitasSalvar(a) { try { localStorage.setItem(IL_CHAVE, JSON.stringify
 function ilMinhas() { const r = ilRegiao(); return r === "TODAS" ? IL_LISTA : IL_LISTA.filter(x => x[1] === r); }
 function ilPendentes() { const f = ilFeitasCache(); return ilMinhas().filter(x => f.indexOf(x[0]) < 0); }
 function ilRotuloNivel1() { const r = ilRegiao(); return r === "CAT" || r === "BAI" ? "povoado" : "bairro"; }
-Object.assign(TELAS, { semLocal: () => { setTimeout(ilCarregar, 0); return `<h2>Matrículas sem localização</h2>
+Object.assign(TELAS, { semLocal: () => { ilGrupo = null; ilLogr = null; setTimeout(ilCarregar, 0); return `<h2>Matrículas sem localização</h2>
   <div class="nota">Matrículas que ainda não estão no mapa. Escolha o ${ilRotuloNivel1()}, o logradouro e a matrícula, e toque em <b>Sei onde fica</b>. Dê um toque em cima do imóvel (no muro, onde fica a caixinha do hidrômetro). Quando você marcar, ela some da lista de todos.</div>
   ${ilRegiao() === "TODAS" ? `<div id="il_recebidas" class="nota">Conferindo o que a equipe já mandou…</div>` : ""}
   <div id="il_box">Carregando…</div>`; } });
@@ -3958,6 +3958,8 @@ function ilTela() {
   const box = document.getElementById("il_box"); if (!box) return;
   const pend = ilPendentes();
   if (!pend.length) { box.innerHTML = `<div class="card" style="border-left:6px solid #15803d"><b>Todas as matrículas já foram localizadas.</b><div class="nota">Obrigado! Não há mais nada para marcar.</div></div>`; return; }
+  if (ilGrupo && !pend.some(x => IL_GRUPOS[x[2]] === ilGrupo)) { ilGrupo = null; ilLogr = null; }
+  if (ilLogr && !pend.some(x => IL_GRUPOS[x[2]] === ilGrupo && x[3] === ilLogr)) ilLogr = null;
   const btnVolta = ilGrupo ? `<button class="acao" style="background:#777;margin-bottom:8px" onclick="ilVoltarNivel()">← ${sspEsc(ilLogr ? ilGrupo : "Voltar para a lista de " + ilRotuloNivel1() + "s")}</button>` : "";
   if (!ilGrupo) {
     const c = {}, loc = {};
@@ -9557,7 +9559,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "21/11 21h54";
+const VERSAO_PAINEL = "21/11 22h51";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
