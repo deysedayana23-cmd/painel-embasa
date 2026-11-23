@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 08h05</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 08h10</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3873,6 +3873,7 @@ async function lmBaixar() {
 // Só SS, tipo, matrícula, bairro e o ponto do lote no mapa que estamos construindo (cadastro_mapa.json) – sem nome, telefone ou endereço do cliente.
 // Localização: Excel da gerência (LocalizacaoMatricula) ou base do mapa (BaseLocalizacao). Sem localização: o agente manda o LINK do Google Maps.
 var DESPACHO_DIA = {
+  francisco: { data: "23/11/2026", turno: "dia", itens: [["1059386817-1", "26.8 - TRANSFERENCIA DE HIDROMETRO", "189452897", "CENTRO", "-12.364314,-44.974314"], ["1059406638-1", "43.3 - VAZAMENTO NO HIDROMETRO", "", "APARECIDA"], ["1059139283-1", "27.6 - DESOBSTRUCAO DE RAMAL DE AGUA", "182098257", "CENTRO", "-12.366991,-44.976905"], ["1059406566-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1059297868-1", "21.1 - LIGACAO NOVA DE AGUA", "", "LOT CIDADE NOVA"], ["1059180572-1", "35.1 - REATERRO", "", "TANGARA"], ["1059304301-1", "21.1 - LIGACAO NOVA DE AGUA", "", "TANGARA"], ["1059293664-1", "21.1 - LIGACAO NOVA DE AGUA", "", "TANGARA"]] },
   joaquim: { data: "23/11/2026", turno: "manhã (à tarde: corte em Catolândia)", itens: [["1059359764-1", "38.1 - RELIGACAO NORMAL", "74707604", "CENTRO"], ["1059181746-1", "40.2 - REVISAO DE LIGACAO CORTADA", "183323300", "CIDADE ALTA", "-12.360343,-44.969641"], ["1059181740-1", "40.2 - REVISAO DE LIGACAO CORTADA", "177760257", "CIDADE ALTA", "-12.360233,-44.969429"], ["1059181744-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181000598", "PONTE DE TERRA", "-12.357211,-44.961962"], ["1059295697-1", "36.4 - CONSUMO - REVISAO DE CONTA", "178521680", "PONTE DE TERRA", "-12.356751,-44.957604"], ["1059181748-1", "40.2 - REVISAO DE LIGACAO CORTADA", "188610707", "PONTE DE TERRA"], ["1059181747-1", "40.2 - REVISAO DE LIGACAO CORTADA", "184998735", "PONTE DE TERRA", "-12.355281,-44.959311"], ["1059181741-1", "40.2 - REVISAO DE LIGACAO CORTADA", "178155144", "PONTE DE TERRA", "-12.355918,-44.958998"], ["1059181742-1", "40.2 - REVISAO DE LIGACAO CORTADA", "179081161", "PONTE DE TERRA", "-12.355207,-44.959562"], ["1059297590-1", "36.4 - CONSUMO - REVISAO DE CONTA", "178206890", "PONTE DE TERRA", "-12.356684,-44.960102"], ["1059181745-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181481812", "LOT CIDADE NOVA", "-12.358833,-44.970158"], ["1059181743-1", "40.2 - REVISAO DE LIGACAO CORTADA", "179133586", "LOT CIDADE NOVA", "-12.358949,-44.970813"], ["1059181739-1", "40.2 - REVISAO DE LIGACAO CORTADA", "74716972", "LOT CIDADE NOVA", "-12.358122,-44.971558"], ["1059358185-1", "43.3 - VAZAMENTO NO HIDROMETRO", "190013850", "PORTO RICO"], ["1059103027-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181207281", "CENTRO", "-12.358840,-44.976073"], ["1059181729-1", "40.2 - REVISAO DE LIGACAO CORTADA", "74700510", "CENTRO", "-12.357077,-44.977818"], ["1058851239-1", "74.1 - NEGOCIACAO PERDA APARENTE", "74708597", "VILA DO PADRE"], ["1059181728-1", "40.2 - REVISAO DE LIGACAO CORTADA", "186949553", "VILA DO PADRE"], ["1059368904-1", "38.5 - RELIGACAO INATIVA", "74715062", "TANGARA", "-12.360215,-44.981670"], ["1059359327-1", "38.1 - RELIGACAO NORMAL", "74711113", "TANGARA", "-12.361326,-44.982836"], ["1059379997-1", "43.3 - VAZAMENTO NO HIDROMETRO", "74714449", "CENTRO"], ["1059060266-1", "11.7 - PEDIDO DE TARIFA SOCIAL", "181404273", "APARECIDA", "-12.355106,-44.979557"], ["1059381730-1", "38.1 - RELIGACAO NORMAL", "74719912", "APARECIDA", "-12.352112,-44.983386"]] }
 };
 function ddDoUsuario() {
@@ -3900,7 +3901,7 @@ async function ddCarregar() {
   const c = lmCache(), lm = (c && c.m) || {}, fila = ddFila();
   window.ddCache = d;
   box.innerHTML = d.itens.map((x, n) => {
-    const [ss, tipo, mat, bairro, mapa] = x, k = lmNorm(mat);
+    const [ss, tipo, mat, bairro, mapa] = x, k = mat ? lmNorm(mat) : lmNorm(ss);
     const l = lm[k], g = base[mat] || base[k];
     const confirmado = l && l[1] ? lmLink(l[1]) : g ? "https://www.google.com/maps/search/?api=1&query=" + g : "";
     const linkMapa = !confirmado && mapa ? "https://www.google.com/maps/search/?api=1&query=" + mapa : "";
@@ -3921,14 +3922,18 @@ async function ddCarregar() {
           <button class="acao" style="background:#15803d" onclick="document.getElementById('ddc_${n}').click()">✅ Está correta – tirar foto da fachada</button>
           <button class="acao" style="background:#b45309" onclick="document.getElementById('ddx_${n}').style.display='block'">❌ Não está correta</button>
           <div id="ddx_${n}" style="display:none;margin-top:6px">${campoLink("Enviar a localização certa")}</div></div>`
+        : !mat ? `<div style="background:#fff7ed;border-radius:8px;padding:8px;margin-top:6px"><b>${/LIGACAO NOVA/i.test(tipo) ? "Ligação nova – ainda não tem matrícula." : "Esta SS ainda não tem matrícula."} Mande a localização do imóvel para a gente cadastrar.</b>
+          ${campoLink("Enviar localização")}</div>`
         : `<div style="background:#fff7ed;border-radius:8px;padding:8px;margin-top:6px"><b>Não temos a localização. Aproveite e mande aqui a localização dessa matrícula.</b>
           ${campoLink("Enviar localização")}</div>`}
     </div>`; }).join("");
 }
 async function ddGravar(n, link, arq, obs, btn) {
-  const d = window.ddCache; const [ss, , mat] = d.itens[n];
+  const d = window.ddCache; const [ss, tipo, mat] = d.itens[n];
   sspTravar(btn, "Enviando...");
-  const item = { mat: lmNorm(mat), linha: ["'" + mat, link, new Date().toISOString(), window.credenciais.usuario, obs + " – SS " + ss, "São Desidério", ""] };
+  // Sem matrícula (ex.: ligação nova): guarda pela SS; quando o Thiago encerrar e gerar a matrícula, a gerência liga as duas.
+  if (!mat) obs = (/LIGACAO NOVA/i.test(tipo) ? "LIGAÇÃO NOVA sem matrícula" : "SS sem matrícula") + " – " + obs;
+  const item = { mat: mat ? lmNorm(mat) : lmNorm(ss), linha: [mat ? "'" + mat : "SS " + ss, link, new Date().toISOString(), window.credenciais.usuario, obs + " – SS " + ss, "São Desidério", ""] };
   try {
     if (navigator.onLine === false) throw new Error("offline");
     if (arq) { const pos = await obterPosicao(); const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha, base64: await carimbarFoto(arq, pos), tipo: "image/jpeg", nome: "fachada_" + item.mat + "_" + Date.now() + ".jpg" }); if (r && r.url) item.linha[6] = r.url; }
@@ -9755,7 +9760,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 08h05";
+const VERSAO_PAINEL = "23/11 08h10";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
