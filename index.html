@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 22/11 09h40</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 00h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -6364,14 +6364,14 @@ async function marcarAnexado(linha) {
 const LOCALIDADES_SEM_MAPA = ["Catolândia"];
 // Aba BaseLocalizacao: matricula | coordenadas | fonte | data  (coordenadas no formato "lat,lon")
 async function carregarBaseLocalizacao() {
-  const base = {}; window.baseFonte = {};
+  const base = {}; window.baseFonte = {}; window.baseFoto = {};
   try {
     const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "BaseLocalizacao" });
     if (r.erro) return base;
     r.dados.slice(1).forEach(l => {
       const m = String(l[0] || "").trim();
       const c = String(l[1] || "").match(/(-?\d+[.,]\d+)\s*[,; ]\s*(-?\d+[.,]\d+)/);
-      if (m && c) { base[m] = c[1].replace(",", ".") + "," + c[2].replace(",", "."); window.baseFonte[m] = String(l[2] || ""); }
+      if (m && c) { base[m] = c[1].replace(",", ".") + "," + c[2].replace(",", "."); window.baseFonte[m] = String(l[2] || ""); if (l[4]) window.baseFoto[m] = String(l[4]); }
     });
   } catch (e) {}
   return base;
@@ -6415,22 +6415,68 @@ function baseLocPrecisaConfirmar(it) {
   const f = String((window.baseFonte || {})[it.mat] || "");
   return !!(it.gpsBase && it.mat && !it.executada && !/^(confirmada|campo)/i.test(f));
 }
-async function baseLocConfirmar(id, certa, btn) {
+// 23/11: confirmar a localização exige FOTO DA FACHADA + GPS do local (nos dois casos: correta ou corrigida).
+// Grava na aba BaseLocalizacao: matrícula | coordenada | fonte | quando | foto da fachada | GPS de quem confirmou.
+// Sem internet: fica guardado no celular (blFila) e é enviado sozinho quando o sinal voltar.
+const BL_FILA = "blFila";
+function blFila() { try { return JSON.parse(localStorage.getItem(BL_FILA) || "[]"); } catch (e) { return []; } }
+function blFilaSalvar(a) { try { localStorage.setItem(BL_FILA, JSON.stringify(a)); return true; } catch (e) { return false; } }
+function baseLocSemLocal(it) {
+  return !!(it.mat && !it.gps && !it.executada && !LOCALIDADES_SEM_MAPA.includes(String(it.loc || SSP_LOCAIS[it._chave] || "").trim()));
+}
+function baseLocPedirFoto(id, certa) {
+  window.__blPedido = { id, certa };
+  const inp = document.getElementById("blcam_" + id); if (inp) { inp.value = ""; inp.click(); }
+}
+async function baseLocFotoEscolhida(id, inp) {
+  const arq = (inp.files || [])[0], ped = window.__blPedido || {};
+  if (!arq || ped.id !== id) return;
+  await baseLocConfirmar(id, ped.certa, document.getElementById("blbtn_" + id + (ped.certa ? "_s" : "_n")), arq);
+}
+async function baseLocEnviar(item) {
+  const cred = { usuario: window.credenciais.usuario, senha: window.credenciais.senha };
+  let foto = item.fotoUrl || "";
+  if (!foto) {
+    const r = await chamarApi({ acao: "salvarFoto", ...cred, base64: item.b64, tipo: "image/jpeg", nome: "fachada_" + item.mat + "_" + Date.now() + ".jpg" });
+    if (!r || r.erro || !r.url) throw new Error((r && r.erro) || "a foto não foi enviada");
+    foto = r.url;
+  }
+  const r2 = await baseLocGravar([["'" + item.mat, item.coord, item.fonte, item.quando, foto, item.gpsLocal]]);
+  if (r2 && r2.erro) throw new Error(r2.erro);
+}
+async function baseLocEnviarFila() {
+  if (window.__blEnviando || navigator.onLine === false || !window.credenciais) return;
+  const fila = blFila(); if (!fila.length) return;
+  window.__blEnviando = true;
+  const resta = [];
+  for (const item of fila) { try { await baseLocEnviar(item); } catch (e) { resta.push(item); } }
+  blFilaSalvar(resta); window.__blEnviando = false;
+  if (resta.length < fila.length && window.sspChave && document.getElementById("ssp_lista")) { window.sspSilencioso = true; carregarSSPend(window.sspChave); }
+}
+window.addEventListener("online", () => setTimeout(baseLocEnviarFila, 3000));
+setInterval(baseLocEnviarFila, 120000);
+async function baseLocConfirmar(id, certa, btn, arq) {
   const it = (window.sspCache || {})[id]; if (!it || !it.mat || (btn && btn.disabled)) return;
+  if (!arq) { alert("Tire a foto da fachada do imóvel."); return; }
+  window.__gpsDecisao = null;
+  const pos = await obterPosicao();
+  if (!pos) { if (!semLocalEscolhido()) alert("Não consegui pegar a localização. Ligue o GPS e tente de novo em frente ao imóvel."); else alert("Para confirmar a localização você precisa estar em frente ao imóvel."); return; }
   sspTravar(btn, "Salvando...");
+  const gpsLocal = pos.lat.toFixed(6) + "," + pos.lon.toFixed(6);
+  const item = { mat: sspLimpo(it.mat), coord: certa ? it.gps : gpsLocal, fonte: (certa ? "confirmada " : "campo ") + window.credenciais.usuario,
+    quando: new Date().toISOString(), gpsLocal, b64: "" };
+  try { item.b64 = await carimbarFoto(arq, pos); } catch (e) { alert("Não consegui ler a foto. Tire de novo."); sspDestravar(btn); return; }
   try {
-    let coord = it.gps, fonte = "confirmada " + window.credenciais.usuario;
-    if (!certa) {
-      alert("Vá até o imóvel e toque OK para enviar a localização de onde você está.");
-      window.__gpsDecisao = null;
-      const pos = await obterPosicao();
-      if (!pos) { alert("Não consegui pegar a localização. Ligue o GPS e confirme que está no local."); sspDestravar(btn); return; }
-      coord = pos.lat.toFixed(6) + "," + pos.lon.toFixed(6); fonte = "campo " + window.credenciais.usuario;
-    }
-    const r = await baseLocGravar([["'" + it.mat, coord, fonte, new Date().toISOString()]]);
-    if (r.erro) { alert(r.erro); sspDestravar(btn); return; }
-    carregarSSPend(window.sspChave);
-  } catch (e) { alert("Não consegui salvar. Tente de novo."); sspDestravar(btn); }
+    if (navigator.onLine === false) throw new Error("offline");
+    await baseLocEnviar(item);
+    alert(certa ? "Localização confirmada com a foto da fachada." : "Localização corrigida com a foto da fachada. A gerência confere depois.");
+  } catch (e) {
+    const fila = blFila().filter(f => f.mat !== item.mat); fila.push(item);
+    if (!blFilaSalvar(fila.slice(-6))) { alert("Sem internet e sem espaço no celular para guardar a foto. Tente de novo quando tiver sinal."); sspDestravar(btn); return; }
+    alert("Sem internet agora. A foto e a localização ficaram guardadas no celular e serão enviadas sozinhas quando o sinal voltar.");
+  }
+  window.baseFonte = window.baseFonte || {}; window.baseFonte[item.mat] = item.fonte;
+  carregarSSPend(window.sspChave);
 }
 async function carregarSemLocalizacao() {
   const box = document.getElementById("sl2_lista");
@@ -7499,9 +7545,14 @@ async function carregarSSPend(chave) {
         ${ficha}${fotosHTML}
         ${it.executada && it.executada.info ? `<div style="background:#e8f1fb;border-radius:8px;padding:6px 10px;margin-top:6px;font-size:15px">📝 <b>Campo informou:</b> ${sspEsc(it.executada.info)}</div>` : ""}
         ${it.gps ? `<div style="font-size:14px;margin-top:4px"><a href="https://www.google.com/maps?q=${sspEsc(it.gps)}" target="_blank">📍 Abrir localização no mapa</a></div>` : ""}
-        ${filtro === "campo" && baseLocPrecisaConfirmar(it) ? `<div style="background:#e8f1fb;border-radius:10px;padding:8px;margin-top:6px"><div style="font-weight:bold;margin-bottom:4px">A localização do mapa está correta?</div>
-          <button class="acao" style="background:#0b5394" onclick="baseLocConfirmar('${id}', true, this)">Sim, está correta</button>
-          <button class="acao" style="background:#0b5394" onclick="baseLocConfirmar('${id}', false, this)">Não — enviar minha localização agora</button></div>` : ""}
+        ${it.mat && (window.baseFoto || {})[sspLimpo(it.mat)] ? `<div style="font-size:14px;margin-top:4px"><a href="${sspEsc(window.baseFoto[sspLimpo(it.mat)])}" target="_blank">🏠 Ver foto da fachada</a></div>` : ""}
+        ${filtro === "campo" && (baseLocPrecisaConfirmar(it) || baseLocSemLocal(it)) ? `<div style="background:#e8f1fb;border-radius:10px;padding:8px;margin-top:6px">
+          <input type="file" id="blcam_${id}" accept="image/*" capture="environment" style="display:none" onchange="baseLocFotoEscolhida('${id}', this)">
+          ${blFila().some(f => f.mat === sspLimpo(it.mat)) ? `<div class="nota">⏳ Confirmação guardada no celular – será enviada quando tiver internet.</div>` : it.gps ? `<div style="font-weight:bold;margin-bottom:4px">A localização do mapa está correta? (no local: foto da fachada + GPS)</div>
+          <button class="acao" id="blbtn_${id}_s" style="background:#0b5394" onclick="baseLocPedirFoto('${id}', true)">✅ Está correta – tirar foto da fachada</button>
+          <button class="acao" id="blbtn_${id}_n" style="background:#0b5394" onclick="baseLocPedirFoto('${id}', false)">❌ Não está correta – foto da fachada e minha localização</button>`
+          : `<div style="font-weight:bold;margin-bottom:4px">📍 Esta matrícula ainda não tem localização</div><div class="nota">Em frente ao imóvel, tire a foto da fachada. O GPS vai junto e passa a valer para esta matrícula.</div>
+          <button class="acao" id="blbtn_${id}_n" style="background:#0b5394" onclick="baseLocPedirFoto('${id}', false)">📷 Foto da fachada e minha localização</button>`}</div>` : ""}
         ${acoesCampo}${acoesDig}${acoesGer}${exclGer}
       </div>`;
     }).join("");
@@ -9588,7 +9639,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "22/11 09h40";
+const VERSAO_PAINEL = "23/11 00h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
