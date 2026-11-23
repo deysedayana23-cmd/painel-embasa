@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 09h00</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 09h10</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4008,11 +4008,14 @@ async function lcCarregar() {
     let visto = ""; try { visto = localStorage.getItem(LC_VISTO) || ""; } catch (e) {}
     const lin = lcValidadas(r.dados).reverse(); // validada = com foto da fachada
     const novas = lin.filter(l => String(l[2] || "") > visto);
+    const lcLinha = l => ["Matrícula " + String(l[0]).replace(/^'/, ""), String(l[5] || ""), String(l[1]), "foto: " + String(l[6]), "por " + String(l[3]) + " em " + formatarQuando(l[2]), String(l[4] || "")].join(" | ");
+    window.lcTodas = lin.map(lcLinha).join("\n");
     window.lcTexto = novas.map(l => ["Matrícula " + String(l[0]).replace(/^'/, ""), String(l[5] || ""), String(l[1]), "foto: " + String(l[6]), "por " + String(l[3]) + " em " + formatarQuando(l[2]), String(l[4] || "")].join(" | ")).join("\n");
     box.innerHTML = (novas.length ? `<div class="card" style="background:#e8f1fb;border-left:6px solid #0b5394;margin-bottom:8px"><b>${novas.length} nova(s) desde a última vez que você abriu esta tela.</b>
         <textarea id="lc_txt" class="campo" rows="4" readonly>${sspEsc(window.lcTexto)}</textarea>
         <button class="acao" style="background:#0b5394" onclick="const t=document.getElementById('lc_txt');t.select();try{document.execCommand('copy')}catch(e){};if(navigator.clipboard)navigator.clipboard.writeText(window.lcTexto).catch(()=>{});alert('Copiado. Cole na conversa com o Claude.')">📋 Copiar as novas para mandar ao Claude</button></div>` : "")
-      + (lin.length ? `<div class="nota">${lin.length} localização(ões) validada(s) com foto</div>` + lin.map(l => `<div class="card" style="margin-bottom:6px;border-left:6px solid ${String(l[2] || "") > visto ? "#0b5394" : "#15803d"}">
+      + (lin.length ? `<button class="acao" style="background:#15803d" onclick="window.lcTexto=window.lcTodas;const t=document.getElementById('lc_txt');if(t)t.value=window.lcTodas;try{navigator.clipboard.writeText(window.lcTodas)}catch(e){};alert('Copiadas todas as ${lin.length}. Cole na conversa com o Claude.')">📋 Copiar TODAS as validadas para mandar ao Claude</button>
+      <div class="nota">${lin.length} localização(ões) validada(s) com foto</div>` + lin.map(l => `<div class="card" style="margin-bottom:6px;border-left:6px solid ${String(l[2] || "") > visto ? "#0b5394" : "#15803d"}">
       ${String(l[2] || "") > visto ? `<span style="background:#0b5394;color:#fff;border-radius:6px;padding:2px 6px;font-size:12px;font-weight:bold">NOVA</span> ` : ""}Matrícula <b>${sspEsc(String(l[0]).replace(/^'/, ""))}</b> · ${sspEsc(l[5] || "")}<br>
       <span style="font-size:14px">Por <b>${sspEsc(sspNome(l[3]))}</b> em ${formatarQuando(l[2])} · ${sspEsc(String(l[4]).replace(/^.*?– /, ""))}</span>
       <div style="display:flex;gap:6px;margin-top:6px"><a class="acao" style="flex:1;text-align:center;text-decoration:none;background:#15803d;margin:0" href="${sspEsc(lmLink(l[1]))}" target="_blank" rel="noopener">📍 Mapa</a>
@@ -4041,7 +4044,8 @@ function lmMostrar() {
   const locReg = l[3] || "";
   const aviso = loc && locReg && normalizarNome(loc) !== normalizarNome(locReg) ? `<div class="nota" style="color:#b45309">No painel esta matrícula está em ${sspEsc(locReg)}, não em ${sspEsc(loc)}.</div>` : "";
   box.innerHTML = `<div class="card" style="border-left:6px solid #15803d"><div style="font-size:18px">Matrícula <b>${sspEsc(l[0])}</b>${locReg ? " · " + sspEsc(locReg) : ""}</div>${aviso}
-    <a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d;font-size:19px;padding:16px;margin-top:8px" href="${sspEsc(lmLink(l[1]))}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a></div>`;
+    <a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d;font-size:19px;padding:16px;margin-top:8px" href="${sspEsc(lmLink(l[1]))}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a>
+    ${l[4] ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#0b5394;font-size:17px;padding:12px;margin-top:6px" href="${sspEsc(l[4])}" target="_blank" rel="noopener">🏠 Ver foto da fachada (validada em campo)</a>` : ""}</div>`;
 }
 const IL_GRUPOS=["BAIANOPOLIS", "BARRA DE SAO MARCOS", "BELA VISTA", "PASSAGEM DE PEDRA", "SAO MARCOS", "AREIAO E TIRIRICA", "BOQUEIRAO", "BURITI CORTADO", "CABACEIRA", "CAPIVARA", "CATOLANDIA", "FUNIL", "JOAO RODRIGUES", "MOZONDO", "POCO DA PEDRA", "TAMANDUA", "TAMBORIL", "ALTO DO CRISTO", "APARECIDA", "BARRAGEM", "BELA VISTA", "CENTRO", "CIDADE ALTA", "CIDADE SANTA", "DAVI SANTANA", "FELISBERTO", "LOT CIDADE NOVA", "PONTE DE TERRA", "PORTO RICO", "POV PALMEIRAS", "TANGARA", "VAQUEJADA", "VILA DO PADRE", "POV. ANGICO"];
 const IL_CENTROS=[[-12.307994, -44.53874], [-12.307994, -44.53874], [-12.307994, -44.53874], [-12.293695, -44.5573], [-12.293695, -44.5573], [-12.352309, -44.858314], [-12.32005, -44.860248], [-12.427654, -44.735604], [-12.33669, -44.860779], [-12.300053, -44.58337], [-12.318025, -44.862875], [-12.359653, -44.701932], [-12.385504, -44.838264], [-12.376467, -44.730333], [-12.32005, -44.860248], [-12.32005, -44.860248], [-12.30907, -44.855196], [-12.366948, -44.975935], [-12.352562, -44.983681], [-12.362745, -44.971141], [-12.366666, -44.97527], [-12.362993, -44.975133], [-12.359488, -44.967903], [-12.359149, -44.985232], [-12.3625, -44.9755], [-12.357075, -44.979513], [-12.355727, -44.970452], [-12.355806, -44.959577], [-12.354, -44.9719], [-12.382613, -44.964687], [-12.3609, -44.983855], [-12.364502, -44.97965], [-12.359057, -44.977738], [-12.326237, -45.002498]];
@@ -9795,7 +9799,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 09h00";
+const VERSAO_PAINEL = "23/11 09h10";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
