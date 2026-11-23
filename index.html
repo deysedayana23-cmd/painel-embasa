@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 09h10</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 09h20</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1778,7 +1778,7 @@ function mostrarMenu(itens, titulo) {
   // 23/11: gerência – Localizações confirmadas em campo
   if (!pilha.length && window.MODO_GERENTE && !emPrevia() && !itens.some(i => i.tela === "locConfirmadas")) itens = [{ nome: "Localizações confirmadas em campo", tela: "locConfirmadas" }, ...itens];
   // 23/11: SS do despacho do dia (Joaquim) – primeiro botão do painel
-  if (!pilha.length && ddDoUsuario() && !itens.some(i => i.tela === "despachoDia")) itens = [{ nome: "📍 Localização das SS de hoje no seu Digiteam", tela: "despachoDia" }, ...itens];
+  if (!pilha.length && (ddDoUsuario() || (ehAgenteCampo && !(window.MODO_GERENTE && !emPrevia()))) && !itens.some(i => i.tela === "despachoDia")) itens = [{ nome: "📍 Localização das SS de hoje no seu Digiteam", tela: "despachoDia" }, ...itens];
   // 16/11: checklist da moto (quem tem moto) no painel principal; Uso do carro em Outros para todos; gerência vê os checklists em Outros
   if (!pilha.length && !ehLeit && minhaMoto() && !itens.some(i => i.tela === "checklistMoto")) { const k = itens.findIndex(i => i.nome === "Outros"); const c = { nome: "Checklist da moto", tela: "checklistMoto" }; itens = k >= 0 ? [...itens.slice(0, k), c, ...itens.slice(k)] : [...itens, c]; }
   if (!pilha.length) { const out = itens.find(i => i.nome === "Outros" && i.sub); const extra = [...(ehDeyseGer() ? [{ nome: "Zerar SS do app", tela: "zerarSS" }] : []), { nome: "Uso do carro", tela: "usoCarro" }, ...(ehGerLeitura() ? [{ nome: "Checklist das motos", tela: "checklistMoto" }] : [])];
@@ -3873,13 +3873,17 @@ async function lmBaixar() {
 // ===== 23/11: "Localização das SS de hoje no seu Digiteam" – lista do despacho do dia (PDF do Digiteam), na mesma ordem =====
 // Só SS, tipo, matrícula, bairro e o ponto do lote no mapa que estamos construindo (cadastro_mapa.json) – sem nome, telefone ou endereço do cliente.
 // Localização: Excel da gerência (LocalizacaoMatricula) ou base do mapa (BaseLocalizacao). Sem localização: o agente manda o LINK do Google Maps.
-var DESPACHO_DIA = {
-  ivocarlos: { data: "23/11/2026", turno: "dia – ligações novas: encerrar a OS nº 1 no Digiteam", loc: "Baianópolis", itens: [["1058875904-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1058358534-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1058894306-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1058913823-1", "21.1 - LIGACAO NOVA DE AGUA", "", "BENEDITO GOMES"]] },
-  janiogualberto: { data: "23/11/2026", turno: "dia", loc: "Baianópolis", itens: [["1059319580-1", "38.5 - RELIGACAO INATIVA", "78431760", "CENTRO"], ["1059268011-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "163083177", "PASSAGEM PEDRA"], ["1059268010-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "163078076", "POV SAO MARCOS"]] },
-  luzenildo: { data: "23/11/2026", turno: "manhã (à tarde: corte em Catolândia)", itens: [["1058106750-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74707906", "ALTO DO CRISTO", "-12.368097,-44.976840"], ["1058106749-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74704575", "TANGARA", "-12.368320,-44.976476"], ["1058408424-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74703684", "ALTO DO CRISTO", "-12.368132,-44.977172"], ["1058106640-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74706497", "TANGARA", "-12.364174,-44.980619"], ["1058106656-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74716832", "TANGARA", "-12.363826,-44.981213"], ["1059096596-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74703552", "TANGARA"], ["1058106652-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74710818", "TANGARA", "-12.360945,-44.985086"], ["1058106642-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74707019", "TANGARA", "-12.359319,-44.982978"], ["1058408392-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74718649", "TANGARA", "-12.359353,-44.982830"], ["1058106667-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "182926494", "TANGARA", "-12.357736,-44.981731"], ["1058106786-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "181480565", "PORTO RICO", "-12.352825,-44.974994"], ["1058776618-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "189332557", "CIDADE SANTA"], ["1059069343-2", "42.7 - CORTE POR SOLIC DO USUARIO PRE-PAGO", "186628226", "CENTRO", "-12.362046,-44.974720"], ["1058584594-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "188394079", "APARECIDA"]] },
-  francisco: { data: "23/11/2026", turno: "dia", itens: [["1059386817-1", "26.8 - TRANSFERENCIA DE HIDROMETRO", "189452897", "CENTRO", "-12.364314,-44.974314"], ["1059406638-1", "43.3 - VAZAMENTO NO HIDROMETRO", "", "APARECIDA"], ["1059139283-1", "27.6 - DESOBSTRUCAO DE RAMAL DE AGUA", "182098257", "CENTRO", "-12.366991,-44.976905"], ["1059406566-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1059297868-1", "21.1 - LIGACAO NOVA DE AGUA", "", "LOT CIDADE NOVA"], ["1059180572-1", "35.1 - REATERRO", "", "TANGARA"], ["1059304301-1", "21.1 - LIGACAO NOVA DE AGUA", "", "TANGARA"], ["1059293664-1", "21.1 - LIGACAO NOVA DE AGUA", "", "TANGARA"]] },
-  joaquim: { data: "23/11/2026", turno: "manhã (à tarde: corte em Catolândia)", itens: [["1059359764-1", "38.1 - RELIGACAO NORMAL", "74707604", "CENTRO"], ["1059181746-1", "40.2 - REVISAO DE LIGACAO CORTADA", "183323300", "CIDADE ALTA", "-12.360343,-44.969641"], ["1059181740-1", "40.2 - REVISAO DE LIGACAO CORTADA", "177760257", "CIDADE ALTA", "-12.360233,-44.969429"], ["1059181744-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181000598", "PONTE DE TERRA", "-12.357211,-44.961962"], ["1059295697-1", "36.4 - CONSUMO - REVISAO DE CONTA", "178521680", "PONTE DE TERRA", "-12.356751,-44.957604"], ["1059181748-1", "40.2 - REVISAO DE LIGACAO CORTADA", "188610707", "PONTE DE TERRA"], ["1059181747-1", "40.2 - REVISAO DE LIGACAO CORTADA", "184998735", "PONTE DE TERRA", "-12.355281,-44.959311"], ["1059181741-1", "40.2 - REVISAO DE LIGACAO CORTADA", "178155144", "PONTE DE TERRA", "-12.355918,-44.958998"], ["1059181742-1", "40.2 - REVISAO DE LIGACAO CORTADA", "179081161", "PONTE DE TERRA", "-12.355207,-44.959562"], ["1059297590-1", "36.4 - CONSUMO - REVISAO DE CONTA", "178206890", "PONTE DE TERRA", "-12.356684,-44.960102"], ["1059181745-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181481812", "LOT CIDADE NOVA", "-12.358833,-44.970158"], ["1059181743-1", "40.2 - REVISAO DE LIGACAO CORTADA", "179133586", "LOT CIDADE NOVA", "-12.358949,-44.970813"], ["1059181739-1", "40.2 - REVISAO DE LIGACAO CORTADA", "74716972", "LOT CIDADE NOVA", "-12.358122,-44.971558"], ["1059358185-1", "43.3 - VAZAMENTO NO HIDROMETRO", "190013850", "PORTO RICO"], ["1059103027-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181207281", "CENTRO", "-12.358840,-44.976073"], ["1059181729-1", "40.2 - REVISAO DE LIGACAO CORTADA", "74700510", "CENTRO", "-12.357077,-44.977818"], ["1058851239-1", "74.1 - NEGOCIACAO PERDA APARENTE", "74708597", "VILA DO PADRE"], ["1059181728-1", "40.2 - REVISAO DE LIGACAO CORTADA", "186949553", "VILA DO PADRE"], ["1059368904-1", "38.5 - RELIGACAO INATIVA", "74715062", "TANGARA", "-12.360215,-44.981670"], ["1059359327-1", "38.1 - RELIGACAO NORMAL", "74711113", "TANGARA", "-12.361326,-44.982836"], ["1059379997-1", "43.3 - VAZAMENTO NO HIDROMETRO", "74714449", "CENTRO"], ["1059060266-1", "11.7 - PEDIDO DE TARIFA SOCIAL", "181404273", "APARECIDA", "-12.355106,-44.979557"], ["1059381730-1", "38.1 - RELIGACAO NORMAL", "74719912", "APARECIDA", "-12.352112,-44.983386"]] }
-};
+// 23/11: a lista do dia fica em despacho.json – atualizar a lista NÃO muda a versão do painel (ninguém precisa sair e entrar de novo)
+var DESPACHO_DIA = (() => { try { return JSON.parse(localStorage.getItem("ddJson") || "{}"); } catch (e) { return {}; } })();
+async function ddBaixarJson() {
+  try {
+    const r = await fetch("despacho.json?v=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) return DESPACHO_DIA;
+    DESPACHO_DIA = await r.json();
+    try { localStorage.setItem("ddJson", JSON.stringify(DESPACHO_DIA)); } catch (e) {}
+  } catch (e) {}
+  return DESPACHO_DIA;
+}
 function ddDoUsuario() {
   const id = String(identidadeAtual() || "");
   const k = Object.keys(DESPACHO_DIA).find(n => id.includes(n));
@@ -3900,7 +3904,8 @@ Object.assign(TELAS, { despachoDia: () => { setTimeout(ddCarregar, 0); const d =
   <div id="dd_box">Carregando…</div>`; } });
 async function ddCarregar() {
   const box = document.getElementById("dd_box"); if (!box) return;
-  const d = ddDoUsuario(); if (!d) { box.innerHTML = "<p>Nenhuma SS do dia lançada para você.</p>"; return; }
+  await ddBaixarJson();
+  const d = ddDoUsuario(); if (!d) { box.innerHTML = "<p>Nenhuma SS do dia lançada para você no momento.</p>"; return; }
   ddEnviarFila();
   let base = {};
   try { await lmBaixar(); } catch (e) {}
@@ -9799,7 +9804,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 09h10";
+const VERSAO_PAINEL = "23/11 09h20";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -9839,6 +9844,8 @@ async function entrar() {
     init();
     avisosVincular();
   } catch (e) {
+    window.__tentLogin = (window.__tentLogin || 0) + 1;
+    if (window.__tentLogin <= 3 && document.getElementById("lg_senha").value) { msg.textContent = "Sinal fraco – tentando entrar de novo…"; setTimeout(entrar, 4000 * window.__tentLogin); return; }
     msg.textContent = "Não consegui conectar. Verifique a internet. (detalhe: " + (e && e.message ? e.message : e) + ")";
   }
 }
@@ -10407,6 +10414,7 @@ function instalarApp() {
     document.getElementById("lg_senha").value = s.senha;
     entrar();
   }
+  ddBaixarJson();
   checarVersaoSilenciosa();
   setInterval(checarVersaoSilenciosa, 3 * 60 * 1000);
   // 10/11: números e listas de SS se atualizam sozinhos a cada 1 minuto (quando outro digitador ou o campo informa algo).
