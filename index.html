@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 08h20</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 08h25</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3873,6 +3873,7 @@ async function lmBaixar() {
 // Só SS, tipo, matrícula, bairro e o ponto do lote no mapa que estamos construindo (cadastro_mapa.json) – sem nome, telefone ou endereço do cliente.
 // Localização: Excel da gerência (LocalizacaoMatricula) ou base do mapa (BaseLocalizacao). Sem localização: o agente manda o LINK do Google Maps.
 var DESPACHO_DIA = {
+  ivocarlos: { data: "23/11/2026", turno: "dia – ligações novas: encerrar a OS nº 1 no Digiteam", loc: "Baianópolis", itens: [["1058875904-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1058358534-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1058894306-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1058913823-1", "21.1 - LIGACAO NOVA DE AGUA", "", "BENEDITO GOMES"]] },
   janiogualberto: { data: "23/11/2026", turno: "dia", loc: "Baianópolis", itens: [["1059319580-1", "38.5 - RELIGACAO INATIVA", "78431760", "CENTRO"], ["1059268011-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "163083177", "PASSAGEM PEDRA"], ["1059268010-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "163078076", "POV SAO MARCOS"]] },
   luzenildo: { data: "23/11/2026", turno: "manhã (à tarde: corte em Catolândia)", itens: [["1058106750-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74707906", "ALTO DO CRISTO", "-12.368097,-44.976840"], ["1058106749-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74704575", "TANGARA", "-12.368320,-44.976476"], ["1058408424-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74703684", "ALTO DO CRISTO", "-12.368132,-44.977172"], ["1058106640-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74706497", "TANGARA", "-12.364174,-44.980619"], ["1058106656-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74716832", "TANGARA", "-12.363826,-44.981213"], ["1059096596-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74703552", "TANGARA"], ["1058106652-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74710818", "TANGARA", "-12.360945,-44.985086"], ["1058106642-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74707019", "TANGARA", "-12.359319,-44.982978"], ["1058408392-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "74718649", "TANGARA", "-12.359353,-44.982830"], ["1058106667-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "182926494", "TANGARA", "-12.357736,-44.981731"], ["1058106786-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "181480565", "PORTO RICO", "-12.352825,-44.974994"], ["1058776618-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "189332557", "CIDADE SANTA"], ["1059069343-2", "42.7 - CORTE POR SOLIC DO USUARIO PRE-PAGO", "186628226", "CENTRO", "-12.362046,-44.974720"], ["1058584594-1", "42.1 - CORTE POR FALTA DE PAGAMENTO", "188394079", "APARECIDA"]] },
   francisco: { data: "23/11/2026", turno: "dia", itens: [["1059386817-1", "26.8 - TRANSFERENCIA DE HIDROMETRO", "189452897", "CENTRO", "-12.364314,-44.974314"], ["1059406638-1", "43.3 - VAZAMENTO NO HIDROMETRO", "", "APARECIDA"], ["1059139283-1", "27.6 - DESOBSTRUCAO DE RAMAL DE AGUA", "182098257", "CENTRO", "-12.366991,-44.976905"], ["1059406566-1", "21.1 - LIGACAO NOVA DE AGUA", "", "CENTRO"], ["1059297868-1", "21.1 - LIGACAO NOVA DE AGUA", "", "LOT CIDADE NOVA"], ["1059180572-1", "35.1 - REATERRO", "", "TANGARA"], ["1059304301-1", "21.1 - LIGACAO NOVA DE AGUA", "", "TANGARA"], ["1059293664-1", "21.1 - LIGACAO NOVA DE AGUA", "", "TANGARA"]] },
@@ -9762,7 +9763,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 08h20";
+const VERSAO_PAINEL = "23/11 08h25";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
