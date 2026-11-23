@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 07h35</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 07h45</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1776,7 +1776,7 @@ function mostrarMenu(itens, titulo) {
   // 20/11: Localização da matrícula para todos os funcionários
   if (!pilha.length && !itens.some(i => i.tela === "locMatricula")) { const k = itens.findIndex(i => i.tela === "locHidrometro"); const lmb = { nome: "Localização da matrícula", tela: "locMatricula" }; itens = k >= 0 ? [...itens.slice(0, k), lmb, ...itens.slice(k)] : [...itens, lmb]; }
   // 23/11: SS do despacho do dia (Joaquim) – primeiro botão do painel
-  if (!pilha.length && ddDoUsuario() && !itens.some(i => i.tela === "despachoDia")) itens = [{ nome: "📍 Localização das SS de hoje no seu Digitinho", tela: "despachoDia" }, ...itens];
+  if (!pilha.length && ddDoUsuario() && !itens.some(i => i.tela === "despachoDia")) itens = [{ nome: "📍 Localização das SS de hoje no seu Digiteam", tela: "despachoDia" }, ...itens];
   // 16/11: checklist da moto (quem tem moto) no painel principal; Uso do carro em Outros para todos; gerência vê os checklists em Outros
   if (!pilha.length && !ehLeit && minhaMoto() && !itens.some(i => i.tela === "checklistMoto")) { const k = itens.findIndex(i => i.nome === "Outros"); const c = { nome: "Checklist da moto", tela: "checklistMoto" }; itens = k >= 0 ? [...itens.slice(0, k), c, ...itens.slice(k)] : [...itens, c]; }
   if (!pilha.length) { const out = itens.find(i => i.nome === "Outros" && i.sub); const extra = [...(ehDeyseGer() ? [{ nome: "Zerar SS do app", tela: "zerarSS" }] : []), { nome: "Uso do carro", tela: "usoCarro" }, ...(ehGerLeitura() ? [{ nome: "Checklist das motos", tela: "checklistMoto" }] : [])];
@@ -3867,7 +3867,7 @@ async function lmBaixar() {
     return c;
   } catch (e) { return lmCache(); }
 }
-// ===== 23/11: "Localização das SS de hoje no seu Digitinho" – lista do despacho do dia (PDF do Digiteam), na mesma ordem =====
+// ===== 23/11: "Localização das SS de hoje no seu Digiteam" – lista do despacho do dia (PDF do Digiteam), na mesma ordem =====
 // Só SS, tipo, matrícula e bairro (repositório público: sem nome, telefone ou endereço do cliente).
 // Localização: Excel da gerência (LocalizacaoMatricula) ou base do mapa (BaseLocalizacao). Sem localização: o agente manda o LINK do Google Maps.
 var DESPACHO_DIA = {
@@ -3885,8 +3885,8 @@ function ddFila() { try { return JSON.parse(localStorage.getItem(DD_FILA) || "[]
 function ddFilaSalvar(a) { try { localStorage.setItem(DD_FILA, JSON.stringify(a)); } catch (e) {} }
 const ddLinkValido = t => /^https?:\/\/\S*(maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google\.)/i.test(String(t || "").trim());
 Object.assign(TELAS, { despachoDia: () => { setTimeout(ddCarregar, 0); const d = ddDoUsuario();
-  return `<h2>Localização das SS de hoje no seu Digitinho</h2>
-  ${d ? `<div class="nota">Despacho de ${sspEsc(d.data)} – ${sspEsc(d.turno)} · ${d.itens.length} SS, na ordem do Digitinho.</div>` : ""}
+  return `<h2>Localização das SS de hoje no seu Digiteam</h2>
+  ${d ? `<div class="nota">Despacho de ${sspEsc(d.data)} – ${sspEsc(d.turno)} · ${d.itens.length} SS, na ordem do Digiteam.</div>` : ""}
   <div id="dd_box">Carregando…</div>`; } });
 async function ddCarregar() {
   const box = document.getElementById("dd_box"); if (!box) return;
@@ -9714,7 +9714,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 07h35";
+const VERSAO_PAINEL = "23/11 07h45";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
