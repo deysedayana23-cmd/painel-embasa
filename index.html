@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 09h25</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 09h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1775,6 +1775,8 @@ function mostrarMenu(itens, titulo) {
   // 18/11: consulta da localização da matrícula (Excel da gerência) – só agentes de campo
   // 20/11: Localização da matrícula para todos os funcionários
   if (!pilha.length && !itens.some(i => i.tela === "locMatricula")) { const k = itens.findIndex(i => i.tela === "locHidrometro"); const lmb = { nome: "Localização da matrícula", tela: "locMatricula" }; itens = k >= 0 ? [...itens.slice(0, k), lmb, ...itens.slice(k)] : [...itens, lmb]; }
+  // 23/11: ligações novas aguardando a matrícula – Thiago (e gerência) e, em Baianópolis, só o Ivo
+  if (!pilha.length && lnPodeVer() && !itens.some(i => i.tela === "lnMatricula")) itens = [{ nome: lnEhIvo() ? "SS exclusivas para Ivo encerrar" : "Ligações novas – informar a matrícula", tela: "lnMatricula" }, ...itens];
   // 23/11: gerência – Localizações confirmadas em campo
   if (!pilha.length && window.MODO_GERENTE && !emPrevia() && !itens.some(i => i.tela === "locConfirmadas")) itens = [{ nome: "Localizações confirmadas em campo", tela: "locConfirmadas" }, ...itens];
   // 23/11: SS do despacho do dia (Joaquim) – primeiro botão do painel
@@ -1836,6 +1838,7 @@ function mostrarMenu(itens, titulo) {
   window.scrollTo(0,0);
   if (itens.some(i => CONTAGEM_SS_TELAS[i.tela])) atualizarContagemSS();
   if (itens.some(i => i.tela === "locConfirmadas")) lcContarNovas();
+  if (itens.some(i => i.tela === "lnMatricula")) lnContar();
 }
 
 
@@ -1844,7 +1847,7 @@ function mostrarMenu(itens, titulo) {
 const ME_SS_PEND = i => /^ssPend/.test(i.tela || "");
 const ME_URG = i => !!i.urgente || i.tela === "servicosUrgentes";
 const MENU_ENXUTO_CAMPO = {
-  principal: [i => i.tela === "despachoDia", ME_SS_PEND, ME_URG, i => i.nome === "Solicitação no SCI", i => i.tela === "ssDigiteam" || i.tela === "solicitarSS",
+  principal: [i => i.tela === "lnMatricula", i => i.tela === "despachoDia", ME_SS_PEND, ME_URG, i => i.nome === "Solicitação no SCI", i => i.tela === "ssDigiteam" || i.tela === "solicitarSS",
     i => i.nome === "Ocorrência operacional" || i.tela === "ocorAbrir", i => i.tela === "meusPedidos",
     i => i.nome === "Hora extra" || i.tela === "horaExtra", i => i.tela === "abastecimento", i => i.tela === "telemetria",
     i => i.tela === "locHidrometro", i => i.tela === "locMatricula"],
@@ -1856,7 +1859,7 @@ const MENU_ENXUTO_CAMPO = {
 // 21/11: Luzenildo, Francisco, Carlito, Joaquim, Isaac e Genildo – painel principal mais limpo.
 // Solicitação no SCI, Digiteam, Hora extra, Abastecimento, Localização do hidrômetro e Localização da matrícula vão para "Outros".
 const MENU_ENXUTO_CAMPO_SD = {
-  principal: [i => i.tela === "despachoDia", ME_SS_PEND, ME_URG, i => i.nome === "Ocorrência operacional" || i.tela === "ocorAbrir",
+  principal: [i => i.tela === "lnMatricula", i => i.tela === "despachoDia", ME_SS_PEND, ME_URG, i => i.nome === "Ocorrência operacional" || i.tela === "ocorAbrir",
     i => i.tela === "meusPedidos", i => i.tela === "telemetria"],
   outros: [i => i.nome === "Solicitação no SCI" || /Solicita[çc](ão|ões|ao|oes) no SCI/i.test(i.nome || ""),
     i => i.tela === "ssDigiteam" || i.tela === "solicitarSS",
@@ -1865,7 +1868,7 @@ const MENU_ENXUTO_CAMPO_SD = {
     ...MENU_ENXUTO_CAMPO.outros]
 };
 const MENU_ENXUTO_THIAGO = {
-  principal: [i => i.tela === "ssPendTodas", i => i.tela === "ligNovaThiago", ME_URG, i => i.tela === "importarSCI",
+  principal: [i => i.tela === "lnMatricula", i => i.tela === "ssPendTodas", i => i.tela === "ligNovaThiago", ME_URG, i => i.tela === "importarSCI",
     i => i.tela === "telemetria", i => i.tela === "abastecimento", i => i.tela === "locMatricula"],
   outros: [i => i.tela === "usoCarro", i => i.tela === "checklistMoto", i => /Almoxarifado/i.test(i.nome || ""),
     i => i.tela === "cronograma", i => i.tela === "coelba", i => i.tela === "aquisicao" || /RILC/i.test(i.nome || ""),
@@ -3917,13 +3920,14 @@ async function ddCarregar() {
     const [ss, tipo, mat, bairro, mapa] = x, k = mat ? lmNorm(mat) : lmNorm(ss);
     const l = lm[k], g = base[mat] || base[k], fotoBase = (window.baseFoto || {})[mat] || (window.baseFoto || {})[k];
     // 23/11: matrícula VALIDADA = localização confirmada em campo COM foto da fachada. Sem foto, pede a confirmação.
-    const confirmado = l && l[1] && l[4] ? lmLink(l[1]) : g && fotoBase ? "https://www.google.com/maps/search/?api=1&query=" + g : "";
+    const confirmado = l && l[1] && (l[4] || (!mat && !/LIGACAO NOVA/i.test(tipo))) ? lmLink(l[1]) : g && fotoBase ? "https://www.google.com/maps/search/?api=1&query=" + g : "";
     const linkMapa = confirmado ? "" : l && l[1] ? lmLink(l[1]) : g ? "https://www.google.com/maps/search/?api=1&query=" + g : mapa ? "https://www.google.com/maps/search/?api=1&query=" + mapa : "";
     const pend = fila.some(f => f.mat === k);
     (window.ddLinks = window.ddLinks || {})[n] = linkMapa;
+    const fotoObrig = !!mat || /LIGACAO NOVA/i.test(tipo);
     const campoLink = (txt) => `<div class="nota">No local: abra o Google Maps › toque no ponto azul › Compartilhar › Copiar link, e cole aqui.</div>
           <input id="ddl_${n}" class="campo" placeholder="Cole aqui o link do Google Maps">
-          <div style="font-size:14px"><b>Foto da fachada (obrigatória):</b> <input type="file" id="ddf_${n}" accept="image/*" capture="environment"></div>
+          <div style="font-size:14px">${fotoObrig ? "<b>Foto da fachada (obrigatória):</b>" : "Foto do local (opcional):"} <input type="file" id="ddf_${n}" accept="image/*" capture="environment"></div>
           <button class="acao" style="background:#0b5394" onclick="ddEnviarLink(${n}, this)">${txt}</button>`;
     return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${confirmado ? "#15803d" : linkMapa ? "#0b5394" : "#b45309"}">
       <b style="font-size:18px">${n + 1}º · SS ${sspEsc(ss)}</b>
@@ -3938,7 +3942,7 @@ async function ddCarregar() {
           <button class="acao" style="background:#15803d" onclick="document.getElementById('ddc_${n}').click()">✅ Está correta – tirar foto da fachada</button>
           <button class="acao" style="background:#b45309" onclick="document.getElementById('ddx_${n}').style.display='block'">❌ Não está correta</button>
           <div id="ddx_${n}" style="display:none;margin-top:6px">${campoLink("Enviar a localização certa")}</div></div>`
-        : !mat ? `<div style="background:#fff7ed;border-radius:8px;padding:8px;margin-top:6px"><b>${/LIGACAO NOVA/i.test(tipo) ? "Ligação nova – ainda não tem matrícula." : "Esta SS ainda não tem matrícula."} Mande a localização do imóvel para a gente cadastrar.</b>
+        : !mat ? `<div style="background:#fff7ed;border-radius:8px;padding:8px;margin-top:6px"><b>${/LIGACAO NOVA/i.test(tipo) ? "Ligação nova – ainda não tem matrícula. Mande a localização e a foto da fachada do imóvel para a gente cadastrar." : "Esta SS não tem matrícula. Mande a localização do local do serviço."}</b>
           ${campoLink("Enviar localização")}</div>`
         : `<div style="background:#fff7ed;border-radius:8px;padding:8px;margin-top:6px"><b>Não temos a localização. Aproveite e mande aqui a localização dessa matrícula.</b>
           ${campoLink("Enviar localização")}</div>`}
@@ -3970,7 +3974,8 @@ async function ddEnviarLink(n, btn) {
   const link = String((document.getElementById("ddl_" + n) || {}).value || "").trim();
   if (!ddLinkValido(link)) { alert("Cole o LINK do Google Maps (começa com https://maps.app.goo.gl/ ou https://www.google.com/maps). Não precisa de latitude e longitude."); return; }
   const arq = ((document.getElementById("ddf_" + n) || {}).files || [])[0] || null;
-  if (!arq) { alert("A foto da fachada é obrigatória. Tire a foto do imóvel e envie de novo."); return; }
+  const [, tipoN, matN] = d.itens[n], semFotoOk = !matN && !/LIGACAO NOVA/i.test(tipoN); // 23/11: vazamento/reaterro sem matrícula – foto não é obrigatória
+  if (!arq && !semFotoOk) { alert("A foto da fachada é obrigatória. Tire a foto do imóvel e envie de novo."); return; }
   await ddGravar(n, link, arq, "informado no painel com foto (a validar)", btn);
 }
 async function ddConfirmar(n, inp) {
@@ -4030,6 +4035,64 @@ async function lcCarregar() {
       : "<p>Nenhuma localização validada com foto ainda.</p>");
     try { localStorage.setItem(LC_VISTO, new Date().toISOString()); } catch (e) {}
   } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+// ===== 23/11: Ligações novas – a localização (com foto) que o campo mandou fica aguardando a matrícula gerada =====
+// São Desidério (e demais): Thiago encerra a 2ª SS e informa a matrícula. Baianópolis: exclusivamente o Ivo.
+// Grava em LocalizacaoMatricula a mesma localização e foto com a matrícula nova (obs "matrícula gerada da SS x").
+const lnEhIvo = () => identidadeAtual().includes("ivocarlos");
+const lnEhThiago = () => ["thiago", "tiago"].some(n => identidadeAtual().includes(n));
+const lnPodeVer = () => lnEhIvo() || lnEhThiago() || (window.MODO_GERENTE && !emPrevia());
+function lnPendentes(dados) {
+  const linhas = (dados || []).slice(1), feitas = {};
+  linhas.forEach(l => { const m = String(l[4] || "").match(/matrícula gerada da SS (\S+)/i); if (m) feitas[m[1]] = String(l[0]).replace(/^'/, ""); });
+  const vistos = {};
+  return linhas.filter(l => /^SS /.test(String(l[0])) && /LIGAÇÃO NOVA/i.test(String(l[4] || ""))).reverse()
+    .map(l => ({ ss: String(l[0]).replace(/^SS /, "").trim(), link: String(l[1]), quando: l[2], por: l[3], loc: String(l[5] || ""), foto: String(l[6] || "") }))
+    .filter(x => !feitas[x.ss] && !vistos[x.ss] && (vistos[x.ss] = 1))
+    .filter(x => (window.MODO_GERENTE && !emPrevia()) ? true : lnEhIvo() ? /baian/i.test(x.loc) : !/baian/i.test(x.loc));
+}
+Object.assign(TELAS, { lnMatricula: () => { setTimeout(lnCarregar, 0); return `<h2>${lnEhIvo() ? "SS exclusivas para Ivo encerrar" : "Ligações novas – informar a matrícula"}</h2>
+  <div class="nota">Ligações novas em que o campo já mandou a localização e a foto da fachada. Depois de encerrar a 2ª SS no sistema, digite aqui a matrícula gerada: a localização e a foto passam para essa matrícula no mapa.</div>
+  <div id="ln_box">Carregando…</div>`; } });
+async function lnCarregar() {
+  const box = document.getElementById("ln_box"); if (!box) return;
+  try {
+    const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula" });
+    if (!r || r.erro) { box.textContent = (r && r.erro) || "Não consegui carregar."; return; }
+    const lista = lnPendentes(r.dados); window.lnCache = lista;
+    box.innerHTML = lista.length ? lista.map((x, i) => `<div class="card" style="margin-bottom:8px;border-left:6px solid #0b5394">
+      <b>SS ${sspEsc(x.ss)}</b> · Ligação nova · ${sspEsc(x.loc)}<br><span style="font-size:14px">Localização enviada por <b>${sspEsc(sspNome(x.por))}</b> em ${formatarQuando(x.quando)}</span>
+      <div style="display:flex;gap:6px;margin-top:6px"><a class="acao" style="flex:1;text-align:center;text-decoration:none;background:#15803d;margin:0" href="${sspEsc(lmLink(x.link))}" target="_blank" rel="noopener">📍 Mapa</a>
+      ${x.foto ? `<a class="acao" style="flex:1;text-align:center;text-decoration:none;background:#0b5394;margin:0" href="${sspEsc(x.foto)}" target="_blank" rel="noopener">🏠 Foto da fachada</a>` : ""}</div>
+      <input id="lnm_${i}" class="campo" inputmode="numeric" placeholder="Matrícula gerada no SCI" style="margin-top:6px">
+      <button class="acao" style="background:#0b5394" onclick="lnSalvar(${i}, this)">Gravar matrícula</button></div>`).join("")
+      : "<p>Nenhuma ligação nova aguardando matrícula.</p>";
+  } catch (e) { box.textContent = "Não consegui carregar. Verifique a internet."; }
+}
+async function lnSalvar(i, btn) {
+  const x = (window.lnCache || [])[i]; if (!x || (btn && btn.disabled)) return;
+  const mat = String((document.getElementById("lnm_" + i) || {}).value || "").replace(/\D/g, "");
+  if (mat.length < 6) { alert("Digite a matrícula gerada (só números)."); return; }
+  if (!confirm("Gravar a matrícula " + mat + " para a ligação nova da SS " + x.ss + "?")) return;
+  sspTravar(btn, "Gravando...");
+  try {
+    const res = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula",
+      linhas: [["'" + mat, x.link, new Date().toISOString(), window.credenciais.usuario, "matrícula gerada da SS " + x.ss + " – ligação nova (localização e foto do campo)", x.loc, x.foto]] });
+    if (res && res.erro) { alert(res.erro); sspDestravar(btn); return; }
+    alert("Matrícula gravada. A localização e a foto agora estão na matrícula " + mat + ".");
+    lnCarregar();
+  } catch (e) { alert("Não consegui gravar. Verifique a internet."); sspDestravar(btn); }
+}
+async function lnContar() {
+  try {
+    const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula" });
+    if (!r || r.erro) return;
+    const n = lnPendentes(r.dados).length;
+    document.querySelectorAll("#app button.btn").forEach(b => {
+      if (!/^(SS exclusivas para Ivo encerrar|Ligações novas – informar a matrícula)/.test(b.textContent.trim())) return;
+      b.textContent = b.textContent.trim().replace(/\s*\(\d+\)$/, "") + " (" + n + ")";
+    });
+  } catch (e) {}
 }
 // 20/11: escolher a localidade, digitar a matrícula e pesquisar. Só aparece o que já foi conferido em campo (visitas).
 const LM_LOCALIDADES = ["São Desidério", "Angico", "Catolândia", "Baianópolis", "Buriti Cortado", "Mozondó", "São Marcos", "Passagem de Pedra"];
@@ -9806,7 +9869,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 09h25";
+const VERSAO_PAINEL = "23/11 09h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
