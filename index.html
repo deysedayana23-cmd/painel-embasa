@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 08h30</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 08h40</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3863,7 +3863,7 @@ async function lmBaixar() {
   try {
     const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula" });
     if (!r || r.erro || !r.dados) return lmCache();
-    const mapa = {}; r.dados.slice(1).forEach(l => { const k = lmNorm(l[0]); if (k && l[1]) mapa[k] = [String(l[0]), String(l[1]), String(l[2] || ""), String(l[5] || "")]; }); // a última linha da matrícula vale (col. 6 = localidade, quando vier no Excel)
+    const mapa = {}; r.dados.slice(1).forEach(l => { const k = lmNorm(l[0]); if (k && l[1]) mapa[k] = [String(l[0]), String(l[1]), String(l[2] || ""), String(l[5] || ""), String(l[6] || "")]; }); // a última linha da matrícula vale (col. 6 = localidade, quando vier no Excel) // idx 4 = foto da fachada (só validada com foto)
     const c = { em: new Date().toISOString(), m: mapa };
     try { localStorage.setItem(LM_CHAVE, JSON.stringify(c)); } catch (e) {}
     return c;
@@ -3889,7 +3889,11 @@ function ddDoUsuario() {
 }
 const DD_FILA = "ddFila";
 function ddFila() { try { return JSON.parse(localStorage.getItem(DD_FILA) || "[]"); } catch (e) { return []; } }
-function ddFilaSalvar(a) { try { localStorage.setItem(DD_FILA, JSON.stringify(a)); } catch (e) {} }
+function ddFilaSalvar(a) { try { localStorage.setItem(DD_FILA, JSON.stringify(a)); return true; } catch (e) { return false; } }
+async function ddSubirFoto(item) {
+  if (item.b64 && !item.linha[6]) { const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha, base64: item.b64, tipo: "image/jpeg", nome: "fachada_" + item.mat + "_" + Date.now() + ".jpg" }); if (!r || !r.url) throw new Error((r && r.erro) || "foto não enviada"); item.linha[6] = r.url; }
+  delete item.b64;
+}
 const ddLinkValido = t => /^https?:\/\/\S*(maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google\.)/i.test(String(t || "").trim());
 Object.assign(TELAS, { despachoDia: () => { setTimeout(ddCarregar, 0); const d = ddDoUsuario();
   return `<h2>Localização das SS de hoje no seu Digiteam</h2>
@@ -3906,13 +3910,15 @@ async function ddCarregar() {
   window.ddCache = d;
   box.innerHTML = d.itens.map((x, n) => {
     const [ss, tipo, mat, bairro, mapa] = x, k = mat ? lmNorm(mat) : lmNorm(ss);
-    const l = lm[k], g = base[mat] || base[k];
-    const confirmado = l && l[1] ? lmLink(l[1]) : g ? "https://www.google.com/maps/search/?api=1&query=" + g : "";
-    const linkMapa = !confirmado && mapa ? "https://www.google.com/maps/search/?api=1&query=" + mapa : "";
+    const l = lm[k], g = base[mat] || base[k], fotoBase = (window.baseFoto || {})[mat] || (window.baseFoto || {})[k];
+    // 23/11: matrícula VALIDADA = localização confirmada em campo COM foto da fachada. Sem foto, pede a confirmação.
+    const confirmado = l && l[1] && l[4] ? lmLink(l[1]) : g && fotoBase ? "https://www.google.com/maps/search/?api=1&query=" + g : "";
+    const linkMapa = confirmado ? "" : l && l[1] ? lmLink(l[1]) : g ? "https://www.google.com/maps/search/?api=1&query=" + g : mapa ? "https://www.google.com/maps/search/?api=1&query=" + mapa : "";
     const pend = fila.some(f => f.mat === k);
+    (window.ddLinks = window.ddLinks || {})[n] = linkMapa;
     const campoLink = (txt) => `<div class="nota">No local: abra o Google Maps › toque no ponto azul › Compartilhar › Copiar link, e cole aqui.</div>
           <input id="ddl_${n}" class="campo" placeholder="Cole aqui o link do Google Maps">
-          <div style="font-size:14px">Foto da fachada: <input type="file" id="ddf_${n}" accept="image/*" capture="environment"></div>
+          <div style="font-size:14px"><b>Foto da fachada (obrigatória):</b> <input type="file" id="ddf_${n}" accept="image/*" capture="environment"></div>
           <button class="acao" style="background:#0b5394" onclick="ddEnviarLink(${n}, this)">${txt}</button>`;
     return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${confirmado ? "#15803d" : linkMapa ? "#0b5394" : "#b45309"}">
       <b style="font-size:18px">${n + 1}º · SS ${sspEsc(ss)}</b>
@@ -3920,7 +3926,7 @@ async function ddCarregar() {
       <div style="font-size:15px">Matrícula <b>${sspEsc(mat)}</b> · ${sspEsc(bairro)}</div>
       ${pend ? `<div class="nota" style="color:#0b5394">⏳ Localização guardada no celular – será enviada quando tiver internet.</div>`
         : confirmado ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d;margin-top:6px" href="${sspEsc(confirmado)}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a>`
-        : linkMapa ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#0b5394;margin-top:6px" href="${sspEsc(linkMapa)}" target="_blank" rel="noopener">📍 Abrir no Google Maps (mapa em construção)</a>
+        : linkMapa ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#0b5394;margin-top:6px" href="${sspEsc(linkMapa)}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a>
           <div style="background:#e8f1fb;border-radius:8px;padding:8px;margin-top:6px"><b>Chegando lá, confirme: a localização está correta?</b>
           <input type="file" id="ddc_${n}" accept="image/*" capture="environment" style="display:none" onchange="ddConfirmar(${n}, this)">
           <button class="acao" style="background:#15803d" onclick="document.getElementById('ddc_${n}').click()">✅ Está correta – tirar foto da fachada</button>
@@ -3938,16 +3944,18 @@ async function ddGravar(n, link, arq, obs, btn) {
   // Sem matrícula (ex.: ligação nova): guarda pela SS; quando o Thiago encerrar e gerar a matrícula, a gerência liga as duas.
   if (!mat) obs = (/LIGACAO NOVA/i.test(tipo) ? "LIGAÇÃO NOVA sem matrícula" : "SS sem matrícula") + " – " + obs;
   const item = { mat: mat ? lmNorm(mat) : lmNorm(ss), linha: [mat ? "'" + mat : "SS " + ss, link, new Date().toISOString(), window.credenciais.usuario, obs + " – SS " + ss, d.loc || "São Desidério", ""] };
+  try { const pos = await obterPosicao(); item.b64 = await carimbarFoto(arq, pos); } catch (e) { alert("Não consegui ler a foto. Tire de novo."); sspDestravar(btn); return; }
   try {
     if (navigator.onLine === false) throw new Error("offline");
-    if (arq) { const pos = await obterPosicao(); const r = await chamarApi({ acao: "salvarFoto", usuario: window.credenciais.usuario, senha: window.credenciais.senha, base64: await carimbarFoto(arq, pos), tipo: "image/jpeg", nome: "fachada_" + item.mat + "_" + Date.now() + ".jpg" }); if (r && r.url) item.linha[6] = r.url; }
+    await ddSubirFoto(item);
     const r = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula", linhas: [item.linha] });
     if (r && r.erro) throw new Error(r.erro);
-    try { const c = lmCache() || { em: new Date().toISOString(), m: {} }; c.m[item.mat] = [String(mat), link, item.linha[2], d.loc || "São Desidério"]; localStorage.setItem(LM_CHAVE, JSON.stringify(c)); } catch (e) {}
+    try { const c = lmCache() || { em: new Date().toISOString(), m: {} }; c.m[item.mat] = [String(mat), link, item.linha[2], d.loc || "São Desidério", item.linha[6] || ""]; localStorage.setItem(LM_CHAVE, JSON.stringify(c)); } catch (e) {}
     alert("Localização enviada. Obrigado!");
   } catch (e) {
-    const f = ddFila().filter(x => x.mat !== item.mat); f.push(item); ddFilaSalvar(f);
-    alert("Sem internet agora. A localização ficou guardada no celular e será enviada sozinha quando o sinal voltar." + (arq ? " (A foto precisa ser tirada de novo quando tiver sinal.)" : ""));
+    const f = ddFila().filter(x => x.mat !== item.mat); f.push(item);
+    if (!ddFilaSalvar(f.slice(-8))) { alert("Sem internet e sem espaço no celular para guardar a foto. Tente de novo quando tiver sinal."); sspDestravar(btn); return; }
+    alert("Sem internet agora. A localização e a foto ficaram guardadas no celular e serão enviadas sozinhas quando o sinal voltar.");
   }
   ddCarregar();
 }
@@ -3956,32 +3964,33 @@ async function ddEnviarLink(n, btn) {
   const link = String((document.getElementById("ddl_" + n) || {}).value || "").trim();
   if (!ddLinkValido(link)) { alert("Cole o LINK do Google Maps (começa com https://maps.app.goo.gl/ ou https://www.google.com/maps). Não precisa de latitude e longitude."); return; }
   const arq = ((document.getElementById("ddf_" + n) || {}).files || [])[0] || null;
-  await ddGravar(n, link, arq, "informado no painel (a validar)", btn);
+  if (!arq) { alert("A foto da fachada é obrigatória. Tire a foto do imóvel e envie de novo."); return; }
+  await ddGravar(n, link, arq, "informado no painel com foto (a validar)", btn);
 }
 async function ddConfirmar(n, inp) {
   const d = window.ddCache; if (!d || !d.itens[n]) return;
   const arq = (inp.files || [])[0]; if (!arq) { alert("Tire a foto da fachada para confirmar."); return; }
-  const mapa = d.itens[n][4]; if (!mapa) return;
-  await ddGravar(n, "https://www.google.com/maps/search/?api=1&query=" + mapa, arq, "confirmada em campo (mapa em construção)", null);
+  const link = (window.ddLinks || {})[n]; if (!link) return;
+  await ddGravar(n, link, arq, "confirmada em campo", null);
 }
 async function ddEnviarFila() {
   if (window.__ddEnviando || navigator.onLine === false || !window.credenciais) return;
   const f = ddFila(); if (!f.length) return;
   window.__ddEnviando = true; const resta = [];
-  for (const it of f) { try { const r = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula", linhas: [it.linha] }); if (r && r.erro) resta.push(it); } catch (e) { resta.push(it); } }
+  for (const it of f) { try { await ddSubirFoto(it); const r = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula", linhas: [it.linha] }); if (r && r.erro) resta.push(it); } catch (e) { resta.push(it); } }
   ddFilaSalvar(resta); window.__ddEnviando = false;
 }
 window.addEventListener("online", () => setTimeout(ddEnviarFila, 3000));
 // 23/11: "Localizações confirmadas em campo" – o que cada funcionário confirmou (✅ Está correta) com foto da fachada
 Object.assign(TELAS, { locConfirmadas: () => { setTimeout(lcCarregar, 0); return `<h2>Localizações confirmadas em campo</h2>
-  <div class="nota">Matrículas que o funcionário confirmou em campo, com a foto da fachada. As mais recentes primeiro.</div>
+  <div class="nota">Matrículas validadas em campo: localização confirmada ou enviada pelo funcionário COM a foto da fachada. As mais recentes primeiro.</div>
   <div id="lc_box">Carregando…</div>`; } });
 async function lcCarregar() {
   const box = document.getElementById("lc_box"); if (!box) return;
   try {
     const r = await chamarApi({ acao: "listar", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula" });
     if (!r || r.erro || !r.dados) { box.textContent = (r && r.erro) || "Não consegui carregar."; return; }
-    const lin = r.dados.slice(1).filter(l => /confirmada em campo/i.test(String(l[4] || ""))).reverse();
+    const lin = r.dados.slice(1).filter(l => String(l[6] || "").trim() && /painel|campo/i.test(String(l[4] || ""))).reverse(); // validada = com foto da fachada
     box.innerHTML = lin.length ? `<div class="nota">${lin.length} confirmação(ões)</div>` + lin.map(l => `<div class="card" style="margin-bottom:6px;border-left:6px solid #15803d">
       Matrícula <b>${sspEsc(String(l[0]).replace(/^'/, ""))}</b> · ${sspEsc(l[5] || "")}<br>
       <span style="font-size:14px">Confirmada por <b>${sspEsc(sspNome ? sspNome(l[3]) : l[3])}</b> em ${formatarQuando(l[2])} · ${sspEsc(String(l[4]).replace(/^.*?– /, ""))}</span>
@@ -9764,7 +9773,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 08h30";
+const VERSAO_PAINEL = "23/11 08h40";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
