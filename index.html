@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 00h40</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 07h35</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -1775,6 +1775,8 @@ function mostrarMenu(itens, titulo) {
   // 18/11: consulta da localização da matrícula (Excel da gerência) – só agentes de campo
   // 20/11: Localização da matrícula para todos os funcionários
   if (!pilha.length && !itens.some(i => i.tela === "locMatricula")) { const k = itens.findIndex(i => i.tela === "locHidrometro"); const lmb = { nome: "Localização da matrícula", tela: "locMatricula" }; itens = k >= 0 ? [...itens.slice(0, k), lmb, ...itens.slice(k)] : [...itens, lmb]; }
+  // 23/11: SS do despacho do dia (Joaquim) – primeiro botão do painel
+  if (!pilha.length && ddDoUsuario() && !itens.some(i => i.tela === "despachoDia")) itens = [{ nome: "📍 Localização das SS de hoje no seu Digitinho", tela: "despachoDia" }, ...itens];
   // 16/11: checklist da moto (quem tem moto) no painel principal; Uso do carro em Outros para todos; gerência vê os checklists em Outros
   if (!pilha.length && !ehLeit && minhaMoto() && !itens.some(i => i.tela === "checklistMoto")) { const k = itens.findIndex(i => i.nome === "Outros"); const c = { nome: "Checklist da moto", tela: "checklistMoto" }; itens = k >= 0 ? [...itens.slice(0, k), c, ...itens.slice(k)] : [...itens, c]; }
   if (!pilha.length) { const out = itens.find(i => i.nome === "Outros" && i.sub); const extra = [...(ehDeyseGer() ? [{ nome: "Zerar SS do app", tela: "zerarSS" }] : []), { nome: "Uso do carro", tela: "usoCarro" }, ...(ehGerLeitura() ? [{ nome: "Checklist das motos", tela: "checklistMoto" }] : [])];
@@ -1839,7 +1841,7 @@ function mostrarMenu(itens, titulo) {
 const ME_SS_PEND = i => /^ssPend/.test(i.tela || "");
 const ME_URG = i => !!i.urgente || i.tela === "servicosUrgentes";
 const MENU_ENXUTO_CAMPO = {
-  principal: [ME_SS_PEND, ME_URG, i => i.nome === "Solicitação no SCI", i => i.tela === "ssDigiteam" || i.tela === "solicitarSS",
+  principal: [i => i.tela === "despachoDia", ME_SS_PEND, ME_URG, i => i.nome === "Solicitação no SCI", i => i.tela === "ssDigiteam" || i.tela === "solicitarSS",
     i => i.nome === "Ocorrência operacional" || i.tela === "ocorAbrir", i => i.tela === "meusPedidos",
     i => i.nome === "Hora extra" || i.tela === "horaExtra", i => i.tela === "abastecimento", i => i.tela === "telemetria",
     i => i.tela === "locHidrometro", i => i.tela === "locMatricula"],
@@ -1851,7 +1853,7 @@ const MENU_ENXUTO_CAMPO = {
 // 21/11: Luzenildo, Francisco, Carlito, Joaquim, Isaac e Genildo – painel principal mais limpo.
 // Solicitação no SCI, Digiteam, Hora extra, Abastecimento, Localização do hidrômetro e Localização da matrícula vão para "Outros".
 const MENU_ENXUTO_CAMPO_SD = {
-  principal: [ME_SS_PEND, ME_URG, i => i.nome === "Ocorrência operacional" || i.tela === "ocorAbrir",
+  principal: [i => i.tela === "despachoDia", ME_SS_PEND, ME_URG, i => i.nome === "Ocorrência operacional" || i.tela === "ocorAbrir",
     i => i.tela === "meusPedidos", i => i.tela === "telemetria"],
   outros: [i => i.nome === "Solicitação no SCI" || /Solicita[çc](ão|ões|ao|oes) no SCI/i.test(i.nome || ""),
     i => i.tela === "ssDigiteam" || i.tela === "solicitarSS",
@@ -3865,6 +3867,79 @@ async function lmBaixar() {
     return c;
   } catch (e) { return lmCache(); }
 }
+// ===== 23/11: "Localização das SS de hoje no seu Digitinho" – lista do despacho do dia (PDF do Digiteam), na mesma ordem =====
+// Só SS, tipo, matrícula e bairro (repositório público: sem nome, telefone ou endereço do cliente).
+// Localização: Excel da gerência (LocalizacaoMatricula) ou base do mapa (BaseLocalizacao). Sem localização: o agente manda o LINK do Google Maps.
+var DESPACHO_DIA = {
+  joaquim: { data: "23/11/2026", turno: "manhã (à tarde: corte em Catolândia)", itens: [["1059139283-1", "27.6 - DESOBSTRUCAO DE RAMAL DE AGUA", "182098257", "CENTRO"], ["1059359764-1", "38.1 - RELIGACAO NORMAL", "74707604", "CENTRO"], ["1059181746-1", "40.2 - REVISAO DE LIGACAO CORTADA", "183323300", "CIDADE ALTA"], ["1059181740-1", "40.2 - REVISAO DE LIGACAO CORTADA", "177760257", "CIDADE ALTA"], ["1059181744-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181000598", "PONTE DE TERRA"], ["1059295697-1", "36.4 - CONSUMO - REVISAO DE CONTA", "178521680", "PONTE DE TERRA"], ["1059181748-1", "40.2 - REVISAO DE LIGACAO CORTADA", "188610707", "PONTE DE TERRA"], ["1059181747-1", "40.2 - REVISAO DE LIGACAO CORTADA", "184998735", "PONTE DE TERRA"], ["1059181741-1", "40.2 - REVISAO DE LIGACAO CORTADA", "178155144", "PONTE DE TERRA"], ["1059181742-1", "40.2 - REVISAO DE LIGACAO CORTADA", "179081161", "PONTE DE TERRA"], ["1059297590-1", "36.4 - CONSUMO - REVISAO DE CONTA", "178206890", "PONTE DE TERRA"], ["1059181745-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181481812", "LOT CIDADE NOVA"], ["1059181743-1", "40.2 - REVISAO DE LIGACAO CORTADA", "179133586", "LOT CIDADE NOVA"], ["1059181739-1", "40.2 - REVISAO DE LIGACAO CORTADA", "74716972", "LOT CIDADE NOVA"], ["1059358185-1", "43.3 - VAZAMENTO NO HIDROMETRO", "190013850", "PORTO RICO"], ["1059103027-1", "40.2 - REVISAO DE LIGACAO CORTADA", "181207281", "CENTRO"], ["1059181729-1", "40.2 - REVISAO DE LIGACAO CORTADA", "74700510", "CENTRO"], ["1058851239-1", "74.1 - NEGOCIACAO PERDA APARENTE", "74708597", "VILA DO PADRE"], ["1059181728-1", "40.2 - REVISAO DE LIGACAO CORTADA", "186949553", "VILA DO PADRE"], ["1059368904-1", "38.5 - RELIGACAO INATIVA", "74715062", "TANGARA"], ["1059359327-1", "38.1 - RELIGACAO NORMAL", "74711113", "TANGARA"], ["1059379997-1", "43.3 - VAZAMENTO NO HIDROMETRO", "74714449", "CENTRO"], ["1059060266-1", "11.7 - PEDIDO DE TARIFA SOCIAL", "181404273", "APARECIDA"], ["1059381730-1", "38.1 - RELIGACAO NORMAL", "74719912", "APARECIDA"]] }
+};
+function ddDoUsuario() {
+  const id = String(identidadeAtual() || "");
+  const k = Object.keys(DESPACHO_DIA).find(n => id.includes(n));
+  if (k) return Object.assign({ quem: k }, DESPACHO_DIA[k]);
+  if (typeof ehDeyseGer === "function" && ehDeyseGer()) return Object.assign({ quem: "joaquim" }, DESPACHO_DIA.joaquim);
+  return null;
+}
+const DD_FILA = "ddFila";
+function ddFila() { try { return JSON.parse(localStorage.getItem(DD_FILA) || "[]"); } catch (e) { return []; } }
+function ddFilaSalvar(a) { try { localStorage.setItem(DD_FILA, JSON.stringify(a)); } catch (e) {} }
+const ddLinkValido = t => /^https?:\/\/\S*(maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google\.)/i.test(String(t || "").trim());
+Object.assign(TELAS, { despachoDia: () => { setTimeout(ddCarregar, 0); const d = ddDoUsuario();
+  return `<h2>Localização das SS de hoje no seu Digitinho</h2>
+  ${d ? `<div class="nota">Despacho de ${sspEsc(d.data)} – ${sspEsc(d.turno)} · ${d.itens.length} SS, na ordem do Digitinho.</div>` : ""}
+  <div id="dd_box">Carregando…</div>`; } });
+async function ddCarregar() {
+  const box = document.getElementById("dd_box"); if (!box) return;
+  const d = ddDoUsuario(); if (!d) { box.innerHTML = "<p>Nenhuma SS do dia lançada para você.</p>"; return; }
+  ddEnviarFila();
+  let base = {};
+  try { await lmBaixar(); } catch (e) {}
+  try { base = await carregarBaseLocalizacao(); } catch (e) {}
+  const c = lmCache(), lm = (c && c.m) || {}, fila = ddFila();
+  window.ddCache = d;
+  box.innerHTML = d.itens.map((x, n) => {
+    const [ss, tipo, mat, bairro] = x, k = lmNorm(mat);
+    const l = lm[k], g = base[mat] || base[k];
+    const link = l && l[1] ? lmLink(l[1]) : g ? "https://www.google.com/maps/search/?api=1&query=" + g : "";
+    const pend = fila.some(f => f.mat === k);
+    return `<div class="card" style="margin-bottom:8px;border-left:6px solid ${link ? "#15803d" : "#b45309"}">
+      <div style="display:flex;justify-content:space-between"><b style="font-size:18px">${n + 1}º · SS ${sspEsc(ss)}</b></div>
+      <div style="font-weight:600;color:#0b5394">${sspEsc(tipo)}</div>
+      <div style="font-size:15px">Matrícula <b>${sspEsc(mat)}</b> · ${sspEsc(bairro)}</div>
+      ${link ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d;margin-top:6px" href="${sspEsc(link)}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a>`
+        : pend ? `<div class="nota" style="color:#0b5394">⏳ Link guardado no celular – será enviado quando tiver internet.</div>`
+        : `<div style="background:#fff7ed;border-radius:8px;padding:8px;margin-top:6px"><b>Precisamos dessa localização.</b> Por favor, mande o link do Google Maps.
+          <div class="nota">No local: abra o Google Maps › toque no ponto azul › Compartilhar › Copiar link, e cole aqui.</div>
+          <input id="ddl_${n}" class="campo" placeholder="Cole aqui o link do Google Maps">
+          <button class="acao" style="background:#0b5394" onclick="ddEnviarLink(${n}, this)">Enviar localização</button></div>`}
+    </div>`; }).join("");
+}
+async function ddEnviarLink(n, btn) {
+  const d = window.ddCache; if (!d || !d.itens[n] || (btn && btn.disabled)) return;
+  const [ss, , mat] = d.itens[n], link = String((document.getElementById("ddl_" + n) || {}).value || "").trim();
+  if (!ddLinkValido(link)) { alert("Cole o LINK do Google Maps (começa com https://maps.app.goo.gl/ ou https://www.google.com/maps). Não precisa de latitude e longitude."); return; }
+  const item = { mat: lmNorm(mat), linha: ["'" + mat, link, new Date().toISOString(), window.credenciais.usuario, "informado no painel (a validar) – SS " + ss, "São Desidério"] };
+  sspTravar(btn, "Enviando...");
+  try {
+    if (navigator.onLine === false) throw new Error("offline");
+    const r = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula", linhas: [item.linha] });
+    if (r && r.erro) throw new Error(r.erro);
+    try { const c = lmCache(); if (c) { c.m[item.mat] = [String(mat), link, item.linha[2], "São Desidério"]; localStorage.setItem(LM_CHAVE, JSON.stringify(c)); } } catch (e) {}
+    alert("Localização enviada. Obrigado!");
+  } catch (e) {
+    const f = ddFila().filter(x => x.mat !== item.mat); f.push(item); ddFilaSalvar(f);
+    alert("Sem internet agora. O link ficou guardado no celular e será enviado sozinho quando o sinal voltar.");
+  }
+  ddCarregar();
+}
+async function ddEnviarFila() {
+  if (window.__ddEnviando || navigator.onLine === false || !window.credenciais) return;
+  const f = ddFila(); if (!f.length) return;
+  window.__ddEnviando = true; const resta = [];
+  for (const it of f) { try { const r = await chamarApi({ acao: "gravarVarias", usuario: window.credenciais.usuario, senha: window.credenciais.senha, aba: "LocalizacaoMatricula", linhas: [it.linha] }); if (r && r.erro) resta.push(it); } catch (e) { resta.push(it); } }
+  ddFilaSalvar(resta); window.__ddEnviando = false;
+}
+window.addEventListener("online", () => setTimeout(ddEnviarFila, 3000));
 // 20/11: escolher a localidade, digitar a matrícula e pesquisar. Só aparece o que já foi conferido em campo (visitas).
 const LM_LOCALIDADES = ["São Desidério", "Angico", "Catolândia", "Baianópolis", "Buriti Cortado", "Mozondó", "São Marcos", "Passagem de Pedra"];
 Object.assign(TELAS, { locMatricula: () => { setTimeout(lmCarregar, 0); return `<h2>Localização da matrícula</h2>
@@ -9639,7 +9714,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 00h40";
+const VERSAO_PAINEL = "23/11 07h35";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
