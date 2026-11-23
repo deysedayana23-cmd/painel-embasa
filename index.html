@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 09h20</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 23/11 09h25</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -3912,7 +3912,8 @@ async function ddCarregar() {
   try { base = await carregarBaseLocalizacao(); } catch (e) {}
   const c = lmCache(), lm = (c && c.m) || {}, fila = ddFila();
   window.ddCache = d;
-  box.innerHTML = d.itens.map((x, n) => {
+  const feitas = d.itens.filter(x => { const k = x[2] ? lmNorm(x[2]) : lmNorm(x[0]); const l = lm[k]; return (l && l[1] && l[4]) || ((window.baseFoto || {})[x[2]] && base[x[2]]); }).length;
+  box.innerHTML = `<div class="card" style="margin-bottom:8px;border-left:6px solid ${feitas === d.itens.length ? "#15803d" : "#0b5394"};font-size:17px"><b>${feitas} de ${d.itens.length}</b> concluídas (localização + foto da fachada)${feitas === d.itens.length ? " – tudo certo! ✅" : ""}</div>` + d.itens.map((x, n) => {
     const [ss, tipo, mat, bairro, mapa] = x, k = mat ? lmNorm(mat) : lmNorm(ss);
     const l = lm[k], g = base[mat] || base[k], fotoBase = (window.baseFoto || {})[mat] || (window.baseFoto || {})[k];
     // 23/11: matrícula VALIDADA = localização confirmada em campo COM foto da fachada. Sem foto, pede a confirmação.
@@ -3929,7 +3930,8 @@ async function ddCarregar() {
       <div style="font-weight:600;color:#0b5394">${sspEsc(tipo)}</div>
       <div style="font-size:15px">Matrícula <b>${sspEsc(mat)}</b> · ${sspEsc(bairro)}</div>
       ${pend ? `<div class="nota" style="color:#0b5394">⏳ Localização guardada no celular – será enviada quando tiver internet.</div>`
-        : confirmado ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d;margin-top:6px" href="${sspEsc(confirmado)}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a>`
+        : confirmado ? `<div style="background:#dcfce7;color:#15803d;border-radius:8px;padding:8px;margin-top:6px;font-weight:bold">✅ Concluído – localização e foto da fachada enviadas${l && l[2] && /^\d{4}-/.test(l[2]) ? " em " + formatarQuando(l[2]) : ""}</div>
+          <a class="acao" style="display:block;text-align:center;text-decoration:none;background:#15803d;margin-top:6px" href="${sspEsc(confirmado)}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a>`
         : linkMapa ? `<a class="acao" style="display:block;text-align:center;text-decoration:none;background:#0b5394;margin-top:6px" href="${sspEsc(linkMapa)}" target="_blank" rel="noopener">📍 Abrir no Google Maps</a>
           <div style="background:#e8f1fb;border-radius:8px;padding:8px;margin-top:6px"><b>Chegando lá, confirme: a localização está correta?</b>
           <input type="file" id="ddc_${n}" accept="image/*" capture="environment" style="display:none" onchange="ddConfirmar(${n}, this)">
@@ -9804,7 +9806,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "23/11 09h20";
+const VERSAO_PAINEL = "23/11 09h25";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
