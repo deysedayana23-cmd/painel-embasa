@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 25/11 20h46</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 25/11 20h56</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -9869,7 +9869,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "25/11 20h46";
+const VERSAO_PAINEL = "25/11 20h56";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
@@ -10076,59 +10076,150 @@ Object.assign(TELAS, { cadMatriculas: () => { setTimeout(() => { location.href =
 // ---------- Rotas de leitura (mapa) ----------
 Object.assign(TELAS, { leitRotas: () => { setTimeout(() => { location.href = "rotas.html?v=" + Date.now(); }, 50); return `<h2>Rotas de leitura</h2><div class="nota">Abrindo o mapa...</div>`; } });
 // ---------- 25/11: Localização de contas a serem entregues (lista na aba ContasEntregar, na ordem da rota) ----------
-Object.assign(TELAS, { leitLocContas: () => { setTimeout(locContasCarregar, 0); return `<h2>Localização de contas a serem entregues</h2><div class="nota">Na ordem das rotas. Toque em 📍 Localização para abrir no Google Maps. A localização ainda é a confirmar em campo.</div><div id="lc_box">Carregando...</div>`; } });
+// Cada matrícula: o Sinval diz se a localização está correta (ou informa/corrige pelo LINK do Google Maps) e a FOTO DA FACHADA é obrigatória.
+// Grava em LocalizacaoMatricula: [matrícula, link, data, usuário, obs "contas a entregar – ...", "São Desidério", url da foto].
+// Sem internet: a foto fica guardada no celular (IndexedDB) e vai sozinha quando pegar o Wi-Fi.
+Object.assign(TELAS, { leitLocContas: () => { setTimeout(locContasCarregar, 0); return `<h2>Localização de contas a serem entregues</h2><div class="nota">Na ordem das rotas. Em cada imóvel: confirme se a localização está certa e tire a foto da fachada (obrigatória).</div><div id="lc_box">Carregando...</div>`; } });
+const LC_OBS = "contas a entregar";
+// --- fila de fotos no celular (IndexedDB: cabe bem mais foto que o localStorage) ---
+function lcDB() { return new Promise((ok, erro) => { if (!window.indexedDB) return erro(new Error("sem IndexedDB")); const r = indexedDB.open("painelLcFotos", 1); r.onupgradeneeded = () => r.result.createObjectStore("fila", { keyPath: "k" }); r.onsuccess = () => ok(r.result); r.onerror = () => erro(r.error); }); }
+async function lcFilaTodas() { try { const db = await lcDB(); return await new Promise(ok => { const q = db.transaction("fila").objectStore("fila").getAll(); q.onsuccess = () => ok(q.result || []); q.onerror = () => ok([]); }); } catch (e) { return []; } }
+async function lcFilaPor(item) { const db = await lcDB(); return new Promise((ok, erro) => { const t = db.transaction("fila", "readwrite"); t.objectStore("fila").put(item); t.oncomplete = () => ok(true); t.onerror = () => erro(t.error); }); }
+async function lcFilaTira(k) { try { const db = await lcDB(); await new Promise(ok => { const t = db.transaction("fila", "readwrite"); t.objectStore("fila").delete(k); t.oncomplete = t.onerror = () => ok(); }); } catch (e) {} }
+async function lcEnviarFotos() {
+  if (window.__lcFotoEnviando || navigator.onLine === false || !window.credenciais) return;
+  window.__lcFotoEnviando = true;
+  try {
+    for (const it of await lcFilaTodas()) {
+      try {
+        if (it.b64 && !it.linha[6]) { const r = await chamarApi({ acao: "salvarFoto", ...leitCred(), base64: it.b64, tipo: "image/jpeg", nome: "fachada_" + it.k + "_" + Date.now() + ".jpg" }); if (!r || !r.url) continue; it.linha[6] = r.url; delete it.b64; await lcFilaPor(it); }
+        const r2 = await chamarApi({ acao: "gravarVarias", ...leitCred(), aba: "LocalizacaoMatricula", linhas: [it.linha] });
+        if (r2 && !r2.erro) await lcFilaTira(it.k);
+      } catch (e) {}
+    }
+  } finally { window.__lcFotoEnviando = false; }
+}
+window.addEventListener("online", () => setTimeout(() => { lcEnviarFotos(); locContasEnviarFila(); }, 3000));
+const lcEstilo = "margin:0;text-decoration:none;text-align:center;white-space:nowrap;width:auto;flex:0 0 auto;padding:8px 10px;font-size:14px";
 async function locContasCarregar() {
   const box = document.getElementById("lc_box"); if (!box) return;
   let d = [], offline = false;
   try { const r = await chamarApi({ acao: "listar", ...leitCred(), aba: "ContasEntregar" }); if (r.erro) throw 0; d = (r.dados || []).slice(1); try { localStorage.setItem("locContasCache", JSON.stringify(d)); } catch (e) {} }
   catch (e) { try { d = JSON.parse(localStorage.getItem("locContasCache") || "[]"); offline = true; } catch (x) { d = []; } }
   d = d.filter(l => l && (l[2] || l[1] || l[4]));
-  locContasEnviarFila(); // 25/11: manda os links guardados sem internet
-  let lm = null; try { lm = await lmBaixar(); } catch (e) {}
-  const filaLc = locContasFila(), linkDe = l => { const k = lmNorm(l[2] || ("SS" + l[1])); const f = filaLc.find(x => x.k === k); return f ? f.linha[1] : (lm && lm.m && lm.m[k] ? lm.m[k][1] : ""); };
+  locContasEnviarFila(); await lcEnviarFotos();
+  // o que já foi feito: linhas "contas a entregar" com foto na LocalizacaoMatricula (guardadas no celular se estiver sem internet)
+  const minhas = new Set(d.map(l => lmNorm(l[2] || ("SS" + l[1]))));
+  let lmRows = null;
+  try { const r = await chamarApi({ acao: "listar", ...leitCred(), aba: "LocalizacaoMatricula" }); if (r && !r.erro && r.dados) { lmRows = r.dados.slice(1); try { localStorage.setItem("lcLmCache", JSON.stringify(lmRows.filter(x => minhas.has(lmNorm(x[0]))).map(x => [x[0], x[1], x[2], "", x[4], "", x[6]]))); } catch (e) {} } } catch (e) {}
+  if (!lmRows) { try { lmRows = JSON.parse(localStorage.getItem("lcLmCache") || "[]"); } catch (e) { lmRows = []; } }
+  const link = {}, feito = {};
+  lmRows.forEach(x => { const k = lmNorm(x[0]); if (!k) return; if (x[1]) link[k] = String(x[1]); if (String(x[4] || "").startsWith(LC_OBS) && x[6]) feito[k] = { obs: String(x[4]), quando: x[2], pend: false }; });
+  locContasFila().forEach(x => { link[x.k] = x.linha[1]; });
+  (await lcFilaTodas()).forEach(x => { if (x.linha[1]) link[x.k] = x.linha[1]; feito[x.k] = { obs: x.linha[4], quando: x.linha[2], pend: true }; });
   window.lcCache = d;
   if (!d.length) { box.innerHTML = `<div class="card">${offline ? "Sem internet e sem lista salva no celular. Abra esta tela uma vez no Wi-Fi do escritório." : "Nenhuma conta para entregar no momento."}</div>`; return; }
   const num = v => { const n = parseFloat(String(v == null ? "" : v).replace(",", ".")); return isNaN(n) ? null : n; };
-  const semLoc = d.filter(l => (num(l[6]) === null || num(l[7]) === null) && !linkDe(l)).length;
+  const chave = l => lmNorm(l[2] || ("SS" + l[1]));
+  const linkDe = l => { const la = num(l[6]), lo = num(l[7]); const inf = link[chave(l)]; return inf ? lmLink(inf) : (la !== null && lo !== null ? "https://www.google.com/maps/search/?api=1&query=" + la + "," + lo : ""); };
+  window.lcLinkDe = linkDe;
+  const nFeito = d.filter(l => feito[chave(l)]).length, nPend = d.filter(l => (feito[chave(l)] || {}).pend).length, semLoc = d.filter(l => !linkDe(l)).length;
   let rotaAnt = null;
   box.innerHTML = (offline ? `<div class="aviso">Sem internet: mostrando a última lista salva no celular.</div>` : "")
-    + `<div class="card"><b>${d.length} contas</b>${semLoc ? ` · ${semLoc} sem localização` : ""}</div>`
+    + `<div class="card"><b>${nFeito} de ${d.length}</b> com foto da fachada${semLoc ? ` · ${semLoc} sem localização` : ""}${nPend ? `<div class="nota" style="margin:0;color:#b45309">⏳ ${nPend} guardada(s) no celular – vão sozinhas no Wi-Fi do escritório</div>` : ""}</div>`
     + d.map((l, i) => {
-      const lat = num(l[6]), lon = num(l[7]), rota = String(l[5] || "Sem rota"), inf = (lat === null || lon === null) ? linkDe(l) : "";
+      const k = chave(l), lk = linkDe(l), f = feito[k], rota = String(l[5] || "Sem rota");
       const cab = rota !== rotaAnt ? `<div style="margin:12px 0 4px;font-weight:bold;color:#0b5394">${sspEsc(rota.replace(/^S(\d+)-R(\d+)$/, "Setor $1 · Rota $2"))}</div>` : ""; rotaAnt = rota;
-      const loc = lat !== null && lon !== null
-        ? `<a class="acao" style="margin:0;background:#0b5394;text-decoration:none;text-align:center;white-space:nowrap;width:auto;flex:0 0 auto;padding:8px 10px;font-size:14px" href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" rel="noopener">📍 Localização</a>`
-        : inf ? `<a class="acao" style="margin:0;background:#0b5394;text-decoration:none;text-align:center;white-space:nowrap;width:auto;flex:0 0 auto;padding:8px 10px;font-size:14px" href="${sspEsc(lmLink(inf))}" target="_blank" rel="noopener">📍 Localização</a>`
-        : `<button class="acao" style="margin:0;background:#b45309;white-space:nowrap;width:auto;flex:0 0 auto;padding:8px 10px;font-size:14px" onclick="document.getElementById('lcx_${i}').style.display='block';this.style.display='none'">📌 Informar localização</button>`;
-      const form = (lat === null || lon === null) && !inf ? `<div id="lcx_${i}" style="display:none;margin-top:8px;background:#fff7ed;border-radius:8px;padding:8px">
-          <b>Cole o link do Google Maps deste imóvel</b><div class="nota" style="margin:2px 0 6px">No Google Maps, toque no local da casa › Compartilhar › Copiar link. Não precisa de coordenadas.</div>
-          <input id="lcl_${i}" class="campo" placeholder="https://maps.app.goo.gl/..." inputmode="url">
-          <button class="acao" style="background:#15803d" onclick="locContasEnviar(${i}, this)">Enviar localização</button></div>` : "";
-      return cab + `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="min-width:0"><div style="font-weight:bold">${sspEsc(l[0])}. ${l[2] ? "Matrícula " + sspEsc(l[2]) : "SS " + sspEsc(l[1])}</div>
-        <div>${sspEsc(l[3] || "—")}</div><div class="nota" style="margin:0">${sspEsc(l[4] || "")}</div>${inf ? `<div class="nota" style="margin:0;color:#b45309">localização informada no painel (a validar)</div>` : ""}</div>${loc}</div>${form}</div>`;
+      const botao = lk ? `<a class="acao" style="${lcEstilo};background:#0b5394" href="${sspEsc(lk)}" target="_blank" rel="noopener">📍 Localização</a>`
+        : `<span class="nota" style="margin:0;white-space:nowrap;color:#b45309">sem localização</span>`;
+      const campoLink = `<label style="display:block;margin-top:6px"><b>Link do Google Maps do imóvel</b><div class="nota" style="margin:2px 0 4px">No Google Maps, toque no local da casa › Compartilhar › Copiar link. Não precisa de coordenadas.</div><input id="lcl_${i}" class="campo" placeholder="https://maps.app.goo.gl/..." inputmode="url"></label>`;
+      const campoFoto = `<label style="display:block;margin-top:6px"><b>📷 Foto da fachada (obrigatória)</b><input type="file" id="lcf_${i}" accept="image/*" capture="environment" class="campo"></label>`;
+      let acao;
+      if (f) {
+        const txt = /correta/.test(f.obs) ? "✅ Localização correta" : /errada/.test(f.obs) ? "✏️ Localização corrigida" : "📌 Localização informada";
+        acao = `<div style="margin-top:6px;color:#15803d;font-weight:bold">${txt} · foto da fachada ${f.pend ? `<span style="color:#b45309">guardada no celular ⏳</span>` : "enviada"}</div><div class="nota" style="margin:0">${formatarQuando(f.quando)}</div>`;
+      } else if (lk) {
+        acao = `<div style="background:#e8f1fb;border-radius:8px;padding:8px;margin-top:6px"><b>Chegando lá: a localização está correta?</b>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+            <button class="acao" style="margin:0;background:#15803d" onclick="lcAbrir(${i},'ok')">✅ Sim, correta</button>
+            <button class="acao" style="margin:0;background:#b45309" onclick="lcAbrir(${i},'errada')">❌ Não, errada</button></div>
+          <div id="lcx_${i}" style="display:none;margin-top:6px"><div id="lclk_${i}" style="display:none">${campoLink}</div>${campoFoto}
+            <button class="acao" style="background:#15803d" onclick="locContasEnviar(${i}, this)">Enviar</button></div></div>`;
+      } else {
+        acao = `<div style="background:#fff7ed;border-radius:8px;padding:8px;margin-top:6px"><b>Sem localização. Chegando lá, informe o link e tire a foto da fachada.</b>
+          <div id="lcx_${i}" data-modo="nova">${campoLink}${campoFoto}
+            <button class="acao" style="background:#15803d" onclick="locContasEnviar(${i}, this)">Enviar</button></div></div>`;
+      }
+      return cab + `<div class="card"${f ? ` style="border-left:4px solid #15803d"` : ""}><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div style="min-width:0"><div style="font-weight:bold">${sspEsc(l[0])}. ${l[2] ? "Matrícula " + sspEsc(l[2]) : "SS " + sspEsc(l[1])}</div>
+        <div>${sspEsc(l[3] || "—")}</div><div class="nota" style="margin:0">${sspEsc(l[4] || "")}</div></div>${botao}</div>${acao}</div>`;
     }).join("");
 }
-// 25/11: link do Google Maps informado pelo Sinval para matrícula sem localização – grava em LocalizacaoMatricula (mesmo padrão das SS do Digiteam); sem internet, guarda no celular e envia depois
+function lcAbrir(i, modo) {
+  const x = document.getElementById("lcx_" + i); if (!x) return;
+  x.style.display = "block"; x.dataset.modo = modo;
+  const lk = document.getElementById("lclk_" + i); if (lk) lk.style.display = modo === "errada" ? "block" : "none";
+}
+async function locContasEnviar(i, btn) {
+  const l = (window.lcCache || [])[i]; if (!l || (btn && btn.disabled)) return;
+  const modo = ((document.getElementById("lcx_" + i) || {}).dataset || {}).modo || "nova";
+  let link = "";
+  if (modo === "ok") link = window.lcLinkDe(l);
+  else {
+    link = String((document.getElementById("lcl_" + i) || {}).value || "").trim();
+    if (!ddLinkValido(link)) { alert("Cole o LINK do Google Maps (começa com https://maps.app.goo.gl/ ou https://www.google.com/maps). Não precisa de coordenadas."); return; }
+  }
+  const arq = ((document.getElementById("lcf_" + i) || {}).files || [])[0];
+  if (!arq) { alert("A foto da fachada é obrigatória. Tire a foto do imóvel e envie de novo."); return; }
+  const mat = String(l[2] || ""), k = lmNorm(mat || ("SS" + l[1]));
+  const obs = LC_OBS + (modo === "ok" ? " – localização correta (confirmada em campo)" : modo === "errada" ? " – localização errada, corrigida em campo (a validar)" : " – localização informada em campo (a validar)") + (l[1] ? " – SS " + l[1] : "");
+  const linha = [mat ? "'" + mat : "SS " + l[1], link, new Date().toISOString(), window.credenciais.usuario, obs, "São Desidério", ""];
+  sspTravar(btn, "Enviando...");
+  let b64; try { const pos = await obterPosicao(); b64 = await carimbarFoto(arq, pos); } catch (e) { alert("Não consegui ler a foto. Tire de novo."); sspDestravar(btn); return; }
+  try { await lcFilaPor({ k, linha, b64 }); } catch (e) { alert("Não consegui guardar a foto no celular. Tente de novo."); sspDestravar(btn); return; }
+  if (navigator.onLine === false) alert("Sem internet agora. A foto e a localização ficaram guardadas no celular e serão enviadas sozinhas no Wi-Fi do escritório.");
+  else { await lcEnviarFotos(); const resta = (await lcFilaTodas()).some(x => x.k === k); alert(resta ? "Sem sinal bom agora. Ficou guardado no celular e será enviado sozinho quando a internet voltar." : "Enviado. Obrigado!"); }
+  locContasCarregar();
+}
+// 25/11 (versão anterior): links sem foto guardados no celular – continua enviando o que tiver ficado na fila antiga
 function locContasFila() { try { return JSON.parse(localStorage.getItem("lcFila") || "[]"); } catch (e) { return []; } }
 function locContasFilaSalvar(f) { try { localStorage.setItem("lcFila", JSON.stringify(f)); } catch (e) {} }
 async function locContasEnviarFila() {
   if (window.__lcEnviando || navigator.onLine === false || !window.credenciais) return;
   const f = locContasFila(); if (!f.length) return; window.__lcEnviando = true; const resta = [];
-  for (const it of f) { try { const r = await chamarApi({ acao: "gravarVarias", ...leitCred(), aba: "LocalizacaoMatricula", linhas: [it.linha] }); if (!r || r.erro) resta.push(it); else { try { const c = lmCache() || { em: new Date().toISOString(), m: {} }; c.m[it.k] = [it.linha[0].replace(/^'/, ""), it.linha[1], it.linha[2], "São Desidério", ""]; localStorage.setItem(LM_CHAVE, JSON.stringify(c)); } catch (e) {} } } catch (e) { resta.push(it); } }
+  for (const it of f) { try { const r = await chamarApi({ acao: "gravarVarias", ...leitCred(), aba: "LocalizacaoMatricula", linhas: [it.linha] }); if (!r || r.erro) resta.push(it); } catch (e) { resta.push(it); } }
   locContasFilaSalvar(resta); window.__lcEnviando = false;
 }
-window.addEventListener("online", () => setTimeout(locContasEnviarFila, 3000));
-async function locContasEnviar(i, btn) {
-  const l = (window.lcCache || [])[i]; if (!l || (btn && btn.disabled)) return;
-  const link = String((document.getElementById("lcl_" + i) || {}).value || "").trim();
-  if (!ddLinkValido(link)) { alert("Cole o LINK do Google Maps (começa com https://maps.app.goo.gl/ ou https://www.google.com/maps). Não precisa de coordenadas."); return; }
-  const mat = String(l[2] || ""), k = lmNorm(mat || ("SS" + l[1]));
-  const linha = [mat ? "'" + mat : "SS " + l[1], link, new Date().toISOString(), window.credenciais.usuario, "contas a entregar – informado no painel (a validar)" + (l[1] ? " – SS " + l[1] : ""), "São Desidério", ""];
-  sspTravar(btn, "Enviando...");
-  const f = locContasFila().filter(x => x.k !== k); f.push({ k, linha }); locContasFilaSalvar(f);
-  if (navigator.onLine === false) alert("Sem internet agora. A localização ficou guardada no celular e será enviada sozinha quando tiver Wi-Fi.");
-  else { await locContasEnviarFila(); alert(locContasFila().some(x => x.k === k) ? "Não consegui enviar agora. Ficou guardada no celular e será enviada quando a internet voltar." : "Localização enviada. Obrigado!"); }
-  locContasCarregar();
+// 25/11: Relatório da gerência – matrículas da lista "contas a entregar" já conferidas pelo Sinval (foto da fachada + localização)
+Object.assign(TELAS, { leitLocContasRel: () => { setTimeout(lcRelCarregar, 0); return `<h2>Relatório – fachadas e localizações conferidas</h2><div class="nota">O que o Sinval já conferiu na lista de contas a entregar. Use "Baixar planilha" para guardar na base do mapa.</div><div id="lcr_box">Carregando...</div>`; } });
+async function lcRelCarregar() {
+  const box = document.getElementById("lcr_box"); if (!box) return;
+  let d = [], lm = [];
+  try { const [a, b] = await Promise.all([chamarApi({ acao: "listar", ...leitCred(), aba: "ContasEntregar" }), chamarApi({ acao: "listar", ...leitCred(), aba: "LocalizacaoMatricula" })]);
+    d = (a && a.dados || []).slice(1).filter(l => l && (l[2] || l[1])); lm = (b && b.dados || []).slice(1); }
+  catch (e) { box.innerHTML = `<div class="card">Sem internet. Abra de novo com internet.</div>`; return; }
+  const ult = {}; lm.forEach(x => { if (String(x[4] || "").startsWith(LC_OBS) && x[6]) ult[lmNorm(x[0])] = x; });
+  const res = x => /correta/.test(x[4]) ? "Correta" : /errada/.test(x[4]) ? "Corrigida" : "Informada";
+  const linhas = d.map(l => { const x = ult[lmNorm(l[2] || ("SS" + l[1]))]; return { l, x }; });
+  const feitas = linhas.filter(r => r.x), n = t => feitas.filter(r => res(r.x) === t).length;
+  window.lcRelDados = feitas.map(({ l, x }) => [l[2] || "", l[1] || "", l[3] || "", l[4] || "", res(x), x[1] || "", x[6] || "", x[2] || "", sspNome ? sspNome(x[3]) : x[3]]);
+  box.innerHTML = `<div class="card"><table style="width:100%;border-collapse:collapse">
+      <tr><td>✅ Localização correta</td><td style="text-align:right"><b>${n("Correta")}</b></td></tr>
+      <tr><td>✏️ Localização corrigida</td><td style="text-align:right"><b>${n("Corrigida")}</b></td></tr>
+      <tr><td>📌 Localização informada (não tinha)</td><td style="text-align:right"><b>${n("Informada")}</b></td></tr>
+      <tr style="border-top:1px solid #ccc"><td><b>Com foto da fachada</b></td><td style="text-align:right"><b>${feitas.length} de ${d.length}</b></td></tr>
+      <tr><td>⏳ Faltam</td><td style="text-align:right"><b>${d.length - feitas.length}</b></td></tr></table>
+      ${feitas.length ? `<button class="acao" style="background:#15803d" onclick="lcRelBaixar()">⬇ Baixar planilha das conferidas</button>` : ""}</div>`
+    + feitas.slice().sort((a, b) => String(b.x[2]).localeCompare(String(a.x[2]))).map(({ l, x }) => `<div class="card"><b>Matrícula ${sspEsc(l[2] || "SS " + l[1])}</b> · ${res(x) === "Correta" ? "✅" : res(x) === "Corrigida" ? "✏️" : "📌"} ${res(x)}
+      <div>${sspEsc(l[3] || "")}</div><div class="nota" style="margin:0">${sspEsc(l[4] || "")} · ${formatarQuando(x[2])}</div>
+      <div style="display:flex;gap:8px;margin-top:6px"><a class="acao" style="margin:0;background:#0b5394;text-decoration:none;text-align:center" href="${sspEsc(lmLink(x[1]))}" target="_blank" rel="noopener">📍 Localização</a>
+      <a class="acao" style="margin:0;background:#555;text-decoration:none;text-align:center" href="${sspEsc(x[6])}" target="_blank" rel="noopener">📷 Foto da fachada</a></div></div>`).join("");
+}
+function lcRelBaixar() {
+  const cab = ["matricula", "ss", "nome", "endereco", "resultado", "link_localizacao", "foto_fachada", "data", "quem"];
+  const esc = v => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  const csv = "﻿" + [cab].concat(window.lcRelDados || []).map(r => r.map(esc).join(";")).join("\r\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = "conferencia_fachadas_" + new Date().toISOString().slice(0, 10) + ".csv"; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 // ---------- Contas retidas a entregar ----------
 Object.assign(TELAS, { leitEntregas: () => { setTimeout(leitCarregarEntregas, 0); return `<h2>Contas retidas a entregar</h2><div id="ent_box">Carregando...</div>`; } });
@@ -10355,11 +10446,12 @@ Object.assign(TELAS, { gerLeitura: () => { setTimeout(gerCarregarAlteracoes, 0);
     <button class="btn" onclick="abrirTela('leitPrefeitura')">Contas da prefeitura</button>
     <button class="btn" onclick="abrirTela('leitEntregas')">Retidas a entregar</button>
     <button class="btn" onclick="abrirTela('leitLocContas')">Localização de contas a serem entregues</button>
+    <button class="btn" onclick="abrirTela('leitLocContasRel')">Relatório – fachadas e localizações conferidas</button>
     <button class="btn" onclick="abrirTela('leitDatas')">Datas das leituras</button>
     <button class="btn" onclick="abrirTela('bobinas')">Bobinas</button></div>
   <h3>Alterações de matrícula</h3><div id="ga_lista">Carregando...</div><h3>Localizações de hidrômetro recebidas</h3><div id="ga_loc">Carregando...</div>`; } });
 function abrirTela(tela) { const app = document.getElementById("app");
-  const volta = tela === "gerLeitura" ? "renderAtual()" : ["leitEntregas", "leitProjetada", "leitMudanca", "locHidrometro"].includes(tela) && typeof ehLeiturista === "function" && ehLeiturista() ? "abrirTela('leitRotina')" : tela === "leitRotina" ? "renderAtual()" : "abrirTela('gerLeitura')";
+  const volta = tela === "gerLeitura" || (tela === "leitLocContas" && typeof ehLeiturista === "function" && ehLeiturista() && !(window.MODO_GERENTE && !emPrevia())) ? "renderAtual()" : ["leitEntregas", "leitProjetada", "leitMudanca", "locHidrometro"].includes(tela) && typeof ehLeiturista === "function" && ehLeiturista() ? "abrirTela('leitRotina')" : tela === "leitRotina" ? "renderAtual()" : "abrirTela('gerLeitura')";
   app.innerHTML = `<button class="voltar" onclick="${volta}">← Voltar</button>` + (TELAS[tela] ? TELAS[tela]() : ""); window.scrollTo(0, 0); }
 async function gerCarregarAlteracoes() {
   const box = document.getElementById("ga_lista"); if (!box) return;
