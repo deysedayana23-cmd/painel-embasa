@@ -46,7 +46,7 @@
 <div id="avisoAtualizacao" style="display:none;background:#0b5394;color:#fff;padding:12px 16px;font-weight:bold;font-size:15px"><span>Há uma atualização do painel.</span> <button onclick="location.replace(location.pathname + '?v=' + Date.now())" style="margin-left:6px;background:#fff;color:#0b5394;border:none;border-radius:6px;padding:6px 10px;font-weight:bold">Atualizar agora</button></div>
 <header>
   <h1>Painel EMBASA</h1>
-  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 25/11 20h56</div>
+  <div id="versaoTexto" style="font-size:12px;opacity:.85">Versão 28/11 08h25</div>
   <select id="perfil" onchange="trocarPerfil()"></select>
   <button onclick="telaTrocarSenha()" style="display:none;margin-top:8px;background:#fff;color:#0b5394;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Trocar minha senha</button>
   <button onclick="sairPainel()" style="margin-top:8px;background:#0b5394;color:#fff;border:none;border-radius:8px;padding:8px 12px;font-weight:600">Sair</button>
@@ -4365,6 +4365,17 @@ Object.assign(TELAS, { mapaCompleto: () => `<h2>Mapa completo por localidade</h2
   <div id="mc_leg" class="nota" style="display:none">
     <span style="color:#b00020">▬</span> quadra sem lote &nbsp; <span style="color:#ffd400">▬</span> quadra desenhada &nbsp;
     <span style="color:#7cf">▬</span> lote &nbsp; <span style="color:#fff">●</span> matrícula do cadastro &nbsp; <span style="color:#0f0">●</span> ponto conferido por foto</div>` });
+// ficha que aparece ao clicar num ponto do mapa completo
+function mcFicha(p, origem) {
+  p = p || {};
+  if (!p.m) return "Ponto sem matrícula no cadastro";
+  const li = (r, v) => v ? `<tr><td style="padding-right:8px;color:#555">${r}</td><td><b>${sspEsc(String(v))}</b></td></tr>` : "";
+  return `<table style="font-size:13px;line-height:1.35">
+    ${li("Matrícula", p.m)}${li("Cliente", p.n)}${li("Endereço", p.e)}${li("Bairro", p.b)}
+    ${li("Hidrômetro", p.h)}${li("Sit. água", p.sa)}${li("Sit. imóvel", p.si)}
+    <tr><td colspan="2" style="padding-top:4px;color:#777">Origem: ${sspEsc(String(origem || ""))}</td></tr></table>`;
+}
+
 async function mcAbrir(loc) {
   const box = document.getElementById("mc_resumo"), div = document.getElementById("mc_mapa"), leg = document.getElementById("mc_leg");
   if (!loc) { if (div) div.style.display = "none"; if (leg) leg.style.display = "none"; if (box) box.innerHTML = ""; return; }
@@ -4392,8 +4403,11 @@ async function mcAbrir(loc) {
   const quadras = L.geoJSON(d.quadra, { style: f => ({ color: f.properties.semlote ? "#b00020" : "#ffd400", weight: f.properties.semlote ? 3 : 1.5, fillOpacity: f.properties.semlote ? 0.25 : 0 }),
     onEachFeature: (f, l) => l.bindPopup("Quadra " + (f.properties.rot || "?") + (f.properties.semlote ? " – <b>sem lote desenhado</b>" : "")) }).addTo(mcMapa);
   if (d.lotes) L.geoJSON(d.lotes, { style: { color: "#7cf", weight: 1 } }).addTo(mcMapa);
-  if (d.consumidores) L.geoJSON(d.consumidores, { pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 2.5, color: "#fff", weight: 1, fillOpacity: 0.9 }) }).addTo(mcMapa);
-  if (d.foto) L.geoJSON(d.foto, { pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 4, color: "#0f0", weight: 2, fillOpacity: 0.9 }) }).addTo(mcMapa);
+  const pontoCons = d.cons || d.consumidores;
+  if (pontoCons) L.geoJSON(pontoCons, { pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 3.5, color: "#fff", weight: 1, fillOpacity: 0.9 }),
+    onEachFeature: (f, l) => l.bindPopup(mcFicha(f.properties, "manuscrito")) }).addTo(mcMapa);
+  if (d.foto) L.geoJSON(d.foto, { pointToLayer: (f, ll) => L.circleMarker(ll, { radius: 5, color: "#0f0", weight: 2, fillOpacity: 0.9 }),
+    onEachFeature: (f, l) => l.bindPopup(mcFicha(f.properties, f.properties.org || "foto/link")) }).addTo(mcMapa);
   try { mcMapa.fitBounds(quadras.getBounds(), { padding: [10, 10] }); } catch (e) { mcMapa.setView([-12.3625, -44.9755], 14); }
   setTimeout(() => { try { mcMapa.invalidateSize(); } catch (e) {} }, 300);
 }
@@ -9869,7 +9883,7 @@ function cdWhats() {
 }
 
 // Versão do painel: mude junto com o texto do topo a cada publicação
-const VERSAO_PAINEL = "25/11 20h56";
+const VERSAO_PAINEL = "28/11 08h25";
 async function verificarVersao() {
   const msg = document.getElementById("versaoMsg");
   msg.textContent = "Verificando...";
